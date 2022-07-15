@@ -10,12 +10,15 @@ import {
 } from "https://deno.land/x/combine@v0.0.5/mod.ts";
 import { space } from "../combine/src/parsers.ts";
 import { word, __, dot } from "./src/common.ts";
+import { Quantity } from "./src/Quantity.ts";
+import { Range } from "./src/Range.ts";
 import { Temperature } from "./src/Temperature.ts";
+import { Time } from "./src/Time.ts";
 
 export const Duckling = createLanguage({
-  Entity: () => any(Temperature.Exact),
+  Entity: () => any(Range.parser, Temperature.parser, Time.parser, Quantity.parser), 
   Unstructured: () => either(dot(__(word)), __(word)),
-  Extract: (s) =>
+  extract: (s) =>
     map(
       seq(
         space(),

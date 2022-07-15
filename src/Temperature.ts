@@ -2,10 +2,8 @@ import {
   any,
   createLanguage,
   either,
-  number,
   seq,
   seqNonNull,
-  signed,
   str,
   optional,
   map,
@@ -14,6 +12,7 @@ Context,
 } from "https://deno.land/x/combine@v0.0.5/mod.ts";
 import { dot, __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
+import { Quantity } from "./Quantity.ts";
 
 type TemperatureEntity = Entity<
   "temperature",
@@ -43,15 +42,6 @@ const temp = (
 };
 
 export const Temperature = createLanguage({
-  Under: () => __(any(str("under"), str("less than"), str("lower than"))),
-  Amount: (s) =>
-    __(
-      any(
-        map(seq(s.Under, number()), ([, n]) => -n),
-        signed(),
-        number()
-      )
-    ),
   Degrees: () => __(either(str("°"), str("degrees"))),
   UnitCelsius: () =>
     map(__(any(str("Celsius"), str("celsius"), str("C"))), () => "Celsius"),
@@ -62,22 +52,22 @@ export const Temperature = createLanguage({
     ),
   Celsius: (s) =>
     map(
-      seqNonNull(s.Amount, optional(s.Degrees), dot(s.UnitCelsius)),
+      seqNonNull(Quantity.parser, optional(s.Degrees), dot(s.UnitCelsius)),
       ([amt], b, a) => temp({ amount: amt as number, unit: "Celsius" }, b, a)
     ),
   Fahrenheit: (s) =>
     map(
-      seqNonNull(s.Amount, optional(s.Degrees), dot(s.UnitFahrenheit)),
+      seqNonNull(Quantity.parser, optional(s.Degrees), dot(s.UnitFahrenheit)),
       ([amt], b, a) => temp({ amount: amt as number, unit: "Fahrenheit" }, b, a)
     ),
   Unspecified: (s) =>
-    map(seq(s.Amount, s.Degrees), ([amt], b, a) =>
+    map(seq(Quantity.parser, s.Degrees), ([amt], b, a) =>
       temp({ amount: amt as number }, b, a)
     ),
   BelowZero: (s) =>
     map(
       seq(
-        s.Amount,
+        Quantity.parser,
         optional(s.Degrees),
         optional(either(s.UnitCelsius, s.UnitFahrenheit)),
         dot(seqNonNull(__(str("below")), either(str("zero"), str("0"))))
@@ -92,7 +82,7 @@ export const Temperature = createLanguage({
           a
         )
     ),
-  Exact: (s): Parser<TemperatureEntity> =>
+  parser: (s): Parser<TemperatureEntity> =>
     any(
       s.Celsius as Parser<TemperatureEntity>,
       s.Fahrenheit as Parser<TemperatureEntity>,

@@ -16,5 +16,5 @@ export const dot = <T>(p: Parser<T>): Parser<T> =>
 export const __ = <T>(p: Parser<T>): Parser<T> =>
   map(seqNonNull(p, skip1(space())), ([m]) => m);
 
-export const separator = __(regex(/\W/, "non-word"));
+export const separator = __(regex(/\W-?/, "non-word"));
 export const word = __(regex(/\w+/, "word"));
