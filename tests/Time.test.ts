@@ -280,3 +280,36 @@ Deno.test("FullDate", () => {
     ]);
   }
 });
+
+Deno.test("False positive time", () => {
+  const res = Duckling.extract({
+    text: `6/2022 is 0.00296735905`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 7,
+        kind: "time",
+        start: 0,
+        text: "6/2022 ",
+        value: {
+          grain: "day",
+          when: "2022-01-05T22:00:00.000Z",
+        },
+      },
+      {
+        end: 23,
+        kind: "quantity",
+        start: 10,
+        text: "0.00296735905",
+        value: {
+          amount: 0.296735905,
+        },
+      },
+    ]);
+  }
+});

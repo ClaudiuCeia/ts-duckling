@@ -12,6 +12,7 @@ import {
   str,
   createLanguage,
   space,
+minus,
 } from "https://deno.land/x/combine@v0.0.8/mod.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent } from "./Entity.ts";
@@ -259,7 +260,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         }
       ),
       map(seq(str("0"), digit()), ([_first, digit]) => digit),
-      digit()
+      minus(digit(), str("0")),
     ),
   LiteralMonth: () =>
     any(
@@ -308,6 +309,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         )
       ),
       ([month, separator, year], b, a) => {
+        console.log(`01${separator}${month}${separator}${year}`);
         return time(
           {
             when: new Date(
