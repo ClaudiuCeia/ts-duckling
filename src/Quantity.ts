@@ -7,8 +7,9 @@ import {
   str,
   map,
   Context,
-} from "https://deno.land/x/combine@v0.0.5/mod.ts";
-import { __ } from "./common.ts";
+  Parser,
+} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 
 export type QuantityEntity = Entity<
@@ -35,11 +36,18 @@ const quantity = (
   );
 };
 
-export const Quantity = createLanguage({
+type QuantityEntityLanguage = EntityLanguage<
+  {
+    Under: Parser<string>;
+  },
+  QuantityEntity
+>;
+
+export const Quantity = createLanguage<QuantityEntityLanguage>({
   Under: () => __(any(str("under"), str("less than"), str("lower than"))),
   parser: (s) =>
     map(
-      __(
+      dot(
         any(
           map(seq(s.Under, number()), ([, n]) => -n),
           signed(),

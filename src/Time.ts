@@ -1,7 +1,6 @@
 import {
   any,
   Context,
-  createLanguage,
   digit,
   either,
   map,
@@ -11,10 +10,13 @@ import {
   repeat,
   seq,
   str,
-} from "https://deno.land/x/combine@v0.0.5/mod.ts";
-import { __, dot } from "./common.ts";
+  createLanguage,
+  space,
+} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+import { __, dot, EntityLanguage } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { Entity } from "./Entity.ts";
+import { fuzzyCase } from "./parsers.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";
 
 type TimeGranularity =
@@ -29,7 +31,7 @@ type TimeGranularity =
   | "decade"
   | "century";
 
-type TimeEntity = Entity<
+export type TimeEntity = Entity<
   "time",
   {
     when: string | [string, string];
@@ -45,61 +47,90 @@ const time = (
   return ent(value, "time", before, after);
 };
 
-export const Time = createLanguage({
+type TimeEntityLanguage = EntityLanguage<
+  {
+    Grain: Parser<string>;
+    Day: Parser<number>;
+    Year: Parser<number>;
+    NumericMonth: Parser<number>;
+    LiteralMonth: Parser<string>;
+    QualifiedDay: Parser<number>;
+    DateSeparator: Parser<string>;
+
+    // Referring to a time period (hour, minutes, century, ...)
+    UnspecifiedGrainAmount: Parser<TimeEntity>;
+    // Monday, Tuesday, ...
+    DayOfWeek: Parser<TimeEntity>;
+    // Terms used to refer to some relative date (today, tomorrow, ...)
+    Common: Parser<TimeEntity>;
+    // Some amount of time (x days, y years, ...)
+    GrainQuantity: Parser<TimeEntity>;
+    // Relative dates in plain language (5 days ago, last weekend, ...)
+    Relative: Parser<TimeEntity>;
+    // Dates expressed as month and year (12/2022, June/2022)
+    PartialDateMonthYear: Parser<TimeEntity>;
+    // Dates expressed as day and month (12/11, 12 November)
+    PartialDateDayMonth: Parser<TimeEntity>;
+    // Date expressed in full (01/07/2022, 01 June 2022, etc)
+    FullDate: Parser<TimeEntity>;
+  },
+  TimeEntity
+>;
+
+export const Time = createLanguage<TimeEntityLanguage>({
   Grain: () =>
     __(
       any(
-        regex(/sec(ond)?s?/, "second"),
-        regex(/m(in(ute)?s?)?/, "minute"),
-        regex(/h(((ou)?rs?)|r)?/, "hour"),
-        regex(/days?/, "day"),
-        regex(/weeks?/, "week"),
-        regex(/months?/, "month"),
-        regex(/quarters?/, "quarter"),
-        regex(/years?/, "year"),
-        regex(/decades?/, "decade"),
-        regex(/century|centuries/, "century")
+        regex(/sec(ond)?s?/i, "second"),
+        regex(/m(in(ute)?s?)?/i, "minute"),
+        regex(/h(((ou)?rs?)|r)?/i, "hour"),
+        regex(/days?/i, "day"),
+        regex(/weeks?/i, "week"),
+        regex(/months?/i, "month"),
+        regex(/quarters?/i, "quarter"),
+        regex(/years?/i, "year"),
+        regex(/decades?/i, "decade"),
+        regex(/century|centuries/i, "century")
       )
     ),
-  // TODO: fix unsafe cast
   UnspecifiedGrainAmount: () =>
-    map(
-      dot(
+    dot(
+      map(
         any(
-          regex(/seconds?/, "second"),
-          regex(/minutes?/, "minute"),
-          regex(/hours?/, "hour"),
-          regex(/days?/, "day"),
-          regex(/weeks?/, "week"),
-          regex(/months?/, "month"),
-          regex(/quarters?/, "quarter"),
-          regex(/years?/, "year"),
-          regex(/decades?/, "decade"),
-          regex(/century|centuries/, "century")
-        )
-      ),
-      (grain, b, a) => {
-        return time(
-          {
-            when: grain as string,
-            grain: grain as TimeGranularity,
-          },
-          b,
-          a
-        );
-      }
+          regex(/seconds?/i, "second"),
+          regex(/minutes?/i, "minute"),
+          regex(/hours?/i, "hour"),
+          regex(/days?/i, "day"),
+          regex(/weeks?/i, "week"),
+          regex(/months?/i, "month"),
+          regex(/quarters?/i, "quarter"),
+          regex(/years?/i, "year"),
+          regex(/decades?/i, "decade"),
+          regex(/century|centuries/i, "century")
+        ),
+        (grain, b, a) => {
+          return time(
+            {
+              when: grain,
+              grain: grain as TimeGranularity,
+            },
+            b,
+            a
+          );
+        }
+      )
     ),
   DayOfWeek: () =>
     dot(
       map(
         any(
-          str("Monday"),
-          str("Tuesday"),
-          str("Wednesday"),
-          str("Thursday"),
-          str("Friday"),
-          str("Saturday"),
-          str("Sunday")
+          fuzzyCase("Monday"),
+          fuzzyCase("Tuesday"),
+          fuzzyCase("Wednesday"),
+          fuzzyCase("Thursday"),
+          fuzzyCase("Friday"),
+          fuzzyCase("Saturday"),
+          fuzzyCase("Sunday")
         ),
         (day, b, a) => {
           return time(
@@ -116,26 +147,32 @@ export const Time = createLanguage({
   Common: () =>
     dot(
       any(
-        map(str("today"), (_res, b, a) =>
+        map(fuzzyCase("today"), (_res, b, a) =>
           time({ when: new Date().toISOString(), grain: "day" }, b, a)
         ),
-        map(str("yesterday"), (_res, b, a) => {
+        map(fuzzyCase("yesterday"), (_res, b, a) => {
           const now = new Date();
           return time(
-            { when: new Date(now.getDate() - 1).toISOString(), grain: "day" },
+            {
+              when: new Date(now.getDate() - 1).toISOString(),
+              grain: "day",
+            },
             b,
             a
           );
         }),
-        map(str("tomorrow"), (_res, b, a) => {
+        map(fuzzyCase("tomorrow"), (_res, b, a) => {
           const now = new Date();
           return time(
-            { when: new Date(now.getDate() + 1).toISOString(), grain: "day" },
+            {
+              when: new Date(now.getDate() + 1).toISOString(),
+              grain: "day",
+            },
             b,
             a
           );
         }),
-        map(str("weekend"), (_res, b, a) => {
+        map(fuzzyCase("weekend"), (_res, b, a) => {
           return time({ when: "weekend", grain: "week" }, b, a);
         })
       )
@@ -144,7 +181,7 @@ export const Time = createLanguage({
     map(seq(Quantity.parser, dot(s.Grain)), ([quantity, grain], b, a) => {
       return time(
         {
-          when: `${quantity} ${grain}`,
+          when: `${quantity.value.amount} ${grain}`,
           grain: grain as TimeGranularity,
         },
         b,
@@ -155,14 +192,12 @@ export const Time = createLanguage({
     any(
       map(
         seq(
-          __(either(str("last"), str("previous"))),
+          __(any(fuzzyCase("last"), fuzzyCase("past"), fuzzyCase("previous"))),
           optional(Quantity.parser),
           dot(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
         ),
         ([, quantity, grain], b, a) => {
-          const amount = quantity
-            ? (quantity as QuantityEntity).value.amount * -1
-            : -1;
+          const amount = quantity ? quantity.value.amount * -1 : -1;
 
           return time(
             {
@@ -176,7 +211,7 @@ export const Time = createLanguage({
       ),
       map(
         seq(
-          __(either(str("next"), str("following"))),
+          __(either(fuzzyCase("next"), fuzzyCase("following"))),
           optional(Quantity.parser),
           dot(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
         ),
@@ -202,9 +237,7 @@ export const Time = createLanguage({
           dot(str("ago"))
         ),
         ([quantity, grain], b, a) => {
-          const amount = quantity
-            ? (quantity as QuantityEntity).value.amount * -1
-            : -1;
+          const amount = quantity ? quantity.value.amount * -1 : -1;
 
           return time(
             {
@@ -230,18 +263,18 @@ export const Time = createLanguage({
     ),
   LiteralMonth: () =>
     any(
-      str("January"),
-      str("February"),
-      str("March"),
-      str("April"),
-      str("May"),
-      str("June"),
-      str("July"),
-      str("August"),
-      str("September"),
-      str("October"),
-      str("November"),
-      str("December")
+      fuzzyCase("January"),
+      fuzzyCase("February"),
+      fuzzyCase("March"),
+      fuzzyCase("April"),
+      fuzzyCase("May"),
+      fuzzyCase("June"),
+      fuzzyCase("July"),
+      fuzzyCase("August"),
+      fuzzyCase("September"),
+      fuzzyCase("October"),
+      fuzzyCase("November"),
+      fuzzyCase("December")
     ),
   Day: () =>
     any(
@@ -255,21 +288,31 @@ export const Time = createLanguage({
     ),
   Year: () =>
     any(
-      map(repeat(4, digit()), (digits) => parseInt(digits.join())),
-      map(repeat(2, digit()), (digits) => parseInt(digits.join()))
+      map(repeat(4, digit()), (digits) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, ""))
+      ),
+      map(repeat(2, digit()), (digits) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19"))
+      ),
+      map(seq(str("'"), repeat(2, digit())), ([, digits]) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19"))
+      )
     ),
+  DateSeparator: () => any(str("/"), str(" "), str("-"), str(".")),
   PartialDateMonthYear: (s) =>
     map(
       dot(
         any(
-          seq(s.NumericMonth, str("/"), s.Year),
-          seq(s.LiteralMonth, str("/"), s.Year)
+          seq(s.NumericMonth, s.DateSeparator, s.Year),
+          seq(s.LiteralMonth, s.DateSeparator, s.Year)
         )
       ),
       ([month, separator, year], b, a) => {
         return time(
           {
-            when: new Date(`01${separator}${month}${year}`).toISOString(),
+            when: new Date(
+              `01${separator}${month}${separator}${year}`
+            ).toISOString(),
             grain: "day",
           },
           b,
@@ -284,7 +327,7 @@ export const Time = createLanguage({
     ),
   PartialDateDayMonth: (s) =>
     map(
-      dot(seq(s.QualifiedDay, optional(__(str("of"))), s.Month)),
+      dot(seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth)),
       ([day, _of, month], b, a) => {
         const year = new Date().getFullYear();
         return time(
@@ -298,35 +341,72 @@ export const Time = createLanguage({
       }
     ),
   FullDate: (s) =>
-    map(
-      dot(
-        any(
-          seq(s.Day, str("/"), s.NumericMonth, str("/"), s.Year),
-          seq(s.Day, str("/"), s.LiteralMonth, str("/"), s.Year),
-          seq(s.NumericMonth, str("/"), s.Day, str("/"), s.Year),
-          seq(s.LiteralMonth, str("/"), s.Day, str("/"), s.Year)
+    dot(
+      any(
+        map(
+          seq(s.PartialDateDayMonth, space(), s.Year),
+          ([partialDayMonth, _sp, year], b, a) => {
+            const original = partialDayMonth.value.when;
+            if (typeof original !== "string") {
+              throw new Error(`
+                  Unexpected partial date match:
+                  ${JSON.stringify(partialDayMonth)}
+                `);
+            }
+
+            const date = new Date(original);
+            date.setFullYear(year);
+
+            return time({ when: date.toISOString(), grain: "day" }, b, a);
+          }
+        ),
+        map(
+          any(
+            seq(
+              s.Day,
+              s.DateSeparator,
+              s.NumericMonth,
+              s.DateSeparator,
+              s.Year
+            ),
+            seq(
+              s.Day,
+              s.DateSeparator,
+              s.LiteralMonth,
+              s.DateSeparator,
+              s.Year
+            ),
+            seq(
+              s.NumericMonth,
+              s.DateSeparator,
+              s.Day,
+              s.DateSeparator,
+              s.Year
+            ),
+            seq(s.LiteralMonth, s.DateSeparator, s.Day, s.DateSeparator, s.Year)
+          ),
+          ([first, s1, mid, s2, year], b, a) => {
+            return time(
+              {
+                when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
+                grain: "day",
+              },
+              b,
+              a
+            );
+          }
         )
-      ),
-      ([first, s1, mid, s2, year], b, a) => {
-        return time(
-          {
-            when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
-            grain: "day",
-          },
-          b,
-          a
-        );
-      }
+      )
     ),
-  parser: (s): Parser<TimeEntity> =>
+  parser: (s) =>
     any(
-      s.DayOfWeek as Parser<TimeEntity>,
-      s.Common as Parser<TimeEntity>,
-      s.GrainQuantity as Parser<TimeEntity>,
-      /* s.PartialDateMonthYear as Parser<TimeEntity>, */
-      s.PartialDateDayMonth as Parser<TimeEntity>,
-      s.FullDate as Parser<TimeEntity>,
-      s.UnspecifiedGrainAmount as Parser<TimeEntity>,
-      s.Relative as Parser<TimeEntity>
+      s.FullDate,
+      s.Relative,
+      s.PartialDateMonthYear,
+      s.PartialDateDayMonth,
+      s.DayOfWeek,
+      s.Common,
+      s.GrainQuantity,
+      s.UnspecifiedGrainAmount
     ),
 });

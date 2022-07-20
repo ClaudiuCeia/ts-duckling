@@ -8,23 +8,23 @@ import {
   optional,
   map,
   Parser,
-Context,
-} from "https://deno.land/x/combine@v0.0.5/mod.ts";
-import { dot, __ } from "./common.ts";
+  Context,
+} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+import { dot, EntityLanguage, __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
-import { Quantity } from "./Quantity.ts";
+import { Quantity, QuantityEntity } from "./Quantity.ts";
 
-type TemperatureEntity = Entity<
+export type TemperatureEntity = Entity<
   "temperature",
   {
-    amount: number;
+    amount: QuantityEntity;
     unit: "Celsius" | "Fahrenheit" | "N/A";
   }
 >;
 
-const temp = (
+export const temp = (
   value: {
-    amount: number;
+    amount: QuantityEntity;
     unit?: TemperatureEntity["value"]["unit"];
   },
   before: Context,
@@ -41,7 +41,20 @@ const temp = (
   );
 };
 
-export const Temperature = createLanguage({
+type TemperatureEntityLanguage = EntityLanguage<
+  {
+    Degrees: Parser<string>;
+    UnitCelsius: Parser<"Celsius" | "Fahrenheit" | "N/A">;
+    UnitFahrenheit: Parser<"Celsius" | "Fahrenheit" | "N/A">;
+    Celsius: Parser<TemperatureEntity>;
+    Fahrenheit: Parser<TemperatureEntity>;
+    Unspecified: Parser<TemperatureEntity>;
+    BelowZero: Parser<TemperatureEntity>;
+  },
+  TemperatureEntity
+>;
+
+export const Temperature = createLanguage<TemperatureEntityLanguage>({
   Degrees: () => __(either(str("°"), str("degrees"))),
   UnitCelsius: () =>
     map(__(any(str("Celsius"), str("celsius"), str("C"))), () => "Celsius"),
@@ -52,17 +65,27 @@ export const Temperature = createLanguage({
     ),
   Celsius: (s) =>
     map(
-      seqNonNull(Quantity.parser, optional(s.Degrees), dot(s.UnitCelsius)),
-      ([amt], b, a) => temp({ amount: amt as number, unit: "Celsius" }, b, a)
+      seqNonNull<QuantityEntity | string | null>(
+        Quantity.parser,
+        optional(s.Degrees),
+        dot(s.UnitCelsius)
+      ),
+      ([amt], b, a) =>
+        temp({ amount: amt as QuantityEntity, unit: "Celsius" }, b, a)
     ),
   Fahrenheit: (s) =>
     map(
-      seqNonNull(Quantity.parser, optional(s.Degrees), dot(s.UnitFahrenheit)),
-      ([amt], b, a) => temp({ amount: amt as number, unit: "Fahrenheit" }, b, a)
+      seqNonNull<QuantityEntity | string | null>(
+        Quantity.parser,
+        optional(s.Degrees),
+        dot(s.UnitFahrenheit)
+      ),
+      ([amt], b, a) =>
+        temp({ amount: amt as QuantityEntity, unit: "Fahrenheit" }, b, a)
     ),
   Unspecified: (s) =>
     map(seq(Quantity.parser, s.Degrees), ([amt], b, a) =>
-      temp({ amount: amt as number }, b, a)
+      temp({ amount: amt as QuantityEntity }, b, a)
     ),
   BelowZero: (s) =>
     map(
@@ -75,18 +98,17 @@ export const Temperature = createLanguage({
       ([amt, _deg, unit], b, a) =>
         temp(
           {
-            amount: (amt as number) * -1,
-            unit: (unit as TemperatureEntity["value"]["unit"]) || undefined,
+            amount: {
+              ...amt,
+              value: {
+                amount: amt.value.amount * -1,
+              },
+            },
+            unit: unit || undefined,
           },
           b,
           a
         )
     ),
-  parser: (s): Parser<TemperatureEntity> =>
-    any(
-      s.Celsius as Parser<TemperatureEntity>,
-      s.Fahrenheit as Parser<TemperatureEntity>,
-      s.BelowZero as Parser<TemperatureEntity>,
-      s.Unspecified as Parser<TemperatureEntity>
-    ),
+  parser: (s) => any(s.BelowZero, s.Celsius, s.Fahrenheit, s.Unspecified),
 });

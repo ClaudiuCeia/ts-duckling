@@ -6,12 +6,14 @@ import {
   map,
   Context,
   either,
-Parser,
-} from "https://deno.land/x/combine@v0.0.5/mod.ts";
-import { __, dot } from "./common.ts";
+  Parser,
+  optional,
+} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
-import { Temperature } from "./Temperature.ts";
-import { Time } from "./Time.ts";
+import { Quantity, QuantityEntity } from "./Quantity.ts";
+import { Temperature, TemperatureEntity } from "./Temperature.ts";
+import { Time, TimeEntity } from "./Time.ts";
 
 export type RangeEntity<E extends Entity<unknown, unknown>> = Entity<
   "range",
@@ -32,21 +34,43 @@ const range = <E extends Entity<unknown, unknown>>(
   return ent(value, "range", before, after);
 };
 
-export const Range = createLanguage({
+type RangeEntityLanguage = EntityLanguage<
+  {
+    TemperatureRange: Parser<RangeEntity<TemperatureEntity>>;
+    TimeRange: Parser<RangeEntity<TimeEntity>>;
+  },
+  RangeEntity<QuantityEntity | TemperatureEntity | TimeEntity>
+>;
+
+export const Range = createLanguage<RangeEntityLanguage>({
   TemperatureRange: () =>
     dot(
       map(
         seq(
           __(str("between")),
-          Temperature.parser,
+          either(Temperature.parser, Quantity.parser),
           __(either(str("and"), str("-"))),
           Temperature.parser
         ),
         ([, low, , high], b, a) => {
+          let min: TemperatureEntity;
+          if (low.kind === "quantity") {
+            min = {
+              ...low,
+              value: {
+                unit: high.value.unit,
+                amount: low,
+              },
+              kind: "temperature",
+            };
+          } else {
+            min = low;
+          }
+
           return range(
             {
-              min: low as Entity<unknown, unknown>,
-              max: high as Entity<unknown, unknown>,
+              min,
+              max: high,
             },
             b,
             a
@@ -59,15 +83,17 @@ export const Range = createLanguage({
       map(
         seq(
           __(str("from")),
+          optional(__(str("the"))),
           Time.parser,
           __(either(str("until"), str("to"))),
+          optional(__(str("the"))),
           Time.parser
         ),
-        ([, low, , high], b, a) => {
+        ([, , low, , , high], b, a) => {
           return range(
             {
-              min: low as Entity<unknown, unknown>,
-              max: high as Entity<unknown, unknown>,
+              min: low,
+              max: high,
             },
             b,
             a
@@ -75,9 +101,5 @@ export const Range = createLanguage({
         }
       )
     ),
-  parser: (s): Parser<RangeEntity<Entity<unknown, unknown>>> =>
-    any(
-      s.TemperatureRange as Parser<RangeEntity<Entity<unknown, unknown>>>,
-      s.TimeRange as Parser<RangeEntity<Entity<unknown, unknown>>>
-    ),
+  parser: (s) => any(s.TemperatureRange, s.TimeRange),
 });
