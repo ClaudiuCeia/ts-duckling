@@ -8,6 +8,8 @@ What this means in practice is that while the library is easy to extend and is
 relatively light, it will perform badly on larger data sets and it will be much
 more error prone since the rules for entities are hard coded.
 
+You can [test this online](https://duckling.deno.dev/) here. 
+
 ## When would I use this?
 
 If you have a Deno Typescript codebase, and you want to extract entities from
