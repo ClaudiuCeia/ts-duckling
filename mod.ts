@@ -17,7 +17,7 @@ import { Range } from "./src/Range.ts";
 import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
 import { Time, TimeEntity } from "./src/Time.ts";
 
-type AnyEntity =
+export type AnyEntity =
   | Entity<unknown, unknown>
   | TemperatureEntity
   | TimeEntity
