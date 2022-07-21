@@ -1,3 +1,5 @@
+![ts-duckling Logo](https://github.com/ClaudiuCeia/ts-duckling/blob/main/logo.png)
+
 # ts-duckling
 
 A Typescript library for Deno that parses text into structured data. Inspired by
@@ -8,7 +10,7 @@ What this means in practice is that while the library is easy to extend and is
 relatively light, it will perform badly on larger data sets and it will be much
 more error prone since the rules for entities are hard coded.
 
-You can [test this online](https://duckling.deno.dev/) here. 
+You can [test this online](https://duckling.deno.dev/) here.
 
 ## When would I use this?
 
@@ -55,11 +57,14 @@ This will be supported in the release version. You can take a look at how the
 current entities are define to get a feel of how this will work. Probably:
 
 ```ts
-type FizzBuzzLanguage = EntityLanguage<{
-  fizz: Parser<string>;
-  buzz: Parser<string>;
-  fizzbuzz: Parser<string>;
-}, string>;
+type FizzBuzzLanguage = EntityLanguage<
+  {
+    fizz: Parser<string>;
+    buzz: Parser<string>;
+    fizzbuzz: Parser<string>;
+  },
+  string
+>;
 
 entity = createLanguage<FizzBuzzLanguage>({
   fizz: () => fuzzyCase("fizz"),
