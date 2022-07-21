@@ -17,7 +17,7 @@ import {
   sepBy1,
   skip1,
 } from "../../combine/src/combinators.ts";
-import { digit } from "../../combine/src/parsers.ts";
+import { digit, signed } from "../../combine/src/parsers.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 
@@ -56,6 +56,7 @@ type QuantityEntityLanguage = EntityLanguage<
     Fractional: Parser<string>;
     FractionalComma: Parser<number>;
     CommaSeparated: Parser<number>;
+    NonFractional: Parser<QuantityEntity>;
   },
   QuantityEntity
 >;
@@ -106,6 +107,18 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
         ),
         ([sign, num]) => (sign === "-" ? num * -1 : num)
       )
+    ),
+  NonFractional: (s) =>
+    map(
+      dot(
+        any(
+          s.CommaSeparated,
+          map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
+          signed(),
+          number()
+        )
+      ),
+      (n, b, a) => quantity({ amount: n }, b, a)
     ),
   parser: (s) =>
     map(

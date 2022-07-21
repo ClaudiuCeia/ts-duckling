@@ -83,20 +83,20 @@ Deno.test("GrainQuantity", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 26,
+        end: 24,
         kind: "time",
         start: 18,
-        text: "5 days, ",
+        text: "5 days",
         value: {
           grain: "days",
           when: "5 days",
         },
       },
       {
-        end: 60,
+        end: 59,
         kind: "time",
         start: 46,
-        text: "51615 seconds.",
+        text: "51615 seconds",
         value: {
           grain: "seconds",
           when: "51615 seconds",
@@ -121,10 +121,10 @@ Deno.test("Relative", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 45,
+        end: 43,
         kind: "time",
         start: 33,
-        text: "4 days ago. ",
+        text: "4 days ago",
         value: {
           grain: "days",
           when: "-4 days",
@@ -175,10 +175,10 @@ Deno.test("PartialDateMonthYear numeric", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 25,
+        end: 24,
         kind: "time",
         start: 17,
-        text: "12/2022?",
+        text: "12/2022",
         value: {
           grain: "day",
           when: "2022-01-11T22:00:00.000Z",
@@ -199,10 +199,10 @@ Deno.test("PartialDateMonthYear literal", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 39,
+        end: 38,
         kind: "time",
         start: 29,
-        text: "June 2022?",
+        text: "June 2022",
         value: {
           grain: "day",
           when: "2022-05-31T21:00:00.000Z",
@@ -223,10 +223,10 @@ Deno.test("PartialDateDayMonth literal", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 30,
+        end: 29,
         kind: "time",
         start: 17,
-        text: "12th of June?",
+        text: "12th of June",
         value: {
           grain: "day",
           when: "2022-06-11T21:00:00.000Z",
@@ -271,10 +271,10 @@ Deno.test("False positive time", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 7,
+        end: 6,
         kind: "time",
         start: 0,
-        text: "6/2022 ",
+        text: "6/2022",
         value: {
           grain: "day",
           when: "2022-01-05T22:00:00.000Z",
@@ -287,6 +287,30 @@ Deno.test("False positive time", () => {
         text: "0.00296735905",
         value: {
           amount: 0.296735905,
+        },
+      },
+    ]);
+  }
+});
+
+Deno.test("Era", () => {
+  const res = Duckling.extract({
+    text: `It has been dated to circa 100 BC.`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 33,
+        kind: "time",
+        start: 27,
+        text: "100 BC",
+        value: {
+          grain: "era",
+          when: "100 BC",
         },
       },
     ]);

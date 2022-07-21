@@ -12,7 +12,7 @@ import {
   str,
   createLanguage,
   space,
-minus,
+  minus,
 } from "https://deno.land/x/combine@v0.0.8/mod.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent } from "./Entity.ts";
@@ -30,7 +30,8 @@ type TimeGranularity =
   | "quarter"
   | "year"
   | "decade"
-  | "century";
+  | "century"
+  | "era";
 
 export type TimeEntity = Entity<
   "time",
@@ -57,6 +58,7 @@ type TimeEntityLanguage = EntityLanguage<
     LiteralMonth: Parser<string>;
     QualifiedDay: Parser<number>;
     DateSeparator: Parser<string>;
+    Era: Parser<string>;
 
     // Referring to a time period (hour, minutes, century, ...)
     UnspecifiedGrainAmount: Parser<TimeEntity>;
@@ -74,6 +76,12 @@ type TimeEntityLanguage = EntityLanguage<
     PartialDateDayMonth: Parser<TimeEntity>;
     // Date expressed in full (01/07/2022, 01 June 2022, etc)
     FullDate: Parser<TimeEntity>;
+    // Date expressed as year and era (200 BCE, 167 AD, ...)
+    YearEra: Parser<TimeEntity>;
+    // Date expressed as month, year and era (December 200 BCE, january 167 AD, ...)
+    PartialDateMonthYearEra: Parser<TimeEntity>;
+    // Date expressed as day, month, year and era (12 December 200 BCE, 1st of january 167 AD, ...)
+    FullDateEra: Parser<TimeEntity>;
   },
   TimeEntity
 >;
@@ -95,7 +103,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
       )
     ),
   UnspecifiedGrainAmount: () =>
-    dot(
+    __(
       map(
         any(
           regex(/seconds?/i, "second"),
@@ -122,7 +130,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
       )
     ),
   DayOfWeek: () =>
-    dot(
+    __(
       map(
         any(
           fuzzyCase("Monday"),
@@ -145,8 +153,9 @@ export const Time = createLanguage<TimeEntityLanguage>({
         }
       )
     ),
+  Era: () => __(any(str("BCE"), str("BC"), str("AD"), str("CE"))),
   Common: () =>
-    dot(
+    __(
       any(
         map(fuzzyCase("today"), (_res, b, a) =>
           time({ when: new Date().toISOString(), grain: "day" }, b, a)
@@ -179,7 +188,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
       )
     ),
   GrainQuantity: (s) =>
-    map(seq(Quantity.parser, dot(s.Grain)), ([quantity, grain], b, a) => {
+    map(seq(Quantity.parser, __(s.Grain)), ([quantity, grain], b, a) => {
       return time(
         {
           when: `${quantity.value.amount} ${grain}`,
@@ -195,7 +204,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         seq(
           __(any(fuzzyCase("last"), fuzzyCase("past"), fuzzyCase("previous"))),
           optional(Quantity.parser),
-          dot(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
+          __(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
         ),
         ([, quantity, grain], b, a) => {
           const amount = quantity ? quantity.value.amount * -1 : -1;
@@ -214,7 +223,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         seq(
           __(either(fuzzyCase("next"), fuzzyCase("following"))),
           optional(Quantity.parser),
-          dot(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
+          __(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
         ),
         ([, quantity, grain], b, a) => {
           const amount = quantity
@@ -235,7 +244,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         seq(
           optional(Quantity.parser),
           __(any(s.Grain, s.DayOfWeek)),
-          dot(str("ago"))
+          __(str("ago"))
         ),
         ([quantity, grain], b, a) => {
           const amount = quantity ? quantity.value.amount * -1 : -1;
@@ -260,7 +269,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         }
       ),
       map(seq(str("0"), digit()), ([_first, digit]) => digit),
-      minus(digit(), str("0")),
+      minus(digit(), str("0"))
     ),
   LiteralMonth: () =>
     any(
@@ -302,11 +311,9 @@ export const Time = createLanguage<TimeEntityLanguage>({
   DateSeparator: () => any(str("/"), str(" "), str("-"), str(".")),
   PartialDateMonthYear: (s) =>
     map(
-      dot(
-        any(
-          seq(s.NumericMonth, s.DateSeparator, s.Year),
-          seq(s.LiteralMonth, s.DateSeparator, s.Year)
-        )
+      any(
+        seq(s.NumericMonth, s.DateSeparator, s.Year),
+        seq(s.LiteralMonth, s.DateSeparator, s.Year)
       ),
       ([month, separator, year], b, a) => {
         return time(
@@ -328,7 +335,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
     ),
   PartialDateDayMonth: (s) =>
     map(
-      dot(seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth)),
+      __(seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth)),
       ([day, _of, month], b, a) => {
         const year = new Date().getFullYear();
         return time(
@@ -342,7 +349,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
       }
     ),
   FullDate: (s) =>
-    dot(
+    __(
       any(
         map(
           seq(s.PartialDateDayMonth, space(), s.Year),
@@ -399,15 +406,59 @@ export const Time = createLanguage<TimeEntityLanguage>({
         )
       )
     ),
+  PartialDateMonthYearEra: (s) =>
+    __(
+      map(seq(s.PartialDateMonthYear, s.Era), ([partial, era], b, a) => {
+        return time(
+          {
+            when: `${partial} ${era}`,
+            grain: "era",
+          },
+          b,
+          a
+        );
+      })
+    ),
+  FullDateEra: (s) =>
+    __(
+      map(seq(s.FullDate, s.Era), ([full, era], b, a) => {
+        return time(
+          {
+            when: `${full} ${era}`,
+            grain: "era",
+          },
+          b,
+          a
+        );
+      })
+    ),
+  YearEra: (s) =>
+    __(
+      map(seq(Quantity.NonFractional, s.Era), ([year, era], b, a) => {
+        return time(
+          {
+            when: `${year.value.amount} ${era}`,
+            grain: "era",
+          },
+          b,
+          a
+        );
+      })
+    ),
   parser: (s) =>
-    any(
-      s.FullDate,
-      s.Relative,
-      s.PartialDateMonthYear,
-      s.PartialDateDayMonth,
-      s.DayOfWeek,
-      s.Common,
-      s.GrainQuantity,
-      s.UnspecifiedGrainAmount
+    dot(
+      any(
+        s.FullDateEra,
+        s.FullDate,
+        s.Relative,
+        s.PartialDateMonthYearEra,
+        s.PartialDateMonthYear,
+        s.PartialDateDayMonth,
+        s.DayOfWeek,
+        s.Common,
+        s.GrainQuantity,
+        s.UnspecifiedGrainAmount,
+        s.YearEra,
+      )
     ),
 });

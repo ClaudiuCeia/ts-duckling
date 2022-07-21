@@ -42,7 +42,6 @@ Deno.test("CommaSeparated", () => {
   assertEquals(res.success, true);
 
   if (res.success) {
-    console.log(res.value);
     assertEquals(res.value, [
       {
         end: 48,
@@ -66,7 +65,6 @@ Deno.test("FractionalComma", () => {
   assertEquals(res.success, true);
 
   if (res.success) {
-    console.log(res.value);
     assertEquals(res.value, [
       {
         end: 30,
