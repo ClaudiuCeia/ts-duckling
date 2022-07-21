@@ -1,4 +1,4 @@
-![ts-duckling Logo](https://github.com/ClaudiuCeia/ts-duckling/blob/main/logo.png)
+<center><img src="https://github.com/ClaudiuCeia/ts-duckling/blob/main/logo.png" width="160"/></center>
 
 # ts-duckling
 
