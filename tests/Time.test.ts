@@ -17,6 +17,7 @@ Deno.test("UnspecifiedGrainAmount", () => {
         start: 29,
         text: "centuries",
         value: {
+          era: "CE",
           grain: "centuries",
           when: "centuries",
         },
@@ -41,6 +42,7 @@ Deno.test("DayOfWeek", () => {
         start: 26,
         text: "Monday",
         value: {
+          era: "CE",
           grain: "day",
           when: "Monday",
         },
@@ -51,6 +53,7 @@ Deno.test("DayOfWeek", () => {
         start: 36,
         text: "Friday",
         value: {
+          era: "CE",
           grain: "day",
           when: "Friday",
         },
@@ -88,6 +91,7 @@ Deno.test("GrainQuantity", () => {
         start: 18,
         text: "5 days",
         value: {
+          era: "CE",
           grain: "days",
           when: "5 days",
         },
@@ -98,6 +102,7 @@ Deno.test("GrainQuantity", () => {
         start: 46,
         text: "51615 seconds",
         value: {
+          era: "CE",
           grain: "seconds",
           when: "51615 seconds",
         },
@@ -126,6 +131,7 @@ Deno.test("Relative", () => {
         start: 33,
         text: "4 days ago",
         value: {
+          era: "CE",
           grain: "days",
           when: "-4 days",
         },
@@ -136,6 +142,7 @@ Deno.test("Relative", () => {
         start: 45,
         text: "Last week ",
         value: {
+          era: "CE",
           grain: "week",
           when: "-1 week",
         },
@@ -146,6 +153,7 @@ Deno.test("Relative", () => {
         start: 114,
         text: "past year ",
         value: {
+          era: "CE",
           grain: "year",
           when: "-1 year",
         },
@@ -156,6 +164,7 @@ Deno.test("Relative", () => {
         start: 159,
         text: "next\n        2 years\n    ",
         value: {
+          era: "CE",
           grain: "years",
           when: "2 years",
         },
@@ -180,6 +189,7 @@ Deno.test("PartialDateMonthYear numeric", () => {
         start: 17,
         text: "12/2022",
         value: {
+          era: "CE",
           grain: "day",
           when: "2022-01-11T22:00:00.000Z",
         },
@@ -204,6 +214,7 @@ Deno.test("PartialDateMonthYear literal", () => {
         start: 29,
         text: "June 2022",
         value: {
+          era: "CE",
           grain: "day",
           when: "2022-05-31T21:00:00.000Z",
         },
@@ -228,6 +239,7 @@ Deno.test("PartialDateDayMonth literal", () => {
         start: 17,
         text: "12th of June",
         value: {
+          era: "CE",
           grain: "day",
           when: "2022-06-11T21:00:00.000Z",
         },
@@ -252,6 +264,7 @@ Deno.test("FullDate", () => {
         start: 17,
         text: "1st of June 2023",
         value: {
+          era: "CE",
           grain: "day",
           when: "2023-05-31T21:00:00.000Z",
         },
@@ -276,6 +289,7 @@ Deno.test("False positive time", () => {
         start: 0,
         text: "6/2022",
         value: {
+          era: "CE",
           grain: "day",
           when: "2022-01-05T22:00:00.000Z",
         },
@@ -309,6 +323,7 @@ Deno.test("Era", () => {
         start: 27,
         text: "100 BC",
         value: {
+          era: "BCE",
           grain: "era",
           when: "100 BC",
         },
@@ -333,6 +348,7 @@ Deno.test("QualifiedGrain", () => {
         start: 7,
         text: "5th century BC ",
         value: {
+          era: "BCE",
           grain: "century",
           when: "5th century BC",
         },

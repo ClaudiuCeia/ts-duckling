@@ -38,15 +38,28 @@ export type TimeEntity = Entity<
   {
     when: string | [string, string];
     grain: TimeGranularity;
+    era: "BCE" | "CE";
   }
 >;
 
-const time = (
-  value: TimeEntity["value"],
+export type NoEraTimeEntityValue = Omit<TimeEntity["value"], "era"> & {
+  era?: TimeEntity["value"]["era"] 
+};
+
+export const time = (
+  value: NoEraTimeEntityValue,
   before: Context,
   after: Context
 ): TimeEntity => {
-  return ent(value, "time", before, after);
+  return ent(
+    {
+      ...value,
+      era: value.era || "CE"
+    },
+    "time",
+    before,
+    after
+  );
 };
 
 type TimeEntityLanguage = EntityLanguage<
@@ -352,6 +365,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
               maybeEra || ""
             }`,
             grain: grain as TimeGranularity,
+            era: (maybeEra === "BCE" || maybeEra === "BC") ? "BCE" : "CE",
           },
           b,
           a
@@ -437,6 +451,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
           {
             when: `${partial} ${era}`,
             grain: "era",
+            era: era === "BCE" || era === "BC" ? "BCE" : "CE",
           },
           b,
           a
@@ -450,6 +465,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
           {
             when: `${full} ${era}`,
             grain: "era",
+            era: era === "BCE" || era === "BC" ? "BCE" : "CE",
           },
           b,
           a
@@ -463,6 +479,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
           {
             when: `${year.value.amount} ${era}`,
             grain: "era",
+            era: era === "BCE" || era === "BC" ? "BCE" : "CE",
           },
           b,
           a
