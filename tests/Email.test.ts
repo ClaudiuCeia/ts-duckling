@@ -1,0 +1,25 @@
+import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
+import { Duckling } from "../mod.ts";
+
+Deno.test("Email", () => {
+  const res = Duckling().extract({
+    text: `I've never emailed no-reply+foo@some.domain.dev before`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 47,
+        kind: "email",
+        start: 19,
+        text: "no-reply+foo@some.domain.dev",
+        value: {
+          email: "no-reply+foo@some.domain.dev",
+        },
+      },
+    ]);
+  }
+});

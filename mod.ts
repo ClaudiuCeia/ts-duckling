@@ -18,6 +18,7 @@ import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
 import { Time, TimeEntity } from "./src/Time.ts";
 import { Location } from "./src/Location.ts";
 import { URL } from "./src/URL.ts";
+import { Email } from "./src/Email.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
@@ -39,6 +40,7 @@ export const Duckling = (
     Quantity.parser,
     Location.parser,
     URL.parser,
+    Email.parser,
   ]
 ) =>
   createLanguage<DucklingLanguage>({
@@ -69,3 +71,4 @@ export * from "./src/Temperature.ts";
 export * from "./src/Time.ts";
 export * from "./src/Location.ts";
 export * from "./src/URL.ts";
+export * from "./src/Email.ts";
