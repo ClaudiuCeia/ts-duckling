@@ -110,13 +110,11 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
     ),
   NonFractional: (s) =>
     map(
-      dot(
-        any(
-          s.CommaSeparated,
-          map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
-          signed(),
-          number()
-        )
+      any(
+        s.CommaSeparated,
+        map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
+        signed(),
+        number()
       ),
       (n, b, a) => quantity({ amount: n }, b, a)
     ),

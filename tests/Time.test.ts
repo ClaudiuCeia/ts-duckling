@@ -316,3 +316,27 @@ Deno.test("Era", () => {
     ]);
   }
 });
+
+Deno.test("QualifiedGrain", () => {
+  const res = Duckling.extract({
+    text: `In the 5th century BC in ancient India, the grammarian Pāṇini formulated the grammar of Sanskrit.`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 22,
+        kind: "time",
+        start: 7,
+        text: "5th century BC ",
+        value: {
+          grain: "century",
+          when: "5th century BC",
+        },
+      },
+    ]);
+  }
+});

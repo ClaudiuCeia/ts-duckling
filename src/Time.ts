@@ -82,6 +82,8 @@ type TimeEntityLanguage = EntityLanguage<
     PartialDateMonthYearEra: Parser<TimeEntity>;
     // Date expressed as day, month, year and era (12 December 200 BCE, 1st of january 167 AD, ...)
     FullDateEra: Parser<TimeEntity>;
+    // References a specific point in time, at various granularity (5th century, 1st year, ...)
+    QualifiedGrain: Parser<TimeEntity>;
   },
   TimeEntity
 >;
@@ -333,6 +335,28 @@ export const Time = createLanguage<TimeEntityLanguage>({
       __(seq(s.Day, optional(any(str("st"), str("nd"), str("rd"), str("th"))))),
       ([day]) => day
     ),
+  QualifiedGrain: (s) =>
+    map(
+      __(
+        seq(
+          Quantity.NonFractional,
+          __(any(str("st"), str("nd"), str("rd"), str("th"))),
+          s.Grain,
+          optional(s.Era)
+        )
+      ),
+      ([quantity, qualifier, grain, maybeEra], b, a) =>
+        time(
+          {
+            when: `${quantity.value.amount}${qualifier} ${grain} ${
+              maybeEra || ""
+            }`,
+            grain: grain as TimeGranularity,
+          },
+          b,
+          a
+        )
+    ),
   PartialDateDayMonth: (s) =>
     map(
       __(seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth)),
@@ -434,7 +458,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
     ),
   YearEra: (s) =>
     __(
-      map(seq(Quantity.NonFractional, s.Era), ([year, era], b, a) => {
+      map(seq(__(Quantity.NonFractional), s.Era), ([year, era], b, a) => {
         return time(
           {
             when: `${year.value.amount} ${era}`,
@@ -456,9 +480,10 @@ export const Time = createLanguage<TimeEntityLanguage>({
         s.PartialDateDayMonth,
         s.DayOfWeek,
         s.Common,
+        s.QualifiedGrain,
         s.GrainQuantity,
         s.UnspecifiedGrainAmount,
-        s.YearEra,
+        s.YearEra
       )
     ),
 });
