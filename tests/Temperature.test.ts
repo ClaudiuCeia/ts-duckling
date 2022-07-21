@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
 import { Duckling } from "../mod.ts";
 
 Deno.test("fahrneheit", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `It's hot! Over 90F outside...`,
     index: 0,
   });
@@ -34,7 +34,7 @@ Deno.test("fahrneheit", () => {
 });
 
 Deno.test("celsius", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `It's hot! Over 40°C outside...`,
     index: 0,
   });
@@ -66,7 +66,7 @@ Deno.test("celsius", () => {
 });
 
 Deno.test("unspecified", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `Not sure how it is! Over 14 degrees outside...`,
     index: 0,
   });
@@ -98,7 +98,7 @@ Deno.test("unspecified", () => {
 });
 
 Deno.test("below zero", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `I'm freezing, 21 celsius below zero here`,
     index: 0,
   });

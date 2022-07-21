@@ -25,7 +25,7 @@ entities:
 
 ```ts
 // ts-duckling falsely assumes that 6/2022 is a date
-const res = Duckling.extract("6/2022 is 0.00296735905");
+const res = Duckling([Time.parser]).extract("6/2022 is 0.00296735905");
 /**
    [
       {
@@ -38,23 +38,11 @@ const res = Duckling.extract("6/2022 is 0.00296735905");
           when: "2022-01-05T22:00:00.000Z",
         },
       },
-      {
-        end: 23,
-        kind: "quantity",
-        start: 10,
-        text: "0.00296735905",
-        value: {
-          amount: 0.296735905,
-        },
-      },
     ]
 */
 ```
 
 ## Adding new entity types
-
-This will be supported in the release version. You can take a look at how the
-current entities are define to get a feel of how this will work. Probably:
 
 ```ts
 type FizzBuzzLanguage = EntityLanguage<
@@ -66,16 +54,14 @@ type FizzBuzzLanguage = EntityLanguage<
   string
 >;
 
-entity = createLanguage<FizzBuzzLanguage>({
+const Fizzbuzz = createLanguage<FizzBuzzLanguage>({
   fizz: () => fuzzyCase("fizz"),
   buzz: () => fuzzyCase("buzz"),
   fizzbuzz: (s) => mapJoin(seq(s.fizz, s.buzz)),
   parser: (s) => either(s.fizz, s.buzz, s.fizzbuzz),
 });
 
-Duckling.add(entity);
-
-Duckling.extract(`
+Duckling([Fizzbuzz.parser]).extract(`
     FizzBuzz is a programming problem where you print fizz for multiples
     of 3, buzz for multiples of 5, and fizzbuzz for multiples of both 3 and 5.
 `);

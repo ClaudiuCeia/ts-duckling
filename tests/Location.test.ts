@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Location", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `
         The Kingdom of the Netherlands consists of the Netherlands proper, the Aruba, Curaçao, and Sint Maarten. 
         The United Kingdom consists of England, Scotland, Wales, and Northern Ireland.

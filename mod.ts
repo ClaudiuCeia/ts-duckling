@@ -30,21 +30,39 @@ type DucklingLanguage = {
   extract: Parser<(AnyEntity | null)[]>;
 };
 
-export const Duckling = createLanguage<DucklingLanguage>({
-  Entity: () =>
-    any(Range.parser, Temperature.parser, Time.parser, Quantity.parser, Location.parser),
-  Unstructured: () => either(dot(__(word)), __(word)),
-  extract: (s) =>
-    map(
-      seq(
-        space(),
-        map(
-          manyTill(any(s.Entity, skip1(s.Unstructured), skip1(anyChar())), skip1(eof())),
-          ([...matches]) => {
-            return matches.filter((m) => !!m);
-          }
-        )
+export const Duckling = (
+  parsers: Parser<unknown>[] = [
+    Range.parser,
+    Temperature.parser,
+    Time.parser,
+    Quantity.parser,
+    Location.parser,
+  ]
+) =>
+  createLanguage<DucklingLanguage>({
+    Entity: () => any(...parsers),
+    Unstructured: () => either(dot(__(word)), __(word)),
+    extract: (s) =>
+      map(
+        seq(
+          space(),
+          map(
+            manyTill(
+              any(s.Entity, skip1(s.Unstructured), skip1(anyChar())),
+              skip1(eof())
+            ),
+            ([...matches]) => {
+              return matches.filter((m) => !!m);
+            }
+          )
+        ),
+        ([, res]) => res
       ),
-      ([, res]) => res
-    ),
-});
+  });
+
+export * from "./src/Entity.ts";
+export * from "./src/Quantity.ts";
+export * from "./src/Range.ts";
+export * from "./src/Temperature.ts";
+export * from "./src/Time.ts";
+export * from "./src/Location.ts";

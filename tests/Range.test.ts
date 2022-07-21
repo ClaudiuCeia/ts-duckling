@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Time range", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `I had booked the conference room from the 1st of June until the 5th of June 2022`,
     index: 0,
   });
@@ -46,7 +46,7 @@ Deno.test("Time range", () => {
 });
 
 Deno.test("Temperature range", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `We expect between 10 and 12 degrees Celsius`,
     index: 0,
   });
@@ -104,7 +104,7 @@ Deno.test("Temperature range", () => {
 });
 
 Deno.test("Year range", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `Developed in the period between 2700 and 2300 BCE in Sumer`,
     index: 0,
   });

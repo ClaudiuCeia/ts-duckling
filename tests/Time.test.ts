@@ -1,8 +1,8 @@
 import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
-import { Duckling } from "../mod.ts";
+import { Duckling, Time } from "../mod.ts";
 
 Deno.test("UnspecifiedGrainAmount", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `People have been at this for centuries.`,
     index: 0,
   });
@@ -27,7 +27,7 @@ Deno.test("UnspecifiedGrainAmount", () => {
 });
 
 Deno.test("DayOfWeek", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `We could meet them either Monday or Friday.`,
     index: 0,
   });
@@ -63,7 +63,7 @@ Deno.test("DayOfWeek", () => {
 });
 
 Deno.test("Common", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `I'm not sure if the event is tomorrow. Or was it yesterday?`,
     index: 0,
   });
@@ -76,7 +76,7 @@ Deno.test("Common", () => {
 });
 
 Deno.test("GrainQuantity", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `I'll get to it in 5 days, it only takes about 51615 seconds.`,
     index: 0,
   });
@@ -112,7 +112,7 @@ Deno.test("GrainQuantity", () => {
 });
 
 Deno.test("Relative", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `
         We've been through this 4 days ago. Last week I also checked out the work
         that was done over the past year and I'm not sure what we'll do the next
@@ -174,7 +174,7 @@ Deno.test("Relative", () => {
 });
 
 Deno.test("PartialDateMonthYear numeric", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `What date is it? 12/2022?`,
     index: 0,
   });
@@ -199,7 +199,7 @@ Deno.test("PartialDateMonthYear numeric", () => {
 });
 
 Deno.test("PartialDateMonthYear literal", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `What date is it? Sometime in June 2022?`,
     index: 0,
   });
@@ -224,7 +224,7 @@ Deno.test("PartialDateMonthYear literal", () => {
 });
 
 Deno.test("PartialDateDayMonth literal", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `What date is it? 12th of June?`,
     index: 0,
   });
@@ -249,7 +249,7 @@ Deno.test("PartialDateDayMonth literal", () => {
 });
 
 Deno.test("FullDate", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `What date is it? 1st of June 2023?`,
     index: 0,
   });
@@ -274,7 +274,7 @@ Deno.test("FullDate", () => {
 });
 
 Deno.test("False positive time", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `6/2022 is 0.00296735905`,
     index: 0,
   });
@@ -294,21 +294,12 @@ Deno.test("False positive time", () => {
           when: "2022-01-05T22:00:00.000Z",
         },
       },
-      {
-        end: 23,
-        kind: "quantity",
-        start: 10,
-        text: "0.00296735905",
-        value: {
-          amount: 0.296735905,
-        },
-      },
     ]);
   }
 });
 
 Deno.test("Era", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `It has been dated to circa 100 BC.`,
     index: 0,
   });
@@ -333,7 +324,7 @@ Deno.test("Era", () => {
 });
 
 Deno.test("QualifiedGrain", () => {
-  const res = Duckling.extract({
+  const res = Duckling([Time.parser]).extract({
     text: `In the 5th century BC in ancient India, the grammarian Pāṇini formulated the grammar of Sanskrit.`,
     index: 0,
   });
@@ -351,16 +342,6 @@ Deno.test("QualifiedGrain", () => {
           era: "BCE",
           grain: "century",
           when: "5th century BC",
-        },
-      },
-      {
-        end: 38,
-        kind: "location",
-        start: 33,
-        text: "India",
-        value: {
-          place: "India",
-          type: "country",
         },
       },
     ]);

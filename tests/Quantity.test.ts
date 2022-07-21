@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Quantity", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `How many did you get? more than 3 or less than 171176?`,
     index: 0,
   });
@@ -34,7 +34,7 @@ Deno.test("Quantity", () => {
 });
 
 Deno.test("CommaSeparated", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `Among the cities with a population over 100,000 people`,
     index: 0,
   });
@@ -57,7 +57,7 @@ Deno.test("CommaSeparated", () => {
 });
 
 Deno.test("FractionalComma", () => {
-  const res = Duckling.extract({
+  const res = Duckling().extract({
     text: `There are at least 100,000.24 things`,
     index: 0,
   });
