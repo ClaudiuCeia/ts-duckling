@@ -19,6 +19,7 @@ import { Time, TimeEntity } from "./src/Time.ts";
 import { Location } from "./src/Location.ts";
 import { URL } from "./src/URL.ts";
 import { Email } from "./src/Email.ts";
+import { Institution } from "./src/Institution.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
@@ -41,6 +42,7 @@ export const Duckling = (
     Location.parser,
     URL.parser,
     Email.parser,
+    Institution.parser,
   ]
 ) =>
   createLanguage<DucklingLanguage>({
@@ -72,3 +74,4 @@ export * from "./src/Time.ts";
 export * from "./src/Location.ts";
 export * from "./src/URL.ts";
 export * from "./src/Email.ts";
+export * from "./src/Institution.ts";
