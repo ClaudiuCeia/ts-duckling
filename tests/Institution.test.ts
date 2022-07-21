@@ -88,23 +88,14 @@ Deno.test("Fordwich Town Hall", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 2,
-        kind: "quantity",
-        start: 0,
-        text: "16",
-        value: {
-          amount: 16,
-        },
-      },
-      {
-        end: 12,
+        end: 13,
         kind: "time",
-        start: 5,
-        text: "century",
+        start: 0,
+        text: "16th-century ",
         value: {
           era: "CE",
           grain: "century",
-          when: "century",
+          when: "16th century ",
         },
       },
       {

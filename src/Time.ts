@@ -353,12 +353,13 @@ export const Time = createLanguage<TimeEntityLanguage>({
       __(
         seq(
           Quantity.NonFractional,
-          __(any(str("st"), str("nd"), str("rd"), str("th"))),
+          any(str("st"), str("nd"), str("rd"), str("th")),
+          either(str("-"), space()),
           s.Grain,
           optional(s.Era)
         )
       ),
-      ([quantity, qualifier, grain, maybeEra], b, a) =>
+      ([quantity, qualifier, ,grain, maybeEra], b, a) =>
         time(
           {
             when: `${quantity.value.amount}${qualifier} ${grain} ${
