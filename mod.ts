@@ -16,6 +16,7 @@ import { Quantity, QuantityEntity } from "./src/Quantity.ts";
 import { Range } from "./src/Range.ts";
 import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
 import { Time, TimeEntity } from "./src/Time.ts";
+import { Location } from "./src/Location.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
@@ -31,7 +32,7 @@ type DucklingLanguage = {
 
 export const Duckling = createLanguage<DucklingLanguage>({
   Entity: () =>
-    any(Range.parser, Temperature.parser, Time.parser, Quantity.parser),
+    any(Range.parser, Temperature.parser, Time.parser, Quantity.parser, Location.parser),
   Unstructured: () => either(dot(__(word)), __(word)),
   extract: (s) =>
     map(

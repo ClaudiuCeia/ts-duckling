@@ -353,6 +353,16 @@ Deno.test("QualifiedGrain", () => {
           when: "5th century BC",
         },
       },
+      {
+        end: 38,
+        kind: "location",
+        start: 33,
+        text: "India",
+        value: {
+          place: "India",
+          type: "country",
+        },
+      },
     ]);
   }
 });
