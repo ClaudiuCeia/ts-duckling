@@ -309,7 +309,6 @@ export const Time = createLanguage<TimeEntityLanguage>({
         )
       ),
       ([month, separator, year], b, a) => {
-        console.log(`01${separator}${month}${separator}${year}`);
         return time(
           {
             when: new Date(

@@ -32,3 +32,51 @@ Deno.test("Quantity", () => {
     ]);
   }
 });
+
+Deno.test("CommaSeparated", () => {
+  const res = Duckling.extract({
+    text: `Among the cities with a population over 100,000 people`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    console.log(res.value);
+    assertEquals(res.value, [
+      {
+        end: 48,
+        kind: "quantity",
+        start: 40,
+        text: "100,000 ",
+        value: {
+          amount: 100000,
+        },
+      },
+    ]);
+  }
+});
+
+Deno.test("FractionalComma", () => {
+  const res = Duckling.extract({
+    text: `There are at least 100,000.24 things`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    console.log(res.value);
+    assertEquals(res.value, [
+      {
+        end: 30,
+        kind: "quantity",
+        start: 19,
+        text: "100,000.24 ",
+        value: {
+          amount: 100000.24,
+        },
+      },
+    ]);
+  }
+});
