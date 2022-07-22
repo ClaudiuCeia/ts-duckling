@@ -1,7 +1,6 @@
 import {
   any,
   createLanguage,
-  either,
   eof,
   manyTill,
   map,
@@ -11,6 +10,7 @@ import {
   optional,
   space,
   anyChar,
+  oneOf,
 } from "combine/mod.ts";
 import { word, __, dot } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
@@ -18,17 +18,22 @@ import { Quantity, QuantityEntity } from "./src/Quantity.ts";
 import { Range } from "./src/Range.ts";
 import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
 import { Time, TimeEntity } from "./src/Time.ts";
-import { Location } from "./src/Location.ts";
-import { URL } from "./src/URL.ts";
-import { Email } from "./src/Email.ts";
-import { Institution } from "./src/Institution.ts";
-import { Language } from "./src/Language.ts";
+import { Location, LocationEntity } from "./src/Location.ts";
+import { URL, URLEntity } from "./src/URL.ts";
+import { Email, EmailEntity } from "./src/Email.ts";
+import { Institution, InstitutionEntity } from "./src/Institution.ts";
+import { Language, LanguageEntity } from "./src/Language.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
   | TemperatureEntity
   | TimeEntity
-  | QuantityEntity;
+  | QuantityEntity
+  | LocationEntity
+  | URLEntity
+  | EmailEntity
+  | InstitutionEntity
+  | LanguageEntity;
 
 type DucklingLanguage = {
   Entity: Parser<AnyEntity>;
@@ -37,10 +42,10 @@ type DucklingLanguage = {
 };
 
 export const Duckling = (
-  parsers: Parser<unknown>[] = [
+  parsers: Parser<AnyEntity>[] = [
     Range.parser,
-    Temperature.parser,
     Time.parser,
+    Temperature.parser,
     Quantity.parser,
     Location.parser,
     URL.parser,
@@ -51,7 +56,7 @@ export const Duckling = (
 ) =>
   createLanguage<DucklingLanguage>({
     Entity: () => any(...parsers),
-    Unstructured: () => either(dot(word), __(word)),
+    Unstructured: () => any(dot(word), __(word), space()),
     extract: (s) =>
       map(
         seq(

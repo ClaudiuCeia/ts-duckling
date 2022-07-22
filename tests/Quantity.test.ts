@@ -1,12 +1,12 @@
 import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
-import { Duckling } from "../mod.ts";
+import { Duckling, Quantity } from "../mod.ts";
 
 Deno.test("Quantity", () => {
   const res = Duckling().extract({
     text: `How many did you get? more than 3 or less than 171176?`,
     index: 0,
   });
-  
+
   assertEquals(res.success, true);
 
   if (res.success) {
@@ -73,6 +73,52 @@ Deno.test("FractionalComma", () => {
         text: "100,000.24",
         value: {
           amount: 100000.24,
+        },
+      },
+    ]);
+  }
+});
+
+Deno.test("Literal quantity", () => {
+  const res = Quantity.innerParser({
+    text: `10 million`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, {
+      end: 10,
+      kind: "quantity",
+      start: 0,
+      text: "10 million",
+      value: {
+        amount: 10000000,
+      },
+    });
+  }
+});
+
+Deno.test("Literal quantity no false positive", () => {
+  const res = Duckling().extract({
+    text: `10 BCE`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 6,
+        kind: "time",
+        start: 0,
+        text: "10 BCE",
+        value: {
+          era: "BCE",
+          grain: "era",
+          when: "10 BCE",
         },
       },
     ]);

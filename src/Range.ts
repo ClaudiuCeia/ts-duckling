@@ -148,5 +148,10 @@ export const Range = createLanguage<RangeEntityLanguage>({
         );
       }
     ),
-  parser: (s) => any(s.TemperatureRange, s.TimeRange, s.YearRange),
+  parser: (s) =>
+    any(
+      s.TimeRange,
+      s.YearRange,
+      s.TemperatureRange,
+    ),
 });

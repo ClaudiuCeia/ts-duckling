@@ -18,8 +18,10 @@ import {
   signed,
   regex,
   space,
+  peek,
+eof,
 } from "combine/mod.ts";
-import { __, dot, EntityLanguage } from "./common.ts";
+import { __, dot, EntityLanguage, nonWord } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 
@@ -70,10 +72,10 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
   Literal: () =>
     any(
       map(regex(/hundreds?/i, "hundred"), () => 100),
-      map(regex(/thousands?/i, "thousand"), () => 1000),
-      map(regex(/millions?/i, "million"), () => 1000000),
-      map(regex(/billions?/i, "billion"), () => 1000000000),
-      map(regex(/trillions?/i, "trillion"), () => 1000000000000)
+      map(regex(/thou(sand)?s?|k/i, "thousand"), () => 1000),
+      map(regex(/m(illion(s)?)?/i, "million"), () => 1000000),
+      map(regex(/b(illion(s)?)?/i, "billion"), () => 1000000000),
+      map(regex(/t(rillion(s)?)?/i, "trillion"), () => 1000000000000)
     ),
   Under: () =>
     __(
@@ -138,7 +140,12 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
     map(
       any(
         map(
-          seq(s.Numbers, optional(space()), s.Literal),
+          seq(
+            s.Numbers,
+            optional(space()),
+            s.Literal,
+            peek(any(space(), nonWord, eof()))
+          ),
           ([num, _, lit]) => num * lit
         ),
         s.Numbers
