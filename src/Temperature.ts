@@ -12,7 +12,7 @@ import {
   space,
   skip1,
 } from "combine/mod.ts";
-import { EntityLanguage, __ } from "./common.ts";
+import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";
 
@@ -122,5 +122,5 @@ export const Temperature = createLanguage<TemperatureEntityLanguage>({
           a
         )
     ),
-  parser: (s) => any(s.BelowZero, s.Celsius, s.Fahrenheit, s.Unspecified),
+  parser: (s) => dot(any(s.BelowZero, s.Celsius, s.Fahrenheit, s.Unspecified)),
 });

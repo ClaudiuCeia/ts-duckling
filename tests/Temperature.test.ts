@@ -128,3 +128,26 @@ Deno.test("below zero", () => {
     ]);
   }
 });
+
+Deno.test("No false positive for temperature", () => {
+  const res = Duckling().extract({
+    text: `In 1837 Charles Babbage first described his Analytical Engine`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 7,
+        kind: "quantity",
+        start: 3,
+        text: "1837",
+        value: {
+          amount: 1837,
+        },
+      },
+    ]);
+  }
+});
