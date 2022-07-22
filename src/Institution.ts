@@ -13,10 +13,10 @@ import {
   many1,
   manyTill,
   peek,
-sepBy1,
-space,
-either,
-} from "/combine";
+  sepBy1,
+  space,
+  either,
+} from "combine/mod.ts";
 import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";

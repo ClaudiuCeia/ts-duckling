@@ -9,7 +9,7 @@ import {
   manyTill,
   letter,
   digit,
-} from "/combine";
+} from "combine/mod.ts";
 import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { URL } from "./URL.ts";

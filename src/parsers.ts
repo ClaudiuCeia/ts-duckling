@@ -1,8 +1,4 @@
-import {
-  Parser,
-  success,
-  failure,
-} from "/combine";
+import { Parser, success, failure } from "combine/mod.ts";
 
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {

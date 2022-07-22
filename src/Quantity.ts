@@ -16,7 +16,7 @@ import {
   many1,
   optional,
   signed,
-} from "/combine";
+} from "combine/mod.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";

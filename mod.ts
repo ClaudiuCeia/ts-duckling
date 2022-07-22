@@ -11,7 +11,7 @@ import {
   optional,
   space,
   anyChar,
-} from "/combine";
+} from "combine/mod.ts";
 import { word, __, dot } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
 import { Quantity, QuantityEntity } from "./src/Quantity.ts";

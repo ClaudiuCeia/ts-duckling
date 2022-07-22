@@ -1,4 +1,4 @@
-import { Context } from "/combine";
+import { Context } from "combine/mod.ts";
 
 export type Entity<Kind, Value> = {
   value: Value;

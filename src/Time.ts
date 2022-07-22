@@ -15,7 +15,7 @@ import {
   minus,
   peek,
   skip1,
-} from "/combine";
+} from "combine/mod.ts";
 import { __, dot, EntityLanguage, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { Entity } from "./Entity.ts";

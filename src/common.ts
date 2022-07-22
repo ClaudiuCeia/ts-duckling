@@ -6,7 +6,7 @@ import {
   seqNonNull,
   skip1,
   space,
-} from "/combine";
+} from "combine/mod.ts";
 import { any } from "../../combine/src/combinators.ts";
 
 export const dot = <T>(p: Parser<T>): Parser<T> =>

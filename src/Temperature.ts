@@ -9,9 +9,9 @@ import {
   map,
   Parser,
   Context,
-space,
-skip1,
-} from "/combine";
+  space,
+  skip1,
+} from "combine/mod.ts";
 import { EntityLanguage, __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";
