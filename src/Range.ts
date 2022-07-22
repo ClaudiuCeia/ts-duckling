@@ -8,7 +8,7 @@ import {
   either,
   Parser,
   optional,
-} from "combine";
+} from "/combine";
 import { __, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";

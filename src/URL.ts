@@ -13,7 +13,7 @@ import {
   peek,
   number,
   optional,
-} from "combine";
+} from "/combine";
 import { EntityLanguage, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import tlds from "https://cdn.jsdelivr.net/gh/incognico/list-of-top-level-domains/formats/json/tld-list.json" assert { type: "json" };

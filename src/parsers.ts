@@ -2,7 +2,7 @@ import {
   Parser,
   success,
   failure,
-} from "combine";
+} from "/combine";
 
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {

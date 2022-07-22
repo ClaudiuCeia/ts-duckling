@@ -11,7 +11,7 @@ import {
   Context,
 space,
 skip1,
-} from "combine";
+} from "/combine";
 import { EntityLanguage, __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";

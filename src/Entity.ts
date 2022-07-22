@@ -1,4 +1,4 @@
-import { Context } from "combine";
+import { Context } from "/combine";
 
 export type Entity<Kind, Value> = {
   value: Value;

@@ -1,4 +1,4 @@
-import { any, Context, createLanguage, map, Parser, str } from "combine";
+import { any, Context, createLanguage, map, Parser, str } from "/combine";
 import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import countries from "https://cdn.jsdelivr.net/gh/umpirsky/country-list@2.0.6/data/en_US/country.json" assert { type: "json" };

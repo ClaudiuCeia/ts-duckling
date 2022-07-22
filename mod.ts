@@ -8,9 +8,10 @@ import {
   skip1,
   seq,
   Parser,
-optional,
-} from "combine";
-import { anyChar, space } from "../combine/src/parsers.ts";
+  optional,
+  space,
+  anyChar,
+} from "/combine";
 import { word, __, dot } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
 import { Quantity, QuantityEntity } from "./src/Quantity.ts";

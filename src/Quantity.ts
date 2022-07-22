@@ -7,17 +7,16 @@ import {
   map,
   Context,
   Parser,
-} from "combine";
-import {
-  keepNonNull,
-  many1,
   minus,
-  optional,
+  digit,
   repeat,
-  sepBy1,
+  keepNonNull,
   skip1,
-} from "../../combine/src/combinators.ts";
-import { digit, signed } from "../../combine/src/parsers.ts";
+  sepBy1,
+  many1,
+  optional,
+  signed,
+} from "/combine";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
