@@ -10,7 +10,6 @@ import {
   optional,
   space,
   anyChar,
-  oneOf,
 } from "combine/mod.ts";
 import { word, __, dot } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
