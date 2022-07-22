@@ -356,3 +356,38 @@ Deno.test("No grain quantity false positive", () => {
 
   assertEquals(res.success, false);
 });
+
+Deno.test("Literal month", () => {
+  const res = Duckling([Time.parser]).extract({
+    text: `July and August highs in Greece average around 35.8 °C`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 4,
+        kind: "time",
+        start: 0,
+        text: "July",
+        value: {
+          era: "CE",
+          grain: "month",
+          when: "2022-06-30T21:00:00.000Z",
+        },
+      },
+      {
+        end: 15,
+        kind: "time",
+        start: 9,
+        text: "August",
+        value: {
+          era: "CE",
+          grain: "month",
+          when: "2022-07-31T21:00:00.000Z",
+        },
+      },
+    ]);
+  }
+});

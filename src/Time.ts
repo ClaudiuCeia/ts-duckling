@@ -478,7 +478,18 @@ export const Time = createLanguage<TimeEntityLanguage>({
         s.QualifiedGrain,
         s.GrainQuantity,
         s.UnspecifiedGrainAmount,
-        s.YearEra
+        s.YearEra,
+        map(s.LiteralMonth, (month, b, a) => {
+          const year = new Date().getFullYear();
+          return time(
+            {
+              when: new Date(`01 ${month} ${year}`).toISOString(),
+              grain: "month",
+            },
+            b,
+            a
+          );
+        }),
       )
     ),
 });
