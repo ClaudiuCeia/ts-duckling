@@ -6,7 +6,7 @@ Deno.test("Quantity", () => {
     text: `How many did you get? more than 3 or less than 171176?`,
     index: 0,
   });
-
+  
   assertEquals(res.success, true);
 
   if (res.success) {

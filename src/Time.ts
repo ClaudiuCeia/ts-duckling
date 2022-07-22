@@ -13,8 +13,10 @@ import {
   createLanguage,
   space,
   minus,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
-import { __, dot, EntityLanguage } from "./common.ts";
+  peek,
+  skip1,
+} from "combine";
+import { __, dot, EntityLanguage, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
@@ -43,7 +45,7 @@ export type TimeEntity = Entity<
 >;
 
 export type NoEraTimeEntityValue = Omit<TimeEntity["value"], "era"> & {
-  era?: TimeEntity["value"]["era"] 
+  era?: TimeEntity["value"]["era"];
 };
 
 export const time = (
@@ -54,7 +56,7 @@ export const time = (
   return ent(
     {
       ...value,
-      era: value.era || "CE"
+      era: value.era || "CE",
     },
     "time",
     before,
@@ -103,11 +105,24 @@ type TimeEntityLanguage = EntityLanguage<
 
 export const Time = createLanguage<TimeEntityLanguage>({
   Grain: () =>
-    __(
+    any(
+      regex(/sec(ond)?s?/i, "second"),
+      regex(/m(in(ute)?s?)?/i, "minute"),
+      regex(/h(((ou)?rs?)|r)?/i, "hour"),
+      regex(/days?/i, "day"),
+      regex(/weeks?/i, "week"),
+      regex(/months?/i, "month"),
+      regex(/quarters?/i, "quarter"),
+      regex(/years?/i, "year"),
+      regex(/decades?/i, "decade"),
+      regex(/century|centuries/i, "century")
+    ),
+  UnspecifiedGrainAmount: () =>
+    map(
       any(
-        regex(/sec(ond)?s?/i, "second"),
-        regex(/m(in(ute)?s?)?/i, "minute"),
-        regex(/h(((ou)?rs?)|r)?/i, "hour"),
+        regex(/seconds?/i, "second"),
+        regex(/minutes?/i, "minute"),
+        regex(/hours?/i, "hour"),
         regex(/days?/i, "day"),
         regex(/weeks?/i, "week"),
         regex(/months?/i, "month"),
@@ -115,111 +130,93 @@ export const Time = createLanguage<TimeEntityLanguage>({
         regex(/years?/i, "year"),
         regex(/decades?/i, "decade"),
         regex(/century|centuries/i, "century")
-      )
-    ),
-  UnspecifiedGrainAmount: () =>
-    __(
-      map(
-        any(
-          regex(/seconds?/i, "second"),
-          regex(/minutes?/i, "minute"),
-          regex(/hours?/i, "hour"),
-          regex(/days?/i, "day"),
-          regex(/weeks?/i, "week"),
-          regex(/months?/i, "month"),
-          regex(/quarters?/i, "quarter"),
-          regex(/years?/i, "year"),
-          regex(/decades?/i, "decade"),
-          regex(/century|centuries/i, "century")
-        ),
-        (grain, b, a) => {
-          return time(
-            {
-              when: grain,
-              grain: grain as TimeGranularity,
-            },
-            b,
-            a
-          );
-        }
-      )
+      ),
+      (grain, b, a) => {
+        return time(
+          {
+            when: grain,
+            grain: grain as TimeGranularity,
+          },
+          b,
+          a
+        );
+      }
     ),
   DayOfWeek: () =>
-    __(
-      map(
-        any(
-          fuzzyCase("Monday"),
-          fuzzyCase("Tuesday"),
-          fuzzyCase("Wednesday"),
-          fuzzyCase("Thursday"),
-          fuzzyCase("Friday"),
-          fuzzyCase("Saturday"),
-          fuzzyCase("Sunday")
-        ),
-        (day, b, a) => {
-          return time(
-            {
-              when: day,
-              grain: "day",
-            },
-            b,
-            a
-          );
-        }
-      )
-    ),
-  Era: () => __(any(str("BCE"), str("BC"), str("AD"), str("CE"))),
-  Common: () =>
-    __(
+    map(
       any(
-        map(fuzzyCase("today"), (_res, b, a) =>
-          time({ when: new Date().toISOString(), grain: "day" }, b, a)
-        ),
-        map(fuzzyCase("yesterday"), (_res, b, a) => {
-          const now = new Date();
-          return time(
-            {
-              when: new Date(now.getDate() - 1).toISOString(),
-              grain: "day",
-            },
-            b,
-            a
-          );
-        }),
-        map(fuzzyCase("tomorrow"), (_res, b, a) => {
-          const now = new Date();
-          return time(
-            {
-              when: new Date(now.getDate() + 1).toISOString(),
-              grain: "day",
-            },
-            b,
-            a
-          );
-        }),
-        map(fuzzyCase("weekend"), (_res, b, a) => {
-          return time({ when: "weekend", grain: "week" }, b, a);
-        })
-      )
+        fuzzyCase("Monday"),
+        fuzzyCase("Tuesday"),
+        fuzzyCase("Wednesday"),
+        fuzzyCase("Thursday"),
+        fuzzyCase("Friday"),
+        fuzzyCase("Saturday"),
+        fuzzyCase("Sunday")
+      ),
+      (day, b, a) => {
+        return time(
+          {
+            when: day,
+            grain: "day",
+          },
+          b,
+          a
+        );
+      }
+    ),
+  Era: () => any(str("BCE"), str("BC"), str("AD"), str("CE")),
+  Common: () =>
+    any(
+      map(fuzzyCase("today"), (_res, b, a) =>
+        time({ when: new Date().toISOString(), grain: "day" }, b, a)
+      ),
+      map(fuzzyCase("yesterday"), (_res, b, a) => {
+        const now = new Date();
+        return time(
+          {
+            when: new Date(now.getDate() - 1).toISOString(),
+            grain: "day",
+          },
+          b,
+          a
+        );
+      }),
+      map(fuzzyCase("tomorrow"), (_res, b, a) => {
+        const now = new Date();
+        return time(
+          {
+            when: new Date(now.getDate() + 1).toISOString(),
+            grain: "day",
+          },
+          b,
+          a
+        );
+      }),
+      map(fuzzyCase("weekend"), (_res, b, a) => {
+        return time({ when: "weekend", grain: "week" }, b, a);
+      })
     ),
   GrainQuantity: (s) =>
-    map(seq(Quantity.parser, __(s.Grain)), ([quantity, grain], b, a) => {
-      return time(
-        {
-          when: `${quantity.value.amount} ${grain}`,
-          grain: grain as TimeGranularity,
-        },
-        b,
-        a
-      );
-    }),
+    map(
+      seq(Quantity.parser, optional(space()), s.Grain, peek(nonWord)),
+      ([quantity, , grain], b, a) => {
+        return time(
+          {
+            when: `${quantity.value.amount} ${grain}`,
+            grain: grain as TimeGranularity,
+          },
+          b,
+          a
+        );
+      }
+    ),
   Relative: (s) =>
     any(
       map(
         seq(
           __(any(fuzzyCase("last"), fuzzyCase("past"), fuzzyCase("previous"))),
           optional(Quantity.parser),
-          __(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
+          any(s.Grain, s.LiteralMonth, s.DayOfWeek)
         ),
         ([, quantity, grain], b, a) => {
           const amount = quantity ? quantity.value.amount * -1 : -1;
@@ -238,7 +235,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         seq(
           __(either(fuzzyCase("next"), fuzzyCase("following"))),
           optional(Quantity.parser),
-          __(any(s.Grain, s.LiteralMonth, s.DayOfWeek))
+          any(s.Grain, s.LiteralMonth, s.DayOfWeek)
         ),
         ([, quantity, grain], b, a) => {
           const amount = quantity
@@ -259,7 +256,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
         seq(
           optional(Quantity.parser),
           __(any(s.Grain, s.DayOfWeek)),
-          __(str("ago"))
+          str("ago")
         ),
         ([quantity, grain], b, a) => {
           const amount = quantity ? quantity.value.amount * -1 : -1;
@@ -350,23 +347,25 @@ export const Time = createLanguage<TimeEntityLanguage>({
     ),
   QualifiedGrain: (s) =>
     map(
-      __(
-        seq(
-          Quantity.NonFractional,
-          any(str("st"), str("nd"), str("rd"), str("th")),
-          either(str("-"), space()),
-          s.Grain,
-          optional(s.Era)
+      seq(
+        Quantity.NonFractional,
+        any(str("st"), str("nd"), str("rd"), str("th")),
+        either(str("-"), space()),
+        s.Grain,
+        any(
+          map(seq(skip1(space()), s.Era), ([, era]) => era),
+          peek(nonWord),
+          peek(space())
         )
       ),
-      ([quantity, qualifier, ,grain, maybeEra], b, a) =>
+      ([quantity, qualifier, , grain, maybeEra], b, a) =>
         time(
           {
             when: `${quantity.value.amount}${qualifier} ${grain} ${
               maybeEra || ""
             }`,
             grain: grain as TimeGranularity,
-            era: (maybeEra === "BCE" || maybeEra === "BC") ? "BCE" : "CE",
+            era: maybeEra === "BCE" || maybeEra === "BC" ? "BCE" : "CE",
           },
           b,
           a
@@ -374,7 +373,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
     ),
   PartialDateDayMonth: (s) =>
     map(
-      __(seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth)),
+      seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth),
       ([day, _of, month], b, a) => {
         const year = new Date().getFullYear();
         return time(
@@ -388,61 +387,41 @@ export const Time = createLanguage<TimeEntityLanguage>({
       }
     ),
   FullDate: (s) =>
-    __(
-      any(
-        map(
-          seq(s.PartialDateDayMonth, space(), s.Year),
-          ([partialDayMonth, _sp, year], b, a) => {
-            const original = partialDayMonth.value.when;
-            if (typeof original !== "string") {
-              throw new Error(`
+    any(
+      map(
+        seq(s.PartialDateDayMonth, space(), s.Year),
+        ([partialDayMonth, _sp, year], b, a) => {
+          const original = partialDayMonth.value.when;
+          if (typeof original !== "string") {
+            throw new Error(`
                   Unexpected partial date match:
                   ${JSON.stringify(partialDayMonth)}
                 `);
-            }
-
-            const date = new Date(original);
-            date.setFullYear(year);
-
-            return time({ when: date.toISOString(), grain: "day" }, b, a);
           }
+
+          const date = new Date(original);
+          date.setFullYear(year);
+
+          return time({ when: date.toISOString(), grain: "day" }, b, a);
+        }
+      ),
+      map(
+        any(
+          seq(s.Day, s.DateSeparator, s.NumericMonth, s.DateSeparator, s.Year),
+          seq(s.Day, s.DateSeparator, s.LiteralMonth, s.DateSeparator, s.Year),
+          seq(s.NumericMonth, s.DateSeparator, s.Day, s.DateSeparator, s.Year),
+          seq(s.LiteralMonth, s.DateSeparator, s.Day, s.DateSeparator, s.Year)
         ),
-        map(
-          any(
-            seq(
-              s.Day,
-              s.DateSeparator,
-              s.NumericMonth,
-              s.DateSeparator,
-              s.Year
-            ),
-            seq(
-              s.Day,
-              s.DateSeparator,
-              s.LiteralMonth,
-              s.DateSeparator,
-              s.Year
-            ),
-            seq(
-              s.NumericMonth,
-              s.DateSeparator,
-              s.Day,
-              s.DateSeparator,
-              s.Year
-            ),
-            seq(s.LiteralMonth, s.DateSeparator, s.Day, s.DateSeparator, s.Year)
-          ),
-          ([first, s1, mid, s2, year], b, a) => {
-            return time(
-              {
-                when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
-                grain: "day",
-              },
-              b,
-              a
-            );
-          }
-        )
+        ([first, s1, mid, s2, year], b, a) => {
+          return time(
+            {
+              when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
+              grain: "day",
+            },
+            b,
+            a
+          );
+        }
       )
     ),
   PartialDateMonthYearEra: (s) =>
@@ -474,19 +453,17 @@ export const Time = createLanguage<TimeEntityLanguage>({
       })
     ),
   YearEra: (s) =>
-    __(
-      map(seq(__(Quantity.NonFractional), s.Era), ([year, era], b, a) => {
-        return time(
-          {
-            when: `${year.value.amount} ${era}`,
-            grain: "era",
-            era: era === "BCE" || era === "BC" ? "BCE" : "CE",
-          },
-          b,
-          a
-        );
-      })
-    ),
+    map(seq(__(Quantity.NonFractional), s.Era), ([year, era], b, a) => {
+      return time(
+        {
+          when: `${year.value.amount} ${era}`,
+          grain: "era",
+          era: era === "BCE" || era === "BC" ? "BCE" : "CE",
+        },
+        b,
+        a
+      );
+    }),
   parser: (s) =>
     dot(
       any(

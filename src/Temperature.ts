@@ -9,8 +9,10 @@ import {
   map,
   Parser,
   Context,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
-import { dot, EntityLanguage, __ } from "./common.ts";
+space,
+skip1,
+} from "combine";
+import { EntityLanguage, __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { Quantity, QuantityEntity } from "./Quantity.ts";
 
@@ -55,20 +57,22 @@ type TemperatureEntityLanguage = EntityLanguage<
 >;
 
 export const Temperature = createLanguage<TemperatureEntityLanguage>({
-  Degrees: () => __(either(str("°"), str("degrees"))),
+  Degrees: () => either(str("°"), str("degrees")),
   UnitCelsius: () =>
-    map(__(any(str("Celsius"), str("celsius"), str("C"))), () => "Celsius"),
+    map(any(str("Celsius"), str("celsius"), str("C")), () => "Celsius"),
   UnitFahrenheit: () =>
     map(
-      __(any(str("Fahrenheit"), str("fahrenheit"), str("F"))),
+      any(str("Fahrenheit"), str("fahrenheit"), str("F")),
       () => "Fahrenheit"
     ),
   Celsius: (s) =>
     map(
       seqNonNull<QuantityEntity | string | null>(
-        Quantity.parser,
+        Quantity.innerParser,
+        optional(space()),
         optional(s.Degrees),
-        dot(s.UnitCelsius)
+        optional(space()),
+        s.UnitCelsius
       ),
       ([amt], b, a) =>
         temp({ amount: amt as QuantityEntity, unit: "Celsius" }, b, a)
@@ -76,26 +80,34 @@ export const Temperature = createLanguage<TemperatureEntityLanguage>({
   Fahrenheit: (s) =>
     map(
       seqNonNull<QuantityEntity | string | null>(
-        Quantity.parser,
+        Quantity.innerParser,
+        optional(space()),
         optional(s.Degrees),
-        dot(s.UnitFahrenheit)
+        optional(space()),
+        s.UnitFahrenheit
       ),
       ([amt], b, a) =>
         temp({ amount: amt as QuantityEntity, unit: "Fahrenheit" }, b, a)
     ),
   Unspecified: (s) =>
-    map(seq(Quantity.parser, s.Degrees), ([amt], b, a) =>
-      temp({ amount: amt as QuantityEntity }, b, a)
+    map(
+      seq(Quantity.innerParser, optional(space()), s.Degrees),
+      ([amt], b, a) => temp({ amount: amt as QuantityEntity }, b, a)
     ),
   BelowZero: (s) =>
     map(
       seq(
-        Quantity.parser,
+        Quantity.innerParser,
         optional(s.Degrees),
+        optional(space()),
         optional(either(s.UnitCelsius, s.UnitFahrenheit)),
-        dot(seqNonNull(__(str("below")), either(str("zero"), str("0"))))
+        seqNonNull(
+          skip1(space()),
+          __(str("below")),
+          either(str("zero"), str("0"))
+        )
       ),
-      ([amt, _deg, unit], b, a) =>
+      ([amt, _deg, _space, unit], b, a) =>
         temp(
           {
             amount: {

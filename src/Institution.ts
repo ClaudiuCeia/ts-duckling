@@ -13,7 +13,10 @@ import {
   many1,
   manyTill,
   peek,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+sepBy1,
+space,
+either,
+} from "combine";
 import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
@@ -48,20 +51,20 @@ type InstitutionEntityLanguage = EntityLanguage<
 export const Institution = createLanguage<InstitutionEntityLanguage>({
   Capitalized: () =>
     map(
-      seq(regex(/[A-Z]/, "capital-letter"), __(many(letter()))),
+      seq(regex(/[A-Z]/, "capital-letter"), many(letter())),
       ([capital, rest]) => `${capital}${rest.join("")}`
     ),
   Educational: () =>
-    __(any(fuzzyCase("university"), fuzzyCase("college"), fuzzyCase("school"))),
-  Administrative: () => __(any(fuzzyCase("city hall"), fuzzyCase("town hall"))),
+    any(fuzzyCase("university"), fuzzyCase("college"), fuzzyCase("school")),
+  Administrative: () => any(fuzzyCase("city hall"), fuzzyCase("town hall")),
   EducationalFull: (s) =>
     any(
       map(
         seq(
-          s.Educational,
+          __(s.Educational),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          many1(s.Capitalized)
+          sepBy1(s.Capitalized, space())
         ),
         ([educational], b, a) =>
           institution(
@@ -96,8 +99,8 @@ export const Institution = createLanguage<InstitutionEntityLanguage>({
     any(
       map(
         seq(
-          s.Capitalized,
-          manyTill(s.Capitalized, peek(s.Administrative)),
+          __(s.Capitalized),
+          either(peek(s.Administrative), manyTill(__(s.Capitalized), peek(s.Administrative))),
           s.Administrative
         ),
         ([, , administrative], b, a) =>
@@ -112,10 +115,10 @@ export const Institution = createLanguage<InstitutionEntityLanguage>({
       ),
       map(
         seq(
-          s.Administrative,
+          __(s.Administrative),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          many1(s.Capitalized)
+          sepBy1(s.Capitalized, space())
         ),
         ([administrative], b, a) =>
           institution(

@@ -29,10 +29,10 @@ Deno.test("Time range", () => {
             },
           },
           min: {
-            end: 54,
+            end: 53,
             kind: "time",
             start: 42,
-            text: "1st of June ",
+            text: "1st of June",
             value: {
               era: "CE",
               grain: "day",
@@ -68,10 +68,10 @@ Deno.test("Temperature range", () => {
             text: "12 degrees Celsius",
             value: {
               amount: {
-                end: 28,
+                end: 27,
                 kind: "quantity",
                 start: 25,
-                text: "12 ",
+                text: "12",
                 value: {
                   amount: 12,
                 },
@@ -114,16 +114,16 @@ Deno.test("Year range", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 50,
+        end: 49,
         kind: "range",
         start: 24,
-        text: "between 2700 and 2300 BCE ",
+        text: "between 2700 and 2300 BCE",
         value: {
           max: {
-            end: 50,
+            end: 49,
             kind: "time",
             start: 41,
-            text: "2300 BCE ",
+            text: "2300 BCE",
             value: {
               era: "BCE",
               grain: "era",

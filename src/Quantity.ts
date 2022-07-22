@@ -7,7 +7,7 @@ import {
   map,
   Context,
   Parser,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+} from "combine";
 import {
   keepNonNull,
   many1,
@@ -20,6 +20,7 @@ import {
 import { digit, signed } from "../../combine/src/parsers.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
+import { fuzzyCase } from "./parsers.ts";
 
 export type QuantityEntity = Entity<
   "quantity",
@@ -57,12 +58,16 @@ type QuantityEntityLanguage = EntityLanguage<
     FractionalComma: Parser<number>;
     CommaSeparated: Parser<number>;
     NonFractional: Parser<QuantityEntity>;
+    innerParser: Parser<QuantityEntity>;
   },
   QuantityEntity
 >;
 
 export const Quantity = createLanguage<QuantityEntityLanguage>({
-  Under: () => __(any(str("under"), str("less than"), str("lower than"))),
+  Under: () =>
+    __(
+      any(fuzzyCase("under"), fuzzyCase("less than"), fuzzyCase("lower than"))
+    ),
   LeadDigit: () => minus(digit(), str("0")),
   TwoLeadDigit: (s) =>
     map(seq(s.LeadDigit, digit()), ([d1, d2]) => parseInt(`${d1}${d2}`)),
@@ -93,20 +98,13 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
       ([_dot, rest]) => rest
     ),
   FractionalComma: (s) =>
-    __(
-      map(seq(s.CommaSeparated, optional(s.Fractional)), ([num, fraction]) =>
-        parseFloat(`${num}.${fraction || ""}`)
-      )
+    map(seq(s.CommaSeparated, optional(s.Fractional)), ([num, fraction]) =>
+      parseFloat(`${num}.${fraction || ""}`)
     ),
   Signed: (s) =>
-    __(
-      map(
-        seq(
-          any(str("+"), str("-"), str("±")),
-          any(number(), s.FractionalComma)
-        ),
-        ([sign, num]) => (sign === "-" ? num * -1 : num)
-      )
+    map(
+      seq(any(str("+"), str("-"), str("±")), any(number(), s.FractionalComma)),
+      ([sign, num]) => (sign === "-" ? num * -1 : num)
     ),
   NonFractional: (s) =>
     map(
@@ -114,6 +112,16 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
         s.CommaSeparated,
         map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
         signed(),
+        number()
+      ),
+      (n, b, a) => quantity({ amount: n }, b, a)
+    ),
+  innerParser: (s) =>
+    map(
+      any(
+        s.FractionalComma,
+        map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
+        s.Signed,
         number()
       ),
       (n, b, a) => quantity({ amount: n }, b, a)

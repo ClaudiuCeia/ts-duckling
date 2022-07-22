@@ -12,10 +12,10 @@ Deno.test("fahrneheit", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 19,
+        end: 18,
         kind: "temperature",
         start: 15,
-        text: "90F ",
+        text: "90F",
         value: {
           amount: {
             end: 17,
@@ -44,16 +44,16 @@ Deno.test("celsius", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 20,
+        end: 19,
         kind: "temperature",
         start: 15,
-        text: "40°C ",
+        text: "40°C",
         value: {
           amount: {
-            end: 18,
+            end: 17,
             kind: "quantity",
             start: 15,
-            text: "40°",
+            text: "40",
             value: {
               amount: 40,
             },
@@ -76,16 +76,16 @@ Deno.test("unspecified", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 36,
+        end: 35,
         kind: "temperature",
         start: 25,
-        text: "14 degrees ",
+        text: "14 degrees",
         value: {
           amount: {
-            end: 28,
+            end: 27,
             kind: "quantity",
             start: 25,
-            text: "14 ",
+            text: "14",
             value: {
               amount: 14,
             },
@@ -108,16 +108,16 @@ Deno.test("below zero", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 36,
+        end: 35,
         kind: "temperature",
         start: 14,
-        text: "21 celsius below zero ",
+        text: "21 celsius below zero",
         value: {
           amount: {
-            end: 17,
+            end: 16,
             kind: "quantity",
             start: 14,
-            text: "21 ",
+            text: "21",
             value: {
               amount: -21,
             },

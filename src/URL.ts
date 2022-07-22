@@ -13,8 +13,8 @@ import {
   peek,
   number,
   optional,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
-import { EntityLanguage, __, dot } from "./common.ts";
+} from "combine";
+import { EntityLanguage, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import tlds from "https://cdn.jsdelivr.net/gh/incognico/list-of-top-level-domains/formats/json/tld-list.json" assert { type: "json" };
 
@@ -65,20 +65,18 @@ export const URL = createLanguage<URLEntityLanguage>({
       (parts) => parts.join("")
     ),
   Full: (s) =>
-    __(
-      map(
-        seq(s.Protocol, str("://"), s.Domain, optional(seq(str(":"), s.Port))),
-        ([protocol, sep, domain, maybePort], b, a) =>
-          url(
-            {
-              url: `${protocol}${sep}${domain}${
-                maybePort ? `:${maybePort[1]}` : ""
-              }`,
-            },
-            b,
-            a
-          )
-      )
+    map(
+      seq(s.Protocol, str("://"), s.Domain, optional(seq(str(":"), s.Port))),
+      ([protocol, sep, domain, maybePort], b, a) =>
+        url(
+          {
+            url: `${protocol}${sep}${domain}${
+              maybePort ? `:${maybePort[1]}` : ""
+            }`,
+          },
+          b,
+          a
+        )
     ),
   parser: (s) => dot(any(s.Full)),
 });

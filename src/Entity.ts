@@ -1,4 +1,4 @@
-import { Context } from "https://deno.land/x/combine@v0.0.8/mod.ts";
+import { Context } from "combine";
 
 export type Entity<Kind, Value> = {
   value: Value;

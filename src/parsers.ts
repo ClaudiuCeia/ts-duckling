@@ -2,7 +2,7 @@ import {
   Parser,
   success,
   failure,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+} from "combine";
 
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {

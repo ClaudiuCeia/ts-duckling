@@ -8,7 +8,8 @@ import {
   skip1,
   seq,
   Parser,
-} from "https://deno.land/x/combine@v0.0.8/mod.ts";
+optional,
+} from "combine";
 import { anyChar, space } from "../combine/src/parsers.ts";
 import { word, __, dot } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
@@ -47,11 +48,11 @@ export const Duckling = (
 ) =>
   createLanguage<DucklingLanguage>({
     Entity: () => any(...parsers),
-    Unstructured: () => either(dot(__(word)), __(word)),
+    Unstructured: () => either(dot(word), __(word)),
     extract: (s) =>
       map(
         seq(
-          space(),
+          optional(space()),
           map(
             manyTill(
               any(s.Entity, skip1(s.Unstructured), skip1(anyChar())),

@@ -1,7 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.120.0/testing/asserts.ts";
 import { Duckling } from "../mod.ts";
 
-Deno.test("Email", () => {
+Deno.test("Email in sentence", () => {
   const res = Duckling().extract({
     text: `I've never emailed no-reply+foo@some.domain.dev before`,
     index: 0,

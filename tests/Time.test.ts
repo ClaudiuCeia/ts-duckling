@@ -137,10 +137,10 @@ Deno.test("Relative", () => {
         },
       },
       {
-        end: 55,
+        end: 54,
         kind: "time",
         start: 45,
-        text: "Last week ",
+        text: "Last week",
         value: {
           era: "CE",
           grain: "week",
@@ -148,10 +148,10 @@ Deno.test("Relative", () => {
         },
       },
       {
-        end: 124,
+        end: 123,
         kind: "time",
         start: 114,
-        text: "past year ",
+        text: "past year",
         value: {
           era: "CE",
           grain: "year",
@@ -159,10 +159,10 @@ Deno.test("Relative", () => {
         },
       },
       {
-        end: 184,
+        end: 179,
         kind: "time",
         start: 159,
-        text: "next\n        2 years\n    ",
+        text: "next\n        2 years",
         value: {
           era: "CE",
           grain: "years",
@@ -334,10 +334,10 @@ Deno.test("QualifiedGrain", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 22,
+        end: 21,
         kind: "time",
         start: 7,
-        text: "5th century BC ",
+        text: "5th century BC",
         value: {
           era: "BCE",
           grain: "century",
@@ -346,4 +346,13 @@ Deno.test("QualifiedGrain", () => {
       },
     ]);
   }
+});
+
+Deno.test("No grain quantity false positive", () => {
+  const res = Time.GrainQuantity({
+    text: `Less than 10 Hertz`,
+    index: 0,
+  });
+
+  assertEquals(res.success, false);
 });
