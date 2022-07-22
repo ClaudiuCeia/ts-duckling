@@ -8,6 +8,7 @@ import {
   either,
   Parser,
   optional,
+  space,
 } from "combine/mod.ts";
 import { __, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
@@ -101,6 +102,25 @@ export const Range = createLanguage<RangeEntityLanguage>({
       ),
       map(
         seq(
+          Time.parser,
+          optional(space()),
+          str("-"),
+          optional(space()),
+          Time.parser
+        ),
+        ([low, , , , high], b, a) => {
+          return range(
+            {
+              min: low,
+              max: high,
+            },
+            b,
+            a
+          );
+        }
+      ),
+      map(
+        seq(
           __(str("between")),
           optional(__(str("the"))),
           Time.parser,
@@ -121,37 +141,67 @@ export const Range = createLanguage<RangeEntityLanguage>({
       )
     ),
   YearRange: () =>
-    map(
-      seq(__(str("between")), Quantity.parser, __(str("and")), Time.YearEra),
-      ([, low, , high], b, a) => {
-        return range(
-          {
-            min: time(
-              {
-                when: `${low.value.amount} ${high.value.era}`,
-                grain: "era",
-                era: high.value.era,
-              },
-              {
-                text: b.text,
-                index: low.start,
-              },
-              {
-                text: b.text,
-                index: low.end,
-              }
-            ),
-            max: high,
-          },
-          b,
-          a
-        );
-      }
-    ),
-  parser: (s) =>
     any(
-      s.TimeRange,
-      s.YearRange,
-      s.TemperatureRange,
+      map(
+        seq(__(str("between")), Quantity.parser, __(str("and")), Time.YearEra),
+        ([, low, , high], b, a) => {
+          return range(
+            {
+              min: time(
+                {
+                  when: `${low.value.amount} ${high.value.era}`,
+                  grain: "era",
+                  era: high.value.era,
+                },
+                {
+                  text: b.text,
+                  index: low.start,
+                },
+                {
+                  text: b.text,
+                  index: low.end,
+                }
+              ),
+              max: high,
+            },
+            b,
+            a
+          );
+        }
+      ),
+      map(
+        seq(
+          Quantity.parser,
+          optional(space()),
+          __(str("-")),
+          optional(space()),
+          Time.YearEra
+        ),
+        ([low, , , , high], b, a) => {
+          return range(
+            {
+              min: time(
+                {
+                  when: `${low.value.amount} ${high.value.era}`,
+                  grain: "era",
+                  era: high.value.era,
+                },
+                {
+                  text: b.text,
+                  index: low.start,
+                },
+                {
+                  text: b.text,
+                  index: low.end,
+                }
+              ),
+              max: high,
+            },
+            b,
+            a
+          );
+        }
+      )
     ),
+  parser: (s) => any(s.TimeRange, s.YearRange, s.TemperatureRange),
 });

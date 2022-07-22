@@ -391,3 +391,27 @@ Deno.test("Literal month", () => {
     ]);
   }
 });
+
+Deno.test("Circa time", () => {
+  const res = Duckling([Time.parser]).extract({
+    text: `Some things happened c. 425 BC`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 30,
+        kind: "time",
+        start: 21,
+        text: "c. 425 BC",
+        value: {
+          era: "BCE",
+          grain: "era",
+          when: "425 BC",
+        },
+      },
+    ]);
+  }
+});

@@ -147,3 +147,75 @@ Deno.test("Year range", () => {
   }
 });
 
+Deno.test("Year range with dash", () => {
+  const res = Duckling().extract({
+    text: `Sima Qian (145–90 BC), author of the Records of the Grand Historian`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 14,
+        kind: "quantity",
+        start: 11,
+        text: "145",
+        value: {
+          amount: 145,
+        },
+      },
+      {
+        end: 20,
+        kind: "time",
+        start: 15,
+        text: "90 BC",
+        value: {
+          era: "BCE",
+          grain: "era",
+          when: "90 BC",
+        },
+      },
+    ]);
+  }
+});
+
+Deno.test("Time range with dash", () => {
+  const res = Duckling().extract({
+    text: `
+      Herodotus of Halicarnassus (484 BC–c. 425 BC) has
+      generally been acclaimed as the "father of history"
+    `,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 41,
+        kind: "time",
+        start: 35,
+        text: "484 BC",
+        value: {
+          era: "BCE",
+          grain: "era",
+          when: "484 BC",
+        },
+      },
+      {
+        end: 51,
+        kind: "time",
+        start: 42,
+        text: "c. 425 BC",
+        value: {
+          era: "BCE",
+          grain: "era",
+          when: "425 BC",
+        },
+      },
+    ]);
+  }
+});

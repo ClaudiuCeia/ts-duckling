@@ -453,17 +453,24 @@ export const Time = createLanguage<TimeEntityLanguage>({
       })
     ),
   YearEra: (s) =>
-    map(seq(__(Quantity.NonFractional), s.Era), ([year, era], b, a) => {
-      return time(
-        {
-          when: `${year.value.amount} ${era}`,
-          grain: "era",
-          era: era === "BCE" || era === "BC" ? "BCE" : "CE",
-        },
-        b,
-        a
-      );
-    }),
+    map(
+      seq(
+        optional(seq(str("c."), optional(space()))),
+        __(Quantity.NonFractional),
+        s.Era
+      ),
+      ([, year, era], b, a) => {
+        return time(
+          {
+            when: `${year.value.amount} ${era}`,
+            grain: "era",
+            era: era === "BCE" || era === "BC" ? "BCE" : "CE",
+          },
+          b,
+          a
+        );
+      }
+    ),
   parser: (s) =>
     dot(
       any(
@@ -489,7 +496,7 @@ export const Time = createLanguage<TimeEntityLanguage>({
             b,
             a
           );
-        }),
+        })
       )
     ),
 });
