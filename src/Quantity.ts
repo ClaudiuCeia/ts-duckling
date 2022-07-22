@@ -16,6 +16,8 @@ import {
   many1,
   optional,
   signed,
+  regex,
+  space,
 } from "combine/mod.ts";
 import { __, dot, EntityLanguage } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
@@ -47,6 +49,8 @@ const quantity = (
 
 type QuantityEntityLanguage = EntityLanguage<
   {
+    Numbers: Parser<number>;
+    Literal: Parser<number>;
     Under: Parser<string>;
     LeadDigit: Parser<number>;
     TwoLeadDigit: Parser<number>;
@@ -63,6 +67,14 @@ type QuantityEntityLanguage = EntityLanguage<
 >;
 
 export const Quantity = createLanguage<QuantityEntityLanguage>({
+  Literal: () =>
+    any(
+      map(regex(/hundreds?/i, "hundred"), () => 100),
+      map(regex(/thousands?/i, "thousand"), () => 1000),
+      map(regex(/millions?/i, "million"), () => 1000000),
+      map(regex(/billions?/i, "billion"), () => 1000000000),
+      map(regex(/trillions?/i, "trillion"), () => 1000000000000)
+    ),
   Under: () =>
     __(
       any(fuzzyCase("under"), fuzzyCase("less than"), fuzzyCase("lower than"))
@@ -115,26 +127,23 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
       ),
       (n, b, a) => quantity({ amount: n }, b, a)
     ),
+  Numbers: (s) =>
+    any(
+      s.FractionalComma,
+      map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
+      s.Signed,
+      number()
+    ),
   innerParser: (s) =>
     map(
       any(
-        s.FractionalComma,
-        map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
-        s.Signed,
-        number()
+        map(
+          seq(s.Numbers, optional(space()), s.Literal),
+          ([num, _, lit]) => num * lit
+        ),
+        s.Numbers
       ),
       (n, b, a) => quantity({ amount: n }, b, a)
     ),
-  parser: (s) =>
-    map(
-      dot(
-        any(
-          s.FractionalComma,
-          map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
-          s.Signed,
-          number()
-        )
-      ),
-      (n, b, a) => quantity({ amount: n }, b, a)
-    ),
+  parser: (s) => dot(s.innerParser),
 });

@@ -15,12 +15,12 @@ Deno.test("Language", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 42,
+        end: 49,
         kind: "quantity",
         start: 39,
-        text: "50 ",
+        text: "50 million",
         value: {
-          amount: 50,
+          amount: 50000000,
         },
       },
       {

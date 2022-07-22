@@ -80,16 +80,16 @@ Deno.test("Temperature range", () => {
             },
           },
           min: {
-            end: 21,
+            end: 20,
             kind: "temperature",
             start: 18,
-            text: "10 ",
+            text: "10",
             value: {
               amount: {
-                end: 21,
+                end: 20,
                 kind: "quantity",
                 start: 18,
-                text: "10 ",
+                text: "10",
                 value: {
                   amount: 10,
                 },
@@ -131,10 +131,10 @@ Deno.test("Year range", () => {
             },
           },
           min: {
-            end: 37,
+            end: 36,
             kind: "time",
             start: 32,
-            text: "2700 ",
+            text: "2700",
             value: {
               era: "BCE",
               grain: "era",

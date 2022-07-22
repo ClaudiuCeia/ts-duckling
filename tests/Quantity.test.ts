@@ -12,19 +12,19 @@ Deno.test("Quantity", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 34,
+        end: 33,
         kind: "quantity",
         start: 32,
-        text: "3 ",
+        text: "3",
         value: {
           amount: 3,
         },
       },
       {
-        end: 54,
+        end: 53,
         kind: "quantity",
         start: 37,
-        text: "less than 171176?",
+        text: "less than 171176",
         value: {
           amount: -171176,
         },
@@ -44,10 +44,10 @@ Deno.test("CommaSeparated", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 48,
+        end: 47,
         kind: "quantity",
         start: 40,
-        text: "100,000 ",
+        text: "100,000",
         value: {
           amount: 100000,
         },
@@ -67,10 +67,10 @@ Deno.test("FractionalComma", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
-        end: 30,
+        end: 29,
         kind: "quantity",
         start: 19,
-        text: "100,000.24 ",
+        text: "100,000.24",
         value: {
           amount: 100000.24,
         },
