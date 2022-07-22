@@ -72,10 +72,10 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
   Literal: () =>
     any(
       map(regex(/hundreds?/i, "hundred"), () => 100),
-      map(regex(/thou(sand)?s?|k/i, "thousand"), () => 1000),
-      map(regex(/m(illion(s)?)?/i, "million"), () => 1000000),
-      map(regex(/b(illion(s)?)?/i, "billion"), () => 1000000000),
-      map(regex(/t(rillion(s)?)?/i, "trillion"), () => 1000000000000)
+      map(regex(/thousands?|k/i, "thousand"), () => 1000),
+      map(regex(/millions?/i, "million"), () => 1000000),
+      map(regex(/billions?/i, "billion"), () => 1000000000),
+      map(regex(/trillions?/i, "trillion"), () => 1000000000000)
     ),
   Under: () =>
     __(
@@ -148,6 +148,7 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
           ),
           ([num, _, lit]) => num * lit
         ),
+        s.Literal,
         s.Numbers
       ),
       (n, b, a) => quantity({ amount: n }, b, a)

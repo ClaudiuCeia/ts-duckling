@@ -124,3 +124,26 @@ Deno.test("Literal quantity no false positive", () => {
     ]);
   }
 });
+
+Deno.test("Just literal", () => {
+  const res = Duckling().extract({
+    text: `I have a thousand questions`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 17,
+        kind: "quantity",
+        start: 9,
+        text: "thousand",
+        value: {
+          amount: 1000,
+        },
+      },
+    ]);
+  }
+});
