@@ -1,7 +1,8 @@
-import { any, Context, createLanguage, map, Parser, str } from "combine/mod.ts";
+import { any, Context, createLanguage, map, Parser } from "combine/mod.ts";
 import { EntityLanguage, __, dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import countries from "https://cdn.jsdelivr.net/gh/umpirsky/country-list@2.0.6/data/en_US/country.json" assert { type: "json" };
+import { fuzzyCase } from "./parsers.ts";
 
 export type LocationEntity = Entity<
   "location",
@@ -28,7 +29,7 @@ type LocationEntityLanguage = EntityLanguage<
 
 export const Location = createLanguage<LocationEntityLanguage>({
   Country: () =>
-    map(any(...Object.values(countries).map(str)), (country, b, a) =>
+    map(any(...Object.values(countries).map(fuzzyCase)), (country, b, a) =>
       location(
         {
           place: country,

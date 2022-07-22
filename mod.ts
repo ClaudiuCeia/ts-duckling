@@ -22,6 +22,7 @@ import { Location } from "./src/Location.ts";
 import { URL } from "./src/URL.ts";
 import { Email } from "./src/Email.ts";
 import { Institution } from "./src/Institution.ts";
+import { Language } from "./src/Language.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
@@ -45,6 +46,7 @@ export const Duckling = (
     URL.parser,
     Email.parser,
     Institution.parser,
+    Language.parser,
   ]
 ) =>
   createLanguage<DucklingLanguage>({
@@ -77,3 +79,4 @@ export * from "./src/Location.ts";
 export * from "./src/URL.ts";
 export * from "./src/Email.ts";
 export * from "./src/Institution.ts";
+export * from "./src/Language.ts";

@@ -12,6 +12,16 @@ Deno.test("Educational", () => {
   if (res.success) {
     assertEquals(res.value, [
       {
+        end: 34,
+        kind: "language",
+        start: 27,
+        text: "Italian",
+        value: {
+          code: "it",
+          name: "Italian",
+        },
+      },
+      {
         end: 56,
         kind: "institution",
         start: 35,
