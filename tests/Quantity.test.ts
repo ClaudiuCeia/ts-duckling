@@ -147,3 +147,26 @@ Deno.test("Just literal", () => {
     ]);
   }
 });
+
+Deno.test("Short literal", () => {
+  const res = Duckling().extract({
+    text: `I have a 1K questions`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 11,
+        kind: "quantity",
+        start: 9,
+        text: "1K",
+        value: {
+          amount: 1000,
+        },
+      },
+    ]);
+  }
+});

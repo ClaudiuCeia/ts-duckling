@@ -20,6 +20,7 @@ import {
   space,
   peek,
 eof,
+either,
 } from "combine/mod.ts";
 import { __, dot, EntityLanguage, nonWord } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
@@ -53,6 +54,7 @@ type QuantityEntityLanguage = EntityLanguage<
   {
     Numbers: Parser<number>;
     Literal: Parser<number>;
+    ShortLiteral: Parser<number>;
     Under: Parser<string>;
     LeadDigit: Parser<number>;
     TwoLeadDigit: Parser<number>;
@@ -76,6 +78,13 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
       map(regex(/millions?/i, "million"), () => 1000000),
       map(regex(/billions?/i, "billion"), () => 1000000000),
       map(regex(/trillions?/i, "trillion"), () => 1000000000000)
+    ),
+  ShortLiteral: () =>
+    any(
+      map(str("K"), () => 1000),
+      map(str("M"), () => 1000000),
+      map(str("B"), () => 1000000000),
+      map(str("T"), () => 1000000000000)
     ),
   Under: () =>
     __(
@@ -143,7 +152,7 @@ export const Quantity = createLanguage<QuantityEntityLanguage>({
           seq(
             s.Numbers,
             optional(space()),
-            s.Literal,
+            either(s.Literal, s.ShortLiteral),
             peek(any(space(), nonWord, eof()))
           ),
           ([num, _, lit]) => num * lit
