@@ -66,3 +66,7 @@ Duckling([Fizzbuzz.parser]).extract(`
     of 3, buzz for multiples of 5, and fizzbuzz for multiples of both 3 and 5.
 `);
 ```
+
+# License
+
+MIT © [Claudiu Ceia](https://github.com/ClaudiuCeia)
