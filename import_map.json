@@ -1,5 +1,5 @@
 {
   "imports": {
-    "combine/": "https://deno.land/x/combine@v0.0.9/"
+    "combine/": "https://deno.land/x/combine@v0.0.10/"
   }
 }
