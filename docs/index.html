@@ -100,9 +100,16 @@
           <div class="flex items-center gap-3">
             <span
               id="status"
-              class="hidden items-center gap-2 text-sm font-medium text-slate-600 md:inline-flex"
+              class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm"
               aria-live="polite"
-            ></span>
+            >
+              <span
+                id="status-spinner"
+                class="hidden h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600"
+                aria-hidden="true"
+              ></span>
+              <span id="status-text"></span>
+            </span>
             <button
               id="btn-run"
               type="button"
@@ -234,7 +241,7 @@
                 </div>
               </div>
 
-              <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[260px_1fr]">
+              <div class="mt-3">
                 <label class="text-sm text-slate-600">
                   <div class="mb-1 font-medium text-slate-700">Max chars</div>
                   <div class="flex items-center gap-2">
@@ -258,7 +265,7 @@
                     </label>
                   </div>
                 </label>
-                <div class="text-sm text-slate-500 md:pt-7">
+                <div class="mt-2 text-sm text-slate-500">
                   For big pages, we parse a prefix to keep the browser
                   responsive. Extraction runs in a background worker.
                 </div>
@@ -311,25 +318,6 @@
               >
               </div>
 
-              <details
-                id="selected-wrap"
-                class="mt-3 hidden rounded-2xl border border-slate-200 bg-slate-50 p-3"
-              >
-                <summary
-                  class="cursor-pointer text-sm font-semibold text-slate-900"
-                >
-                  Selected:
-                  <span
-                    id="selected-title"
-                    class="font-mono font-medium text-slate-700"
-                  >(none)</span>
-                </summary>
-                <pre
-                  id="selected-json"
-                  class="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs leading-relaxed text-slate-900"
-                ></pre>
-              </details>
-
               <div id="json-wrap" class="mt-3 hidden">
                 <div
                   class="text-xs font-semibold uppercase tracking-widest text-slate-500"
@@ -346,6 +334,47 @@
         </div>
       </div>
     </main>
+
+    <div id="popover" class="fixed inset-0 z-20 hidden">
+      <div
+        id="popover-backdrop"
+        class="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]"
+      >
+      </div>
+      <div class="relative mx-auto w-full max-w-3xl px-6 pt-16">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <div
+            class="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3"
+          >
+            <div class="min-w-0">
+              <div
+                class="text-xs font-semibold uppercase tracking-widest text-slate-500"
+              >
+                Match
+              </div>
+              <div
+                id="popover-title"
+                class="mt-1 truncate font-mono text-sm text-slate-900"
+              >
+              </div>
+            </div>
+            <button
+              id="popover-close"
+              type="button"
+              class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:border-slate-300"
+            >
+              Close
+            </button>
+          </div>
+          <div class="p-4">
+            <pre
+              id="popover-json"
+              class="max-h-[60vh] overflow-auto rounded-2xl border border-slate-200 bg-white p-4 font-mono text-xs leading-relaxed text-slate-900"
+            ></pre>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="./app.js"></script>
   </body>

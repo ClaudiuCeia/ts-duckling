@@ -85,10 +85,9 @@ const els = {
   json: document.getElementById("json"),
   jsonWrap: document.getElementById("json-wrap"),
   toggleJson: document.getElementById("toggle-json"),
-  selectedWrap: document.getElementById("selected-wrap"),
-  selectedTitle: document.getElementById("selected-title"),
-  selectedJson: document.getElementById("selected-json"),
   status: document.getElementById("status"),
+  statusSpinner: document.getElementById("status-spinner"),
+  statusText: document.getElementById("status-text"),
   url: document.getElementById("url"),
   presetText: document.getElementById("preset-text"),
   maxChars: document.getElementById("max-chars"),
@@ -101,6 +100,12 @@ const els = {
   presetNone: document.getElementById("preset-none"),
   presetPii: document.getElementById("preset-pii"),
   presetDefault: document.getElementById("preset-default"),
+
+  popover: document.getElementById("popover"),
+  popoverBackdrop: document.getElementById("popover-backdrop"),
+  popoverClose: document.getElementById("popover-close"),
+  popoverTitle: document.getElementById("popover-title"),
+  popoverJson: document.getElementById("popover-json"),
 };
 
 const escapeHtml = (s) =>
@@ -142,15 +147,18 @@ let parseInFlight = false;
 let lastEntities = [];
 let currentText = "";
 let parseTimer = 0;
+let activeEntEl = null;
 
-const setStatus = (msg) => {
+const setStatus = (msg, spinning = false) => {
   if (!msg) {
-    els.status.classList.add("hidden");
-    els.status.textContent = "";
+    els.statusText.textContent = "";
+    els.statusSpinner.classList.add("hidden");
+    els.status.classList.add("opacity-0");
     return;
   }
-  els.status.classList.remove("hidden");
-  els.status.textContent = msg;
+  els.status.classList.remove("opacity-0");
+  els.statusText.textContent = msg;
+  els.statusSpinner.classList.toggle("hidden", !spinning);
 };
 
 const updateCounts = () => {
@@ -220,7 +228,7 @@ const ensureWorker = () => {
       clearInterval(parseTimer);
       parseTimer = 0;
     }
-    setStatus("");
+    setStatus("", false);
 
     lastEntities = Array.isArray(msg.entities) ? msg.entities : [];
     els.matchCount.textContent = String(lastEntities.length);
@@ -248,22 +256,33 @@ const stopWorker = () => {
     clearInterval(parseTimer);
     parseTimer = 0;
   }
-  setStatus("");
+  setStatus("", false);
 };
 
-const setSelectedEntity = (idx) => {
-  const e = lastEntities[idx];
-  if (!e) {
-    els.selectedWrap.classList.add("hidden");
-    return;
+const closePopover = () => {
+  els.popover.classList.add("hidden");
+  if (activeEntEl) {
+    activeEntEl.classList.remove("ring-2", "ring-teal-400");
+    activeEntEl = null;
   }
+};
+
+const openPopover = (idx, el) => {
+  const e = lastEntities[idx];
+  if (!e) return;
+
+  if (activeEntEl) activeEntEl.classList.remove("ring-2", "ring-teal-400");
+  activeEntEl = el || null;
+  if (activeEntEl) activeEntEl.classList.add("ring-2", "ring-teal-400");
+
   const title = `${e.kind}  "${
     e.text.length > 60 ? `${e.text.slice(0, 60)}…` : e.text
   }"  [${e.start},${e.end}]`;
-  els.selectedTitle.textContent = title;
-  els.selectedJson.textContent = JSON.stringify(e, null, 2);
-  els.selectedWrap.classList.remove("hidden");
-  els.selectedWrap.open = true;
+
+  els.popoverTitle.textContent = title;
+  els.popoverJson.textContent = JSON.stringify(e, null, 2);
+  els.popover.classList.remove("hidden");
+  els.popoverClose.focus();
 };
 
 const annotateHtml = (text, entities, limit) => {
@@ -297,7 +316,7 @@ const renderAnnotated = (text, entities, limit) => {
   els.annotated.querySelectorAll(".ent").forEach((el) => {
     el.addEventListener("click", () => {
       const i = Number(el.getAttribute("data-idx"));
-      setSelectedEntity(i);
+      openPopover(i, el);
     });
   });
 };
@@ -318,8 +337,8 @@ const extractNow = () => {
     els.timing.textContent = "";
     els.annotated.textContent = "";
     els.json.textContent = "[]";
-    els.selectedWrap.classList.add("hidden");
-    setStatus("");
+    closePopover();
+    setStatus("", false);
     return;
   }
 
@@ -330,10 +349,11 @@ const extractNow = () => {
 
   parseInFlight = true;
   const startedAt = performance.now();
-  setStatus("Parsing…");
+  closePopover();
+  setStatus("Parsing…", true);
   parseTimer = setInterval(() => {
     const dt = performance.now() - startedAt;
-    setStatus(dt > 900 ? `Parsing… ${Math.round(dt)}ms` : "Parsing…");
+    setStatus(dt > 900 ? `Parsing… ${Math.round(dt)}ms` : "Parsing…", true);
   }, 250);
 
   const full = !!els.fullText.checked;
@@ -386,12 +406,12 @@ const fetchUrlText = async (url) => {
 const loadFromUrl = async () => {
   const url = normalizeUrl(els.url.value);
   if (!url) {
-    setStatus("Invalid URL");
-    setTimeout(() => setStatus(""), 1800);
+    setStatus("Invalid URL", false);
+    setTimeout(() => setStatus("", false), 1800);
     return;
   }
 
-  setStatus("Fetching…");
+  setStatus("Fetching…", true);
   stopWorker();
 
   const t0 = performance.now();
@@ -409,20 +429,21 @@ const loadFromUrl = async () => {
     updateCounts();
 
     const dt = performance.now() - t0;
-    setStatus(`Loaded (${Math.round(dt)}ms)`);
-    setTimeout(() => setStatus(""), 900);
+    setStatus(`Loaded (${Math.round(dt)}ms)`, false);
+    setTimeout(() => setStatus("", false), 900);
     scheduleExtract();
   } catch (_e) {
-    setStatus("Load failed (likely CORS)");
-    setTimeout(() => setStatus(""), 2500);
+    setStatus("Load failed (likely CORS)", false);
+    setTimeout(() => setStatus("", false), 2500);
   }
 };
 
 els.btnRun.addEventListener("click", extractNow);
 els.btnStop.addEventListener("click", () => {
   stopWorker();
-  setStatus("Stopped");
-  setTimeout(() => setStatus(""), 900);
+  closePopover();
+  setStatus("Stopped", false);
+  setTimeout(() => setStatus("", false), 900);
 });
 
 els.btnClear.addEventListener("click", () => {
@@ -435,8 +456,8 @@ els.btnClear.addEventListener("click", () => {
   els.timing.textContent = "";
   els.annotated.textContent = "";
   els.json.textContent = "[]";
-  els.selectedWrap.classList.add("hidden");
-  setStatus("");
+  closePopover();
+  setStatus("", false);
 });
 
 els.btnLoad.addEventListener("click", loadFromUrl);
@@ -478,3 +499,12 @@ renderParserList();
 updateCounts();
 
 if (els.input.value.trim()) scheduleExtract();
+
+els.popoverBackdrop.addEventListener("click", closePopover);
+els.popoverClose.addEventListener("click", closePopover);
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") closePopover();
+});
+
+// Keep layout stable; content fades in/out.
+els.status.classList.add("opacity-0");
