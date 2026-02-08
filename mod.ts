@@ -22,6 +22,11 @@ import { URL, URLEntity } from "./src/URL.ts";
 import { Email, EmailEntity } from "./src/Email.ts";
 import { Institution, InstitutionEntity } from "./src/Institution.ts";
 import { Language, LanguageEntity } from "./src/Language.ts";
+import { Phone, PhoneEntity } from "./src/Phone.ts";
+import { IPAddress, IPAddressEntity } from "./src/IPAddress.ts";
+import { SSN, SSNEntity } from "./src/SSN.ts";
+import { CreditCard, CreditCardEntity } from "./src/CreditCard.ts";
+import { UUID, UUIDEntity } from "./src/UUID.ts";
 
 export type AnyEntity =
   | Entity<unknown, unknown>
@@ -32,17 +37,27 @@ export type AnyEntity =
   | URLEntity
   | EmailEntity
   | InstitutionEntity
-  | LanguageEntity;
+  | LanguageEntity
+  | PhoneEntity
+  | IPAddressEntity
+  | SSNEntity
+  | CreditCardEntity
+  | UUIDEntity;
 
 export const Duckling = (
   parsers: Parser<AnyEntity>[] = [
     Range.parser,
+    Email.parser,
+    URL.parser,
+    UUID.parser,
+    Phone.parser,
+    IPAddress.parser,
+    SSN.parser,
+    CreditCard.parser,
     Time.parser,
     Temperature.parser,
     Quantity.parser,
     Location.parser,
-    URL.parser,
-    Email.parser,
     Institution.parser,
     Language.parser,
   ],
@@ -79,5 +94,10 @@ export * from "./src/Time.ts";
 export * from "./src/Location.ts";
 export * from "./src/URL.ts";
 export * from "./src/Email.ts";
+export * from "./src/Phone.ts";
+export * from "./src/IPAddress.ts";
+export * from "./src/SSN.ts";
+export * from "./src/CreditCard.ts";
+export * from "./src/UUID.ts";
 export * from "./src/Institution.ts";
 export * from "./src/Language.ts";
