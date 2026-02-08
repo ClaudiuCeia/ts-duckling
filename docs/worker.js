@@ -7,7 +7,10 @@ const loadModule = () => {
   // Prefer local bundle for development/preview, but fall back to esm.sh for
   // production (GitHub Pages) or when the bundle is missing.
   modPromise = (async () => {
-    const build = globalThis.__TS_DUCKLING_BUILD__ || "dev";
+    // The worker runs in its own global scope; it doesn't inherit globals from
+    // the page. We pass `?v=<sha>` when constructing the Worker URL.
+    const build = new URL(globalThis.location.href).searchParams.get("v") ||
+      "dev";
     const local = new URL(
       `./vendor/ts-duckling.js?v=${encodeURIComponent(build)}`,
       import.meta.url,
