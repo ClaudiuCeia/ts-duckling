@@ -301,10 +301,23 @@ const groupByStart = (entities) => {
   const display = [];
   for (const s of starts) {
     const arr = map.get(s) ?? [];
-    arr.sort((a, b) => (b.end - a.end) || String(a.kind).localeCompare(b.kind));
+    // For the hovercard, keep "most informative" (longest) first.
+    arr.sort((a, b) =>
+      (b.end - b.start) - (a.end - a.start) ||
+      (b.end - a.end) ||
+      String(a.kind).localeCompare(b.kind)
+    );
     if (!arr.length) continue;
     groups.push(arr);
-    display.push(arr[0]); // representative for annotation
+
+    // For annotation, prefer the smallest (shortest) match so we don't hide
+    // inner groups (e.g. CC + 4x quantity chunks).
+    const smallest = [...arr].sort((a, b) =>
+      (a.end - a.start) - (b.end - b.start) ||
+      (a.end - b.end) ||
+      String(a.kind).localeCompare(b.kind)
+    )[0];
+    display.push(smallest);
   }
   return { map, groups, display };
 };
