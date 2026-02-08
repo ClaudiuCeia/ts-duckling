@@ -33,6 +33,23 @@ export type QuantityEntity = Entity<
   }
 >;
 
+// Digits-only integer quantity. Useful for structured tokens where Quantity.innerParser
+// is too permissive (e.g. it may consume trailing punctuation like "6789.").
+export const Int = (): Parser<QuantityEntity> => {
+  return map(
+    map(many1(digit()), (ds) => parseInt(ds.join(""))),
+    (amount, b, a) => quantity({ amount }, b, a),
+  );
+};
+
+// Parse exactly N digits as a QuantityEntity.
+export const IntN = (n: number): Parser<QuantityEntity> => {
+  return map(
+    map(repeat(n, digit()), (ds) => parseInt(ds.join(""))),
+    (amount, b, a) => quantity({ amount }, b, a),
+  );
+};
+
 const quantity = (
   value: {
     amount: number;

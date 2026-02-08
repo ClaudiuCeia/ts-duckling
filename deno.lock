@@ -1,7 +1,9 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@claudiu-ceia/combine@0.2.6": "0.2.6",
+    "jsr:@claudiu-ceia/combine@*": "0.2.7",
+    "jsr:@claudiu-ceia/combine@0.2.7": "0.2.7",
+    "jsr:@claudiu-ceia/combine@~0.2.7": "0.2.7",
     "jsr:@std/assert@1.0.18": "1.0.18",
     "jsr:@std/async@^1.1.0": "1.1.1",
     "jsr:@std/data-structures@^1.0.10": "1.0.10",
@@ -9,8 +11,8 @@
     "jsr:@std/testing@1.0.17": "1.0.17"
   },
   "jsr": {
-    "@claudiu-ceia/combine@0.2.6": {
-      "integrity": "fcbf402de2a0d2ef68dfe75094a155db8ce5036f1b2573a92ddb69193326ec9e"
+    "@claudiu-ceia/combine@0.2.7": {
+      "integrity": "e301d1f92ac1544fbdbe3daa8945ba0ec58c9501894d7e7abb1681fffb3be0b6"
     },
     "@std/assert@1.0.18": {
       "integrity": "270245e9c2c13b446286de475131dc688ca9abcd94fc5db41d43a219b34d1c78",
@@ -37,7 +39,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@claudiu-ceia/combine@0.2.6",
+      "jsr:@claudiu-ceia/combine@~0.2.7",
       "jsr:@std/assert@1.0.18",
       "jsr:@std/testing@1.0.17"
     ]

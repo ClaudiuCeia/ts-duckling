@@ -1,40 +1,45 @@
 // deno-lint-ignore-file no-import-prefix
-import {
-  CreditCard,
-  Duckling,
-  Email,
-  Institution,
-  IPAddress,
-  Language,
-  Location,
-  Phone,
-  Quantity,
-  Range,
-  SSN,
-  Temperature,
-  Time,
-  URL,
-  UUID,
-} from "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts";
+let modPromise = null;
 
-const registry = {
-  Range: Range.parser,
-  Time: Time.parser,
-  Temperature: Temperature.parser,
-  Quantity: Quantity.parser,
-  Location: Location.parser,
-  URL: URL.parser,
-  Email: Email.parser,
-  Institution: Institution.parser,
-  Language: Language.parser,
-  Phone: Phone.parser,
-  IPAddress: IPAddress.parser,
-  SSN: SSN.parser,
-  CreditCard: CreditCard.parser,
-  UUID: UUID.parser,
+const loadModule = () => {
+  if (modPromise) return modPromise;
+
+  // Prefer local bundle for development/preview, but fall back to esm.sh for
+  // production (GitHub Pages) or when the bundle is missing.
+  modPromise = (async () => {
+    const local = new URL("./vendor/ts-duckling.js", import.meta.url).href;
+    try {
+      return await import(local);
+    } catch {
+      return await import(
+        "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts"
+      );
+    }
+  })();
+
+  return modPromise;
 };
 
-self.onmessage = (ev) => {
+const buildRegistry = (m) => {
+  return {
+    Range: m.Range.parser,
+    Time: m.Time.parser,
+    Temperature: m.Temperature.parser,
+    Quantity: m.Quantity.parser,
+    Location: m.Location.parser,
+    URL: m.URL.parser,
+    Email: m.Email.parser,
+    Institution: m.Institution.parser,
+    Language: m.Language.parser,
+    Phone: m.Phone.parser,
+    IPAddress: m.IPAddress.parser,
+    SSN: m.SSN.parser,
+    CreditCard: m.CreditCard.parser,
+    UUID: m.UUID.parser,
+  };
+};
+
+self.onmessage = async (ev) => {
   const msg = ev.data;
   if (!msg || msg.type !== "extract") return;
 
@@ -44,12 +49,14 @@ self.onmessage = (ev) => {
   const truncated = max > 0 && source.length > max;
   const input = truncated ? source.slice(0, max) : source;
 
+  const m = await loadModule();
+  const registry = buildRegistry(m);
   const parsers = Array.isArray(ids)
     ? ids.map((id) => registry[id]).filter(Boolean)
     : [];
 
   const t0 = performance.now();
-  const res = Duckling(parsers).extract({ text: input, index: 0 });
+  const res = m.Duckling(parsers).extract({ text: input, index: 0 });
   const ms = performance.now() - t0;
 
   const entities = res.success ? res.value : [];

@@ -23,15 +23,25 @@ import { Quantity, QuantityEntity } from "./Quantity.ts";
 
 type TimeGranularity =
   | "second"
+  | "seconds"
   | "minute"
+  | "minutes"
   | "hour"
+  | "hours"
   | "day"
+  | "days"
   | "week"
+  | "weeks"
   | "month"
+  | "months"
   | "quarter"
+  | "quarters"
   | "year"
+  | "years"
   | "decade"
+  | "decades"
   | "century"
+  | "centuries"
   | "era";
 
 export type TimeEntity = Entity<

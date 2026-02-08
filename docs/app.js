@@ -115,6 +115,7 @@ const els = {
   hovercard: document.getElementById("hovercard"),
   hovercardClose: document.getElementById("hovercard-close"),
   hovercardTitle: document.getElementById("hovercard-title"),
+  hovercardTabs: document.getElementById("hovercard-tabs"),
   hovercardJson: document.getElementById("hovercard-json"),
 };
 
@@ -155,6 +156,8 @@ let worker = null;
 let reqId = 0;
 let parseInFlight = false;
 let lastEntities = [];
+let lastDisplayEntities = [];
+let lastGroupsByStart = new Map();
 let currentText = "";
 let parseTimer = 0;
 let activeEntEl = null;
@@ -284,6 +287,28 @@ const stopWorker = () => {
   setStatus("", false);
 };
 
+const groupByStart = (entities) => {
+  const map = new Map();
+  for (const e of entities) {
+    if (!e || !Number.isFinite(e.start)) continue;
+    const arr = map.get(e.start) ?? [];
+    arr.push(e);
+    map.set(e.start, arr);
+  }
+
+  const starts = [...map.keys()].sort((a, b) => a - b);
+  const groups = [];
+  const display = [];
+  for (const s of starts) {
+    const arr = map.get(s) ?? [];
+    arr.sort((a, b) => (b.end - a.end) || String(a.kind).localeCompare(b.kind));
+    if (!arr.length) continue;
+    groups.push(arr);
+    display.push(arr[0]); // representative for annotation
+  }
+  return { map, groups, display };
+};
+
 const closeHovercard = () => {
   if (cardHideTimer) {
     clearTimeout(cardHideTimer);
@@ -331,9 +356,18 @@ const positionHovercard = (anchorEl) => {
   card.style.top = `${Math.round(top)}px`;
 };
 
-const openHovercard = (idx, el, pinned) => {
-  const e = lastEntities[idx];
-  if (!e) return;
+const setHovercardMatch = (match) => {
+  const title = `${match.kind}  "${
+    match.text.length > 60 ? `${match.text.slice(0, 60)}…` : match.text
+  }"  [${match.start},${match.end}]`;
+
+  els.hovercardTitle.textContent = title;
+  els.hovercardJson.textContent = JSON.stringify(match, null, 2);
+};
+
+const openHovercard = (start, el, pinned) => {
+  const list = lastGroupsByStart.get(start) ?? [];
+  if (!list.length) return;
 
   if (activeEntEl) activeEntEl.classList.remove("ring-2", "ring-teal-400");
   activeEntEl = el || null;
@@ -345,20 +379,35 @@ const openHovercard = (idx, el, pinned) => {
   }
   cardPinned = !!pinned;
 
-  const title = `${e.kind}  "${
-    e.text.length > 60 ? `${e.text.slice(0, 60)}…` : e.text
-  }"  [${e.start},${e.end}]`;
+  // Chips for all matches at this start offset.
+  els.hovercardTabs.innerHTML = "";
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 hover:border-slate-300";
+    btn.textContent = `${m.kind} ${(m.end - m.start)}c`;
+    btn.addEventListener("click", () => {
+      els.hovercardTabs.querySelectorAll("button").forEach((b) => {
+        b.classList.remove("border-teal-200", "bg-teal-50", "text-teal-900");
+      });
+      btn.classList.add("border-teal-200", "bg-teal-50", "text-teal-900");
+      setHovercardMatch(m);
+    });
+    if (i === 0) {
+      btn.classList.add("border-teal-200", "bg-teal-50", "text-teal-900");
+    }
+    els.hovercardTabs.append(btn);
+  }
 
-  els.hovercardTitle.textContent = title;
-  els.hovercardJson.textContent = JSON.stringify(e, null, 2);
+  setHovercardMatch(list[0]);
   positionHovercard(el);
 };
 
 const annotateHtml = (text, entities, limit) => {
   const view = typeof limit === "number" ? text.slice(0, limit) : text;
-  const sorted = [...entities].sort((a, b) =>
-    a.start - b.start || a.end - b.end
-  );
+  const sorted = [...entities].sort((a, b) => a.start - b.start);
   let cursor = 0;
   let idx = 0;
   const parts = [];
@@ -371,7 +420,7 @@ const annotateHtml = (text, entities, limit) => {
     parts.push(escapeHtml(view.slice(cursor, e.start)));
     const chunk = escapeHtml(view.slice(e.start, end));
     parts.push(
-      `<span class="ent cursor-pointer rounded-md bg-teal-100 px-1 py-0.5 text-slate-900 outline outline-1 outline-teal-200 hover:bg-teal-200" data-idx="${idx}">${chunk}</span>`,
+      `<span class="ent cursor-pointer rounded-md bg-teal-100 px-1 py-0.5 text-slate-900 outline outline-1 outline-teal-200 hover:bg-teal-200" data-idx="${idx}" data-start="${e.start}">${chunk}</span>`,
     );
     cursor = end;
     idx++;
@@ -381,12 +430,16 @@ const annotateHtml = (text, entities, limit) => {
 };
 
 const renderAnnotated = (text, entities, limit) => {
-  els.annotated.innerHTML = annotateHtml(text, entities, limit);
+  const grouped = groupByStart(entities);
+  lastGroupsByStart = grouped.map;
+  lastDisplayEntities = grouped.display;
+
+  els.annotated.innerHTML = annotateHtml(text, lastDisplayEntities, limit);
   els.annotated.querySelectorAll(".ent").forEach((el) => {
     el.addEventListener("mouseenter", () => {
       if (cardPinned) return;
-      const i = Number(el.getAttribute("data-idx"));
-      openHovercard(i, el, false);
+      const start = Number(el.getAttribute("data-start"));
+      openHovercard(start, el, false);
     });
     el.addEventListener("mouseleave", () => {
       if (cardPinned) return;
@@ -394,8 +447,8 @@ const renderAnnotated = (text, entities, limit) => {
       cardHideTimer = setTimeout(() => closeHovercard(), 120);
     });
     el.addEventListener("click", () => {
-      const i = Number(el.getAttribute("data-idx"));
-      openHovercard(i, el, true);
+      const start = Number(el.getAttribute("data-start"));
+      openHovercard(start, el, true);
     });
   });
 };
@@ -437,7 +490,23 @@ const extractNow = () => {
 
   const full = !!els.fullText.checked;
   const max = full ? 0 : Math.max(500, Number(els.maxChars.value) || 8000);
-  const ids = [...selected];
+  const priority = [
+    "Email",
+    "URL",
+    "UUID",
+    "Phone",
+    "IPAddress",
+    "SSN",
+    "CreditCard",
+    "Time",
+    "Temperature",
+    "Range",
+    "Location",
+    "Institution",
+    "Language",
+    "Quantity",
+  ];
+  const ids = priority.filter((id) => selected.has(id));
 
   ensureWorker().postMessage({
     type: "extract",

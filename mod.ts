@@ -1,8 +1,10 @@
 import {
+  allMatches,
   any,
   anyChar,
   createLanguageThis,
   eof,
+  failure,
   manyTill,
   map,
   optional,
@@ -12,9 +14,8 @@ import {
   space,
 } from "@claudiu-ceia/combine";
 import { __, dot, word } from "./src/common.ts";
-import { Entity } from "./src/Entity.ts";
 import { Quantity, QuantityEntity } from "./src/Quantity.ts";
-import { Range } from "./src/Range.ts";
+import { Range, type RangeEntity } from "./src/Range.ts";
 import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
 import { Time, TimeEntity } from "./src/Time.ts";
 import { Location, LocationEntity } from "./src/Location.ts";
@@ -29,10 +30,11 @@ import { CreditCard, CreditCardEntity } from "./src/CreditCard.ts";
 import { UUID, UUIDEntity } from "./src/UUID.ts";
 
 export type AnyEntity =
-  | Entity<unknown, unknown>
   | TemperatureEntity
   | TimeEntity
   | QuantityEntity
+  | RangeEntity<TemperatureEntity>
+  | RangeEntity<TimeEntity>
   | LocationEntity
   | URLEntity
   | EmailEntity
@@ -64,7 +66,14 @@ export const Duckling = (
 ) =>
   createLanguageThis({
     Entity() {
-      return any(...parsers);
+      if (parsers.length === 0) {
+        return (ctx) => failure(ctx, "entity");
+      }
+
+      const matchAll = allMatches(
+        ...(parsers as [Parser<AnyEntity>, ...Parser<AnyEntity>[]]),
+      );
+      return matchAll as Parser<AnyEntity[]>;
     },
     Unstructured() {
       return any(dot(word), __(word), space());
@@ -78,7 +87,8 @@ export const Duckling = (
               any(this.Entity, skip1(this.Unstructured), skip1(anyChar())),
               skip1(eof()),
             ),
-            ([...matches]) => matches.filter((m) => !!m),
+            ([...matches]) =>
+              matches.filter((m): m is AnyEntity[] => Array.isArray(m)).flat(),
           ),
         ),
         ([, res]) => res,

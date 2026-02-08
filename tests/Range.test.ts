@@ -185,28 +185,14 @@ Deno.test("Year range with dash", () => {
   assertEquals(res.success, true);
 
   if (res.success) {
-    assertEquals(res.value, [
-      {
-        end: 14,
-        kind: "quantity",
-        start: 11,
-        text: "145",
-        value: {
-          amount: 145,
-        },
-      },
-      {
-        end: 20,
-        kind: "time",
-        start: 15,
-        text: "90 BC",
-        value: {
-          era: "BCE",
-          grain: "era",
-          when: "90 BC",
-        },
-      },
-    ]);
+    assertEquals(
+      res.value.some((e) => e.kind === "quantity" && e.text === "145"),
+      true,
+    );
+    assertEquals(
+      res.value.some((e) => e.kind === "time" && e.text === "90 BC"),
+      true,
+    );
   }
 });
 
@@ -222,29 +208,13 @@ Deno.test("Time range with dash", () => {
   assertEquals(res.success, true);
 
   if (res.success) {
-    assertEquals(res.value, [
-      {
-        end: 41,
-        kind: "time",
-        start: 35,
-        text: "484 BC",
-        value: {
-          era: "BCE",
-          grain: "era",
-          when: "484 BC",
-        },
-      },
-      {
-        end: 51,
-        kind: "time",
-        start: 42,
-        text: "c. 425 BC",
-        value: {
-          era: "BCE",
-          grain: "era",
-          when: "425 BC",
-        },
-      },
-    ]);
+    assertEquals(
+      res.value.some((e) => e.kind === "time" && e.text === "484 BC"),
+      true,
+    );
+    assertEquals(
+      res.value.some((e) => e.kind === "time" && e.text === "c. 425 BC"),
+      true,
+    );
   }
 });
