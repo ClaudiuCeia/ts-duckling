@@ -12,7 +12,7 @@ import {
   SSN,
   Temperature,
   Time,
-  URL,
+  URL as URLParser,
   UUID,
 } from "ts-duckling";
 import { Readability } from "@mozilla/readability";
@@ -54,7 +54,7 @@ const registry = [
     id: "URL",
     label: "URL",
     desc: "http/https/ftp URLs (domain + optional port)",
-    p: URL.parser,
+    p: URLParser.parser,
   },
   { id: "Email", label: "Email", desc: "Email addresses", p: Email.parser },
   {

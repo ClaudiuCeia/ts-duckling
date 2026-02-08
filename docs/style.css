@@ -47,6 +47,7 @@ body {
   ),
     linear-gradient(180deg, var(--bg), var(--bg2));
   font-family: var(--sans);
+  font-size: 16px;
 }
 
 .top {
@@ -71,8 +72,8 @@ body {
 }
 
 .logo {
-  width: 38px;
-  height: 38px;
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
   display: block;
   background: #fff;
@@ -82,7 +83,7 @@ body {
 
 .titles h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -90,7 +91,37 @@ body {
 .titles p {
   margin: 2px 0 0;
   color: var(--muted);
+  font-size: 13px;
+}
+
+.meta-links {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.95);
+  color: rgba(15, 23, 42, 0.82);
+  text-decoration: none;
   font-size: 12.5px;
+  font-weight: 650;
+}
+
+.meta-link:hover {
+  border-color: rgba(148, 163, 184, 0.9);
+  background: #fff;
+}
+
+.gh {
+  opacity: 0.9;
 }
 
 .actions {
@@ -169,7 +200,7 @@ body {
 
 .panel-head h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-weight: 800;
