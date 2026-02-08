@@ -1,104 +1,56 @@
-import {
-  CreditCard,
-  Duckling,
-  Email,
-  Institution,
-  IPAddress,
-  Language,
-  Location,
-  Phone,
-  Quantity,
-  Range,
-  SSN,
-  Temperature,
-  Time,
-  URL as URLParser,
-  UUID,
-} from "ts-duckling";
-import { Readability } from "@mozilla/readability";
-
-const STORAGE_KEY = "ts-duckling:docs:selected-parsers:v2";
+const STORAGE_KEY = "ts-duckling:docs:selected-parsers:v3";
 
 const registry = [
   {
     id: "Range",
     label: "Range",
     desc: "Intervals: time and temperature ranges",
-    p: Range.parser,
   },
   {
     id: "Time",
     label: "Time",
     desc: "Dates, relative time, day of week, circa",
-    p: Time.parser,
   },
   {
     id: "Temperature",
     label: "Temperature",
     desc: "Temperatures with optional unit",
-    p: Temperature.parser,
   },
   {
     id: "Quantity",
     label: "Quantity",
     desc: "Numbers: literals, commas, fractions",
-    p: Quantity.parser,
   },
   {
     id: "Location",
     label: "Location",
     desc: "Countries and cities (dataset-backed)",
-    p: Location.parser,
   },
   {
     id: "URL",
     label: "URL",
     desc: "http/https/ftp URLs (domain + optional port)",
-    p: URLParser.parser,
   },
-  { id: "Email", label: "Email", desc: "Email addresses", p: Email.parser },
+  { id: "Email", label: "Email", desc: "Email addresses" },
   {
     id: "Institution",
     label: "Institution",
     desc: "Town halls, schools, etc.",
-    p: Institution.parser,
   },
   {
     id: "Language",
     label: "Language",
     desc: "Language names (dataset-backed)",
-    p: Language.parser,
   },
-  {
-    id: "Phone",
-    label: "Phone",
-    desc: "E.164: +<digits> (8-15)",
-    p: Phone.parser,
-  },
-  {
-    id: "IPAddress",
-    label: "IP address",
-    desc: "IPv4 + IPv6 full form",
-    p: IPAddress.parser,
-  },
-  {
-    id: "SSN",
-    label: "SSN",
-    desc: "US SSN: AAA-GG-SSSS (basic constraints)",
-    p: SSN.parser,
-  },
+  { id: "Phone", label: "Phone", desc: "E.164: +<digits> (8-15)" },
+  { id: "IPAddress", label: "IP address", desc: "IPv4 + IPv6 full form" },
+  { id: "SSN", label: "SSN", desc: "US SSN: AAA-GG-SSSS (basic constraints)" },
   {
     id: "CreditCard",
     label: "Credit card",
     desc: "13-19 digits (spaces/dashes) + Luhn",
-    p: CreditCard.parser,
   },
-  {
-    id: "UUID",
-    label: "UUID",
-    desc: "Canonical 8-4-4-4-12 UUID",
-    p: UUID.parser,
-  },
+  { id: "UUID", label: "UUID", desc: "Canonical 8-4-4-4-12 UUID" },
 ];
 
 const presets = {
@@ -120,11 +72,6 @@ const presets = {
     "4242 4242 4242 4242",
     "550e8400-e29b-41d4-a716-446655440000",
   ].join("\n"),
-  article: [
-    "Between 2018 and 2022, we saw a big shift in browser runtimes.",
-    "On January 5, 2022, the project started shipping weekly releases.",
-    "Reach out at hello@example.com or visit https://example.com/docs.",
-  ].join("\n\n"),
 };
 
 const els = {
@@ -144,8 +91,11 @@ const els = {
   status: document.getElementById("status"),
   url: document.getElementById("url"),
   presetText: document.getElementById("preset-text"),
+  maxChars: document.getElementById("max-chars"),
+  fullText: document.getElementById("full-text"),
   btnLoad: document.getElementById("btn-load"),
   btnRun: document.getElementById("btn-run"),
+  btnStop: document.getElementById("btn-stop"),
   btnClear: document.getElementById("btn-clear"),
   presetAll: document.getElementById("preset-all"),
   presetNone: document.getElementById("preset-none"),
@@ -185,19 +135,22 @@ const saveSelection = (set) => {
 };
 
 let selected = loadSelection();
-let activeIdx = null;
-let lastEntities = [];
 let scheduled = 0;
+let worker = null;
+let reqId = 0;
+let parseInFlight = false;
+let lastEntities = [];
+let currentText = "";
+let parseTimer = 0;
 
-const setStatus = (kind, msg) => {
-  if (!kind) {
+const setStatus = (msg) => {
+  if (!msg) {
+    els.status.classList.add("hidden");
     els.status.textContent = "";
     return;
   }
-  const spinner = kind === "fetch" || kind === "parse"
-    ? '<span class="spinner" aria-hidden="true"></span>'
-    : "";
-  els.status.innerHTML = `${spinner}${escapeHtml(msg)}`;
+  els.status.classList.remove("hidden");
+  els.status.textContent = msg;
 };
 
 const updateCounts = () => {
@@ -207,13 +160,19 @@ const updateCounts = () => {
 
 const renderParserList = () => {
   els.parserList.innerHTML = "";
+
   for (const item of registry) {
     const wrap = document.createElement("div");
-    wrap.className = "parser-item";
+    wrap.className =
+      "rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-slate-300";
     wrap.setAttribute("role", "listitem");
+
+    const row = document.createElement("label");
+    row.className = "flex cursor-pointer items-start gap-3";
 
     const cb = document.createElement("input");
     cb.type = "checkbox";
+    cb.className = "mt-1 h-4 w-4 accent-teal-600";
     cb.checked = selected.has(item.id);
     cb.addEventListener("change", () => {
       if (cb.checked) selected.add(item.id);
@@ -225,14 +184,15 @@ const renderParserList = () => {
 
     const meta = document.createElement("div");
     const name = document.createElement("div");
-    name.className = "parser-name";
+    name.className = "text-sm font-semibold text-slate-900";
     name.textContent = item.label;
     const desc = document.createElement("div");
-    desc.className = "parser-desc";
+    desc.className = "text-sm text-slate-600";
     desc.textContent = item.desc;
     meta.append(name, desc);
 
-    wrap.append(cb, meta);
+    row.append(cb, meta);
+    wrap.append(row);
     els.parserList.append(wrap);
   }
 };
@@ -245,21 +205,60 @@ const setSelection = (set) => {
   scheduleExtract();
 };
 
-const setActive = (idx) => {
-  activeIdx = idx;
-  els.annotated.querySelectorAll(".ent").forEach((el) => {
-    const i = Number(el.getAttribute("data-idx"));
-    el.classList.toggle("active", i === activeIdx);
+const ensureWorker = () => {
+  if (worker) return worker;
+  worker = new Worker(new URL("./worker.js", import.meta.url), {
+    type: "module",
   });
+  worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (!msg || msg.type !== "result") return;
+    if (msg.reqId !== reqId) return;
 
+    parseInFlight = false;
+    if (parseTimer) {
+      clearInterval(parseTimer);
+      parseTimer = 0;
+    }
+    setStatus("");
+
+    lastEntities = Array.isArray(msg.entities) ? msg.entities : [];
+    els.matchCount.textContent = String(lastEntities.length);
+
+    const ms = Number.isFinite(msg.ms) ? msg.ms : 0;
+    const suffix = msg.truncated ? ` (prefix ${msg.length} chars)` : "";
+    els.timing.textContent = `${ms.toFixed(0)}ms${suffix}`;
+
+    renderAnnotated(
+      currentText,
+      lastEntities,
+      msg.truncated ? msg.length : null,
+    );
+    els.json.textContent = JSON.stringify(lastEntities, null, 2);
+  };
+  return worker;
+};
+
+const stopWorker = () => {
+  if (!worker) return;
+  worker.terminate();
+  worker = null;
+  parseInFlight = false;
+  if (parseTimer) {
+    clearInterval(parseTimer);
+    parseTimer = 0;
+  }
+  setStatus("");
+};
+
+const setSelectedEntity = (idx) => {
   const e = lastEntities[idx];
   if (!e) {
     els.selectedWrap.classList.add("hidden");
     return;
   }
-
   const title = `${e.kind}  "${
-    e.text.length > 40 ? `${e.text.slice(0, 40)}…` : e.text
+    e.text.length > 60 ? `${e.text.slice(0, 60)}…` : e.text
   }"  [${e.start},${e.end}]`;
   els.selectedTitle.textContent = title;
   els.selectedJson.textContent = JSON.stringify(e, null, 2);
@@ -267,57 +266,38 @@ const setActive = (idx) => {
   els.selectedWrap.open = true;
 };
 
-const annotate = (text, entities) => {
+const annotateHtml = (text, entities, limit) => {
+  const view = typeof limit === "number" ? text.slice(0, limit) : text;
   const sorted = [...entities].sort((a, b) =>
     a.start - b.start || a.end - b.end
   );
   let cursor = 0;
-  const parts = [];
   let idx = 0;
+  const parts = [];
 
   for (const e of sorted) {
-    if (e.start < cursor) continue; // overlap, skip
-    parts.push(escapeHtml(text.slice(cursor, e.start)));
-    const chunk = escapeHtml(text.slice(e.start, e.end));
+    if (e.start < cursor) continue;
+    if (e.start > view.length) break;
+    const end = Math.min(e.end, view.length);
+
+    parts.push(escapeHtml(view.slice(cursor, e.start)));
+    const chunk = escapeHtml(view.slice(e.start, end));
     parts.push(
-      `<span class="ent" data-idx="${idx}" title="${
-        escapeHtml(e.kind)
-      }">${chunk}</span>`,
+      `<span class="ent cursor-pointer rounded-md bg-teal-100 px-1 py-0.5 text-slate-900 outline outline-1 outline-teal-200 hover:bg-teal-200" data-idx="${idx}">${chunk}</span>`,
     );
-    cursor = e.end;
+    cursor = end;
     idx++;
   }
-  parts.push(escapeHtml(text.slice(cursor)));
+  parts.push(escapeHtml(view.slice(cursor)));
   return parts.join("");
 };
 
-const extractNow = async () => {
-  const text = els.input.value;
-  const parsers = registry.filter((r) => selected.has(r.id)).map((r) => r.p);
-
-  setStatus("parse", "Parsing…");
-  await new Promise((r) => requestAnimationFrame(() => r()));
-
-  const t0 = performance.now();
-  const res = Duckling(parsers).extract({ text, index: 0 });
-  const dt = performance.now() - t0;
-
-  const entities = res.success ? res.value : [];
-  lastEntities = entities;
-
-  els.matchCount.textContent = String(entities.length);
-  els.timing.textContent = `${dt.toFixed(1)}ms`;
-  els.annotated.innerHTML = annotate(text, entities);
-  els.json.textContent = JSON.stringify(entities, null, 2);
-  setStatus("", "");
-
-  activeIdx = null;
-  els.selectedWrap.classList.add("hidden");
-
+const renderAnnotated = (text, entities, limit) => {
+  els.annotated.innerHTML = annotateHtml(text, entities, limit);
   els.annotated.querySelectorAll(".ent").forEach((el) => {
     el.addEventListener("click", () => {
       const i = Number(el.getAttribute("data-idx"));
-      setActive(i);
+      setSelectedEntity(i);
     });
   });
 };
@@ -327,34 +307,60 @@ const scheduleExtract = () => {
   scheduled = setTimeout(() => {
     scheduled = 0;
     extractNow();
+  }, 350);
+};
+
+const extractNow = () => {
+  currentText = els.input.value;
+  if (!currentText.trim()) {
+    lastEntities = [];
+    els.matchCount.textContent = "0";
+    els.timing.textContent = "";
+    els.annotated.textContent = "";
+    els.json.textContent = "[]";
+    els.selectedWrap.classList.add("hidden");
+    setStatus("");
+    return;
+  }
+
+  reqId++;
+
+  // If we already have a long-running parse, terminate worker to avoid stacking work.
+  if (parseInFlight) stopWorker();
+
+  parseInFlight = true;
+  const startedAt = performance.now();
+  setStatus("Parsing…");
+  parseTimer = setInterval(() => {
+    const dt = performance.now() - startedAt;
+    setStatus(dt > 900 ? `Parsing… ${Math.round(dt)}ms` : "Parsing…");
   }, 250);
+
+  const full = !!els.fullText.checked;
+  const max = full ? 0 : Math.max(500, Number(els.maxChars.value) || 8000);
+  const ids = [...selected];
+
+  ensureWorker().postMessage({
+    type: "extract",
+    reqId,
+    text: currentText,
+    ids,
+    maxChars: max,
+  });
 };
 
 const normalizeUrl = (raw) => {
   let s = raw.trim();
   if (!s) return null;
-
-  // Remove invisible/annoying whitespace that trim() won't catch.
   s = s.replaceAll(/[\u200B-\u200D\uFEFF]/g, "");
-
-  // If the user pasted a markdown link or an entire sentence, try to
-  // extract the first URL-looking substring.
   const m = /(https?:\/\/\S+|\/\/\S+)/.exec(s);
   if (m) s = m[1];
-
-  // Drop surrounding punctuation frequently included when copy/pasting.
   s = s.replace(/^<+|>+$/g, "");
   s = s.replace(/^\"+|\"+$/g, "");
   s = s.replace(/^'+|'+$/g, "");
   s = s.replace(/^[([{\s]+|[)\]}.,;:\s]+$/g, "");
-
-  // Collapse internal whitespace (e.g. pasted with line breaks).
   s = s.replaceAll(/\s+/g, "");
-
-  // Accept protocol-relative URLs: //example.com/path
   if (s.startsWith("//")) s = `https:${s}`;
-
-  // Accept "en.wikipedia.org/wiki/..." by assuming https://.
   if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) s = `https://${s}`;
   try {
     const u = new URL(s);
@@ -370,7 +376,6 @@ const fetchUrlText = async (url) => {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.text();
   } catch (_e) {
-    // GH Pages + random sites usually means CORS. Retry through a read proxy.
     const proxy = `https://r.jina.ai/${url}`;
     const r = await fetch(proxy);
     if (!r.ok) throw new Error(`proxy HTTP ${r.status}`);
@@ -378,58 +383,67 @@ const fetchUrlText = async (url) => {
   }
 };
 
-const extractReadableText = (html, url) => {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const parsed = new Readability(doc, { baseURI: url }).parse();
-  if (parsed?.textContent?.trim()) {
-    const title = (parsed.title || "").trim();
-    const head = title ? `${title}\n\n` : "";
-    return `${head}${parsed.textContent.trim()}`;
-  }
-  return (doc.body?.innerText || "").trim();
-};
-
 const loadFromUrl = async () => {
   const url = normalizeUrl(els.url.value);
   if (!url) {
-    setStatus("error", "Invalid URL");
-    setTimeout(() => setStatus("", ""), 1500);
+    setStatus("Invalid URL");
+    setTimeout(() => setStatus(""), 1800);
     return;
   }
 
-  setStatus("fetch", "Fetching…");
+  setStatus("Fetching…");
+  stopWorker();
+
   const t0 = performance.now();
   try {
+    const { Readability } = await import("@mozilla/readability");
     const html = await fetchUrlText(url);
-    setStatus("parse", "Extracting article…");
-    await new Promise((r) => requestAnimationFrame(() => r()));
-    const text = extractReadableText(html, url);
-    const dt = performance.now() - t0;
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const parsed = new Readability(doc, { baseURI: url }).parse();
+    const text = parsed?.textContent?.trim()
+      ? parsed.textContent.trim()
+      : (doc.body?.innerText || "").trim();
 
     els.input.value = text;
     els.presetText.value = "";
     updateCounts();
-    els.timing.textContent = `load ${dt.toFixed(0)}ms`;
-    setStatus("", "");
+
+    const dt = performance.now() - t0;
+    setStatus(`Loaded (${Math.round(dt)}ms)`);
+    setTimeout(() => setStatus(""), 900);
     scheduleExtract();
   } catch (_e) {
-    setStatus("error", `Load failed`);
-    setTimeout(() => setStatus("", ""), 2500);
+    setStatus("Load failed (likely CORS)");
+    setTimeout(() => setStatus(""), 2500);
   }
 };
 
-els.btnRun.addEventListener("click", () => extractNow());
+els.btnRun.addEventListener("click", extractNow);
+els.btnStop.addEventListener("click", () => {
+  stopWorker();
+  setStatus("Stopped");
+  setTimeout(() => setStatus(""), 900);
+});
+
 els.btnClear.addEventListener("click", () => {
   els.input.value = "";
-  els.timing.textContent = "";
+  els.url.value = "";
   updateCounts();
+  stopWorker();
   lastEntities = [];
-  activeIdx = null;
   els.matchCount.textContent = "0";
+  els.timing.textContent = "";
   els.annotated.textContent = "";
   els.json.textContent = "[]";
   els.selectedWrap.classList.add("hidden");
-  setStatus("", "");
+  setStatus("");
+});
+
+els.btnLoad.addEventListener("click", loadFromUrl);
+
+els.toggleJson.addEventListener("change", () => {
+  const show = els.toggleJson.checked;
+  els.jsonWrap.classList.toggle("hidden", !show);
 });
 
 els.input.addEventListener("input", () => {
@@ -437,12 +451,8 @@ els.input.addEventListener("input", () => {
   scheduleExtract();
 });
 
-els.toggleJson.addEventListener("change", () => {
-  const show = els.toggleJson.checked;
-  els.jsonWrap.classList.toggle("hidden", !show);
-});
-
-els.btnLoad.addEventListener("click", loadFromUrl);
+els.maxChars.addEventListener("input", scheduleExtract);
+els.fullText.addEventListener("change", scheduleExtract);
 
 els.presetText.addEventListener("change", () => {
   const k = els.presetText.value;
@@ -467,5 +477,4 @@ els.presetDefault.addEventListener(
 renderParserList();
 updateCounts();
 
-// Initial extraction if content exists (e.g. browser restores textareas).
 if (els.input.value.trim()) scheduleExtract();
