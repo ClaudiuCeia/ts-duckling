@@ -149,6 +149,19 @@ let currentText = "";
 let parseTimer = 0;
 let activeEntEl = null;
 
+const fmtDuration = (ms) => {
+  const n = Number(ms);
+  if (!Number.isFinite(n) || n < 0) return "";
+
+  if (n < 0.001) return `${Math.round(n * 1e6)}ns`; // ms -> ns
+  if (n < 1) return `${Math.round(n * 1000)}µs`; // ms -> µs
+  if (n < 10) return `${n.toFixed(2)}ms`;
+  if (n < 100) return `${n.toFixed(1)}ms`;
+  if (n < 1000) return `${n.toFixed(0)}ms`;
+  if (n < 60_000) return `${(n / 1000).toFixed(n < 10_000 ? 2 : 1)}s`;
+  return `${(n / 60_000).toFixed(1)}m`;
+};
+
 const setStatus = (msg, spinning = false) => {
   if (!msg) {
     els.statusText.textContent = "";
@@ -235,7 +248,7 @@ const ensureWorker = () => {
 
     const ms = Number.isFinite(msg.ms) ? msg.ms : 0;
     const suffix = msg.truncated ? ` (prefix ${msg.length} chars)` : "";
-    els.timing.textContent = `${ms.toFixed(0)}ms${suffix}`;
+    els.timing.textContent = `${fmtDuration(ms)}${suffix}`;
 
     renderAnnotated(
       currentText,
@@ -353,7 +366,7 @@ const extractNow = () => {
   setStatus("Parsing…", true);
   parseTimer = setInterval(() => {
     const dt = performance.now() - startedAt;
-    setStatus(dt > 900 ? `Parsing… ${Math.round(dt)}ms` : "Parsing…", true);
+    setStatus(dt > 400 ? `Parsing… ${fmtDuration(dt)}` : "Parsing…", true);
   }, 250);
 
   const full = !!els.fullText.checked;
