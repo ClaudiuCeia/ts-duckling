@@ -331,8 +331,16 @@ const scheduleExtract = () => {
 };
 
 const normalizeUrl = (raw) => {
-  const s = raw.trim();
+  let s = raw.trim();
   if (!s) return null;
+  s = s.replace(/^<+|>+$/g, "");
+  s = s.replace(/^\"+|\"+$/g, "");
+  s = s.replace(/^'+|'+$/g, "");
+
+  // Accept "en.wikipedia.org/wiki/..." by assuming https://.
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) {
+    s = `https://${s}`;
+  }
   try {
     const u = new URL(s);
     return u.toString();

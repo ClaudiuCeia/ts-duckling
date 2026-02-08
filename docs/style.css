@@ -45,24 +45,16 @@ body {
 }
 
 .mark {
+  display: none;
+}
+
+.logo {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 143, 135, 0.95),
-    rgba(10, 120, 116, 0.95)
-  );
-  position: relative;
-}
-
-.mark:after {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border-radius: 10px;
-  background: rgba(15, 18, 23, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: block;
+  background: rgba(242, 244, 247, 0.04);
+  border: 1px solid rgba(242, 244, 247, 0.12);
 }
 
 .titles h1 {
@@ -119,6 +111,16 @@ body {
   grid-template-columns: 340px 1fr;
   gap: 14px;
   align-items: start;
+}
+
+.sidebar {
+  grid-column: 1;
+}
+
+.maincol {
+  grid-column: 2;
+  display: grid;
+  gap: 14px;
 }
 
 .panel {
@@ -403,6 +405,9 @@ pre#json {
 @media (max-width: 980px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+  .maincol {
+    grid-column: 1;
   }
 }
 
