@@ -72,6 +72,11 @@ const presets = {
     "4242 4242 4242 4242",
     "550e8400-e29b-41d4-a716-446655440000",
   ].join("\n"),
+  article: [
+    "Between 2018 and 2022, we saw a big shift in browser runtimes.",
+    "On January 5, 2022, the project started shipping weekly releases.",
+    "Reach out at hello@example.com or visit https://example.com/docs.",
+  ].join("\n\n"),
 };
 
 const els = {
@@ -102,10 +107,15 @@ const els = {
   presetDefault: document.getElementById("preset-default"),
 
   popover: document.getElementById("popover"),
-  popoverBackdrop: document.getElementById("popover-backdrop"),
-  popoverClose: document.getElementById("popover-close"),
-  popoverTitle: document.getElementById("popover-title"),
-  popoverJson: document.getElementById("popover-json"),
+  popoverBackdrop: null,
+  popoverClose: null,
+  popoverTitle: null,
+  popoverJson: null,
+
+  hovercard: document.getElementById("hovercard"),
+  hovercardClose: document.getElementById("hovercard-close"),
+  hovercardTitle: document.getElementById("hovercard-title"),
+  hovercardJson: document.getElementById("hovercard-json"),
 };
 
 const escapeHtml = (s) =>
@@ -148,6 +158,8 @@ let lastEntities = [];
 let currentText = "";
 let parseTimer = 0;
 let activeEntEl = null;
+let cardPinned = false;
+let cardHideTimer = 0;
 
 const fmtDuration = (ms) => {
   const n = Number(ms);
@@ -272,15 +284,54 @@ const stopWorker = () => {
   setStatus("", false);
 };
 
-const closePopover = () => {
-  els.popover.classList.add("hidden");
+const closeHovercard = () => {
+  if (cardHideTimer) {
+    clearTimeout(cardHideTimer);
+    cardHideTimer = 0;
+  }
+  cardPinned = false;
+  els.hovercard.classList.add("hidden");
   if (activeEntEl) {
     activeEntEl.classList.remove("ring-2", "ring-teal-400");
     activeEntEl = null;
   }
 };
 
-const openPopover = (idx, el) => {
+const positionHovercard = (anchorEl) => {
+  const card = els.hovercard;
+  const a = anchorEl.getBoundingClientRect();
+
+  // Make visible off-screen to measure.
+  card.style.left = "-9999px";
+  card.style.top = "-9999px";
+  card.classList.remove("hidden");
+
+  const c = card.getBoundingClientRect();
+  const margin = 12;
+
+  // Prefer below; flip above if needed.
+  let top = a.bottom + 10;
+  if (top + c.height + margin > globalThis.innerHeight) {
+    top = a.top - c.height - 10;
+  }
+
+  let left = a.left;
+  if (left + c.width + margin > globalThis.innerWidth) {
+    left = globalThis.innerWidth - c.width - margin;
+  }
+  if (left < margin) left = margin;
+
+  // Clamp top too.
+  if (top + c.height + margin > globalThis.innerHeight) {
+    top = Math.max(margin, globalThis.innerHeight - c.height - margin);
+  }
+  if (top < margin) top = margin;
+
+  card.style.left = `${Math.round(left)}px`;
+  card.style.top = `${Math.round(top)}px`;
+};
+
+const openHovercard = (idx, el, pinned) => {
   const e = lastEntities[idx];
   if (!e) return;
 
@@ -288,14 +339,19 @@ const openPopover = (idx, el) => {
   activeEntEl = el || null;
   if (activeEntEl) activeEntEl.classList.add("ring-2", "ring-teal-400");
 
+  if (cardHideTimer) {
+    clearTimeout(cardHideTimer);
+    cardHideTimer = 0;
+  }
+  cardPinned = !!pinned;
+
   const title = `${e.kind}  "${
     e.text.length > 60 ? `${e.text.slice(0, 60)}…` : e.text
   }"  [${e.start},${e.end}]`;
 
-  els.popoverTitle.textContent = title;
-  els.popoverJson.textContent = JSON.stringify(e, null, 2);
-  els.popover.classList.remove("hidden");
-  els.popoverClose.focus();
+  els.hovercardTitle.textContent = title;
+  els.hovercardJson.textContent = JSON.stringify(e, null, 2);
+  positionHovercard(el);
 };
 
 const annotateHtml = (text, entities, limit) => {
@@ -327,9 +383,19 @@ const annotateHtml = (text, entities, limit) => {
 const renderAnnotated = (text, entities, limit) => {
   els.annotated.innerHTML = annotateHtml(text, entities, limit);
   els.annotated.querySelectorAll(".ent").forEach((el) => {
+    el.addEventListener("mouseenter", () => {
+      if (cardPinned) return;
+      const i = Number(el.getAttribute("data-idx"));
+      openHovercard(i, el, false);
+    });
+    el.addEventListener("mouseleave", () => {
+      if (cardPinned) return;
+      if (cardHideTimer) clearTimeout(cardHideTimer);
+      cardHideTimer = setTimeout(() => closeHovercard(), 120);
+    });
     el.addEventListener("click", () => {
       const i = Number(el.getAttribute("data-idx"));
-      openPopover(i, el);
+      openHovercard(i, el, true);
     });
   });
 };
@@ -350,7 +416,7 @@ const extractNow = () => {
     els.timing.textContent = "";
     els.annotated.textContent = "";
     els.json.textContent = "[]";
-    closePopover();
+    closeHovercard();
     setStatus("", false);
     return;
   }
@@ -362,7 +428,7 @@ const extractNow = () => {
 
   parseInFlight = true;
   const startedAt = performance.now();
-  closePopover();
+  closeHovercard();
   setStatus("Parsing…", true);
   parseTimer = setInterval(() => {
     const dt = performance.now() - startedAt;
@@ -454,7 +520,7 @@ const loadFromUrl = async () => {
 els.btnRun.addEventListener("click", extractNow);
 els.btnStop.addEventListener("click", () => {
   stopWorker();
-  closePopover();
+  closeHovercard();
   setStatus("Stopped", false);
   setTimeout(() => setStatus("", false), 900);
 });
@@ -469,7 +535,7 @@ els.btnClear.addEventListener("click", () => {
   els.timing.textContent = "";
   els.annotated.textContent = "";
   els.json.textContent = "[]";
-  closePopover();
+  closeHovercard();
   setStatus("", false);
 });
 
@@ -513,11 +579,40 @@ updateCounts();
 
 if (els.input.value.trim()) scheduleExtract();
 
-els.popoverBackdrop.addEventListener("click", closePopover);
-els.popoverClose.addEventListener("click", closePopover);
 document.addEventListener("keydown", (ev) => {
-  if (ev.key === "Escape") closePopover();
+  if (ev.key === "Escape") closeHovercard();
 });
 
 // Keep layout stable; content fades in/out.
 els.status.classList.add("opacity-0");
+
+els.hovercard.addEventListener("mouseenter", () => {
+  if (cardHideTimer) {
+    clearTimeout(cardHideTimer);
+    cardHideTimer = 0;
+  }
+});
+els.hovercard.addEventListener("mouseleave", () => {
+  if (cardPinned) return;
+  if (cardHideTimer) clearTimeout(cardHideTimer);
+  cardHideTimer = setTimeout(() => closeHovercard(), 120);
+});
+els.hovercardClose.addEventListener("click", closeHovercard);
+document.addEventListener("click", (ev) => {
+  if (!cardPinned) return;
+  const t = ev.target;
+  if (!(t instanceof HTMLElement)) return;
+  if (els.hovercard.contains(t)) return;
+  if (activeEntEl && activeEntEl.contains(t)) return;
+  closeHovercard();
+});
+globalThis.addEventListener("scroll", () => {
+  if (!els.hovercard.classList.contains("hidden") && activeEntEl) {
+    positionHovercard(activeEntEl);
+  }
+}, { passive: true });
+globalThis.addEventListener("resize", () => {
+  if (!els.hovercard.classList.contains("hidden") && activeEntEl) {
+    positionHovercard(activeEntEl);
+  }
+});
