@@ -25,7 +25,6 @@ const luhnOk = (digits: string): boolean => {
   let alt = false;
   for (let i = digits.length - 1; i >= 0; i--) {
     let d = digits.charCodeAt(i) - 48;
-    if (d < 0 || d > 9) return false;
     if (alt) {
       d *= 2;
       if (d > 9) d -= 9;
