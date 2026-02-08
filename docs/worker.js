@@ -7,7 +7,11 @@ const loadModule = () => {
   // Prefer local bundle for development/preview, but fall back to esm.sh for
   // production (GitHub Pages) or when the bundle is missing.
   modPromise = (async () => {
-    const local = new URL("./vendor/ts-duckling.js", import.meta.url).href;
+    const build = globalThis.__TS_DUCKLING_BUILD__ || "dev";
+    const local = new URL(
+      `./vendor/ts-duckling.js?v=${encodeURIComponent(build)}`,
+      import.meta.url,
+    ).href;
     try {
       return await import(local);
     } catch {

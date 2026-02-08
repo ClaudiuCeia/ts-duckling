@@ -164,6 +164,8 @@ let activeEntEl = null;
 let cardPinned = false;
 let cardHideTimer = 0;
 
+const BUILD = globalThis.__TS_DUCKLING_BUILD__ || "dev";
+
 const ATOMIC_KINDS = new Set([
   "ip",
   "url",
@@ -251,7 +253,9 @@ const setSelection = (set) => {
 
 const ensureWorker = () => {
   if (worker) return worker;
-  worker = new Worker(new URL("./worker.js", import.meta.url), {
+  const u = new URL("./worker.js", import.meta.url);
+  u.searchParams.set("v", BUILD);
+  worker = new Worker(u, {
     type: "module",
   });
   worker.onmessage = (ev) => {

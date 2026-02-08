@@ -36,6 +36,9 @@ jobs:
       - name: Build docs bundle
         run: deno task docs:bundle
 
+      - name: Stamp build SHA (cache bust)
+        run: sed -i "s/__BUILD_SHA__/${GITHUB_SHA}/g" docs/index.html
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
