@@ -14,7 +14,7 @@ import {
   Time,
   URL,
   UUID,
-} from "./assets/duckling.browser.mjs";
+} from "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts";
 
 const STORAGE_KEY = "ts-duckling:docs:selected-parsers:v1";
 

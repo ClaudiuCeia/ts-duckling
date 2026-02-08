@@ -13,7 +13,6 @@
     "lint": "deno lint",
     "check": "deno check mod.ts",
     "update:data": "deno run -A scripts/update_data.ts",
-    "test": "deno test",
-    "docs:build": "deno bundle --config=deno.json --lock=deno.lock --platform=browser --format=esm --minify mod.ts -o docs/assets/duckling.browser.mjs"
+    "test": "deno test"
   }
 }
