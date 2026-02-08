@@ -333,14 +333,29 @@ const scheduleExtract = () => {
 const normalizeUrl = (raw) => {
   let s = raw.trim();
   if (!s) return null;
+
+  // Remove invisible/annoying whitespace that trim() won't catch.
+  s = s.replaceAll(/[\u200B-\u200D\uFEFF]/g, "");
+
+  // If the user pasted a markdown link or an entire sentence, try to
+  // extract the first URL-looking substring.
+  const m = /(https?:\/\/\S+|\/\/\S+)/.exec(s);
+  if (m) s = m[1];
+
+  // Drop surrounding punctuation frequently included when copy/pasting.
   s = s.replace(/^<+|>+$/g, "");
   s = s.replace(/^\"+|\"+$/g, "");
   s = s.replace(/^'+|'+$/g, "");
+  s = s.replace(/^[([{\s]+|[)\]}.,;:\s]+$/g, "");
+
+  // Collapse internal whitespace (e.g. pasted with line breaks).
+  s = s.replaceAll(/\s+/g, "");
+
+  // Accept protocol-relative URLs: //example.com/path
+  if (s.startsWith("//")) s = `https:${s}`;
 
   // Accept "en.wikipedia.org/wiki/..." by assuming https://.
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) {
-    s = `https://${s}`;
-  }
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) s = `https://${s}`;
   try {
     const u = new URL(s);
     return u.toString();
