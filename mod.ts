@@ -28,6 +28,7 @@ import { IPAddress, IPAddressEntity } from "./src/IPAddress.ts";
 import { SSN, SSNEntity } from "./src/SSN.ts";
 import { CreditCard, CreditCardEntity } from "./src/CreditCard.ts";
 import { UUID, UUIDEntity } from "./src/UUID.ts";
+import { ApiKey } from "./src/ApiKey.ts";
 
 export type AnyEntity =
   | TemperatureEntity
@@ -62,6 +63,7 @@ export const Duckling = (
     Location.parser,
     Institution.parser,
     Language.parser,
+    ApiKey.parser,
   ],
 ) =>
   createLanguageThis({
@@ -117,3 +119,4 @@ export * from "./src/CreditCard.ts";
 export * from "./src/UUID.ts";
 export * from "./src/Institution.ts";
 export * from "./src/Language.ts";
+export * from "./src/ApiKey.ts";
