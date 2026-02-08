@@ -1,5 +1,4 @@
 import {
-  allMatches,
   any,
   anyChar,
   createLanguageThis,
@@ -13,6 +12,7 @@ import {
   skip1,
   space,
 } from "@claudiu-ceia/combine";
+import { recognizeAt, step } from "@claudiu-ceia/combine/nondeterministic";
 import { __, dot, word } from "./src/common.ts";
 import { Quantity, QuantityEntity } from "./src/Quantity.ts";
 import { Range, type RangeEntity } from "./src/Range.ts";
@@ -70,10 +70,16 @@ export const Duckling = (
         return (ctx) => failure(ctx, "entity");
       }
 
-      const matchAll = allMatches(
-        ...(parsers as [Parser<AnyEntity>, ...Parser<AnyEntity>[]]),
+      // Return all entity matches at the current position, but only advance by
+      // the shortest match. This ensures we don't "skip over" potential
+      // overlapping matches (useful for debug/analysis and the demo UI).
+      const p = step(
+        recognizeAt(
+          ...(parsers as [Parser<AnyEntity>, ...Parser<AnyEntity>[]]),
+        ),
+        "shortest",
       );
-      return matchAll as Parser<AnyEntity[]>;
+      return map(p, (recs) => recs.map((r) => r.value));
     },
     Unstructured() {
       return any(dot(word), __(word), space());
