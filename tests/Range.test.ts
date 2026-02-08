@@ -110,6 +110,28 @@ Deno.test("Temperature range", () => {
   }
 });
 
+Deno.test("Temperature range with min as temperature", () => {
+  const res = Duckling().extract({
+    text: `We expect between 10 degrees Celsius and 12 degrees Celsius`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+  if (res.success) {
+    const range = res.value.find((e) =>
+      typeof e !== "string" && e.kind === "range"
+    );
+    assertEquals(typeof range !== "string" && range?.kind === "range", true);
+
+    if (range && typeof range !== "string") {
+      assertEquals(range.value.min.kind, "temperature");
+      assertEquals(range.value.min.text, "10 degrees Celsius");
+      assertEquals(range.value.max.kind, "temperature");
+      assertEquals(range.value.max.text, "12 degrees Celsius");
+    }
+  }
+});
+
 Deno.test("Year range", () => {
   const res = Duckling().extract({
     text: `Developed in the period between 2700 and 2300 BCE in Sumer`,

@@ -174,6 +174,36 @@ Deno.test("Relative", () => {
   }
 });
 
+Deno.test("Relative defaults and optional quantities", () => {
+  // Ensure the conditional defaults in Relative() are exercised.
+  const nextWeek = Time.Relative({
+    text: "next week",
+    index: 0,
+  });
+  assertEquals(nextWeek.success, true);
+  if (nextWeek.success) {
+    assertEquals(nextWeek.value.value.when, "1 week");
+  }
+
+  const lastTwoWeeks = Time.Relative({
+    text: "last 2 weeks",
+    index: 0,
+  });
+  assertEquals(lastTwoWeeks.success, true);
+  if (lastTwoWeeks.success) {
+    assertEquals(lastTwoWeeks.value.value.when, "-2 weeks");
+  }
+
+  const weekAgo = Time.Relative({
+    text: "week ago",
+    index: 0,
+  });
+  assertEquals(weekAgo.success, true);
+  if (weekAgo.success) {
+    assertEquals(weekAgo.value.value.when, "-1 week");
+  }
+});
+
 Deno.test("PartialDateMonthYear numeric", () => {
   const res = Duckling([Time.parser]).extract({
     text: `What date is it? 12/2022?`,
@@ -196,6 +226,23 @@ Deno.test("PartialDateMonthYear numeric", () => {
         },
       },
     ]);
+  }
+});
+
+Deno.test("Year era CE/AD", () => {
+  const res = Duckling([Time.parser]).extract({
+    text: `Around 200 AD the empire expanded`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+  if (res.success) {
+    // Don't assert full shape; just ensure we parse CE branch.
+    const t = res.value.find((e) => typeof e !== "string" && e.kind === "time");
+    assertEquals(typeof t !== "string" && t?.kind === "time", true);
+    if (t && typeof t !== "string") {
+      assertEquals(t.value.era, "CE");
+    }
   }
 });
 

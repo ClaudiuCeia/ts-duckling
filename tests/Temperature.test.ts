@@ -129,6 +129,24 @@ Deno.test("below zero", () => {
   }
 });
 
+Deno.test("below zero no unit does not parse temperature", () => {
+  const res = Duckling().extract({
+    // NOTE: current grammar requires an extra space when unit is omitted
+    // (one space is consumed by optional(space()), and another by skip1(space())).
+    text: `I'm freezing, 21  below zero here`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+
+  if (res.success) {
+    const temp = res.value.find((e) =>
+      typeof e !== "string" && e.kind === "temperature"
+    );
+    assertEquals(temp, undefined);
+  }
+});
+
 Deno.test("No false positive for temperature", () => {
   const res = Duckling().extract({
     text: `In 1837 Charles Babbage first described his Analytical Engine`,
