@@ -1,20 +1,19 @@
 import {
   any,
-  createLanguage,
-  seq,
-  str,
-  map,
   Context,
+  createLanguageThis,
   either,
-  Parser,
+  map,
   optional,
+  seq,
   space,
-} from "combine/mod.ts";
-import { __, EntityLanguage } from "./common.ts";
+  str,
+} from "@claudiu-ceia/combine";
+import { __ } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
-import { Quantity, QuantityEntity } from "./Quantity.ts";
+import { Quantity } from "./Quantity.ts";
 import { Temperature, TemperatureEntity } from "./Temperature.ts";
-import { time, Time, TimeEntity } from "./Time.ts";
+import { Time, time } from "./Time.ts";
 
 export type RangeEntity<E extends Entity<unknown, unknown>> = Entity<
   "range",
@@ -30,28 +29,19 @@ const range = <E extends Entity<unknown, unknown>>(
     max: E;
   },
   before: Context,
-  after: Context
+  after: Context,
 ): RangeEntity<E> => {
   return ent(value, "range", before, after);
 };
 
-type RangeEntityLanguage = EntityLanguage<
-  {
-    TemperatureRange: Parser<RangeEntity<TemperatureEntity>>;
-    TimeRange: Parser<RangeEntity<TimeEntity>>;
-    YearRange: Parser<RangeEntity<TimeEntity>>;
-  },
-  RangeEntity<QuantityEntity | TemperatureEntity | TimeEntity>
->;
-
-export const Range = createLanguage<RangeEntityLanguage>({
-  TemperatureRange: () =>
-    map(
+export const Range = createLanguageThis({
+  TemperatureRange() {
+    return map(
       seq(
         __(str("between")),
         either(Temperature.parser, Quantity.parser),
         __(either(str("and"), str("-"))),
-        Temperature.parser
+        Temperature.parser,
       ),
       ([, low, , high], b, a) => {
         let min: TemperatureEntity;
@@ -74,12 +64,13 @@ export const Range = createLanguage<RangeEntityLanguage>({
             max: high,
           },
           b,
-          a
+          a,
         );
-      }
-    ),
-  TimeRange: () =>
-    any(
+      },
+    );
+  },
+  TimeRange() {
+    return any(
       map(
         seq(
           __(str("from")),
@@ -87,7 +78,7 @@ export const Range = createLanguage<RangeEntityLanguage>({
           Time.parser,
           __(either(str("until"), str("to"))),
           optional(__(str("the"))),
-          Time.parser
+          Time.parser,
         ),
         ([, , low, , , high], b, a) => {
           return range(
@@ -96,9 +87,9 @@ export const Range = createLanguage<RangeEntityLanguage>({
               max: high,
             },
             b,
-            a
+            a,
           );
-        }
+        },
       ),
       map(
         seq(
@@ -106,7 +97,7 @@ export const Range = createLanguage<RangeEntityLanguage>({
           optional(space()),
           str("-"),
           optional(space()),
-          Time.parser
+          Time.parser,
         ),
         ([low, , , , high], b, a) => {
           return range(
@@ -115,9 +106,9 @@ export const Range = createLanguage<RangeEntityLanguage>({
               max: high,
             },
             b,
-            a
+            a,
           );
-        }
+        },
       ),
       map(
         seq(
@@ -126,7 +117,7 @@ export const Range = createLanguage<RangeEntityLanguage>({
           Time.parser,
           __(str("and")),
           optional(__(str("the"))),
-          Time.parser
+          Time.parser,
         ),
         ([, , low, , , high], b, a) => {
           return range(
@@ -135,13 +126,14 @@ export const Range = createLanguage<RangeEntityLanguage>({
               max: high,
             },
             b,
-            a
+            a,
           );
-        }
-      )
-    ),
-  YearRange: () =>
-    any(
+        },
+      ),
+    );
+  },
+  YearRange() {
+    return any(
       map(
         seq(__(str("between")), Quantity.parser, __(str("and")), Time.YearEra),
         ([, low, , high], b, a) => {
@@ -160,14 +152,14 @@ export const Range = createLanguage<RangeEntityLanguage>({
                 {
                   text: b.text,
                   index: low.end,
-                }
+                },
               ),
               max: high,
             },
             b,
-            a
+            a,
           );
-        }
+        },
       ),
       map(
         seq(
@@ -175,7 +167,7 @@ export const Range = createLanguage<RangeEntityLanguage>({
           optional(space()),
           __(str("-")),
           optional(space()),
-          Time.YearEra
+          Time.YearEra,
         ),
         ([low, , , , high], b, a) => {
           return range(
@@ -193,15 +185,18 @@ export const Range = createLanguage<RangeEntityLanguage>({
                 {
                   text: b.text,
                   index: low.end,
-                }
+                },
               ),
               max: high,
             },
             b,
-            a
+            a,
           );
-        }
-      )
-    ),
-  parser: (s) => any(s.TimeRange, s.YearRange, s.TemperatureRange),
+        },
+      ),
+    );
+  },
+  parser() {
+    return any(this.TimeRange, this.YearRange, this.TemperatureRange);
+  },
 });

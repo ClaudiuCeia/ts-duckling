@@ -1,47 +1,54 @@
-import { assertEquals } from "https://deno.land/std@0.149.0/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
+import { FakeTime } from "@std/testing/time";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Time range", () => {
-  const res = Duckling().extract({
-    text: `I had booked the conference room from the 1st of June until the 5th of June 2022`,
-    index: 0,
-  });
+  const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
+  try {
+    const res = Duckling().extract({
+      text:
+        `I had booked the conference room from the 1st of June until the 5th of June 2022`,
+      index: 0,
+    });
 
-  assertEquals(res.success, true);
+    assertEquals(res.success, true);
 
-  if (res.success) {
-    assertEquals(res.value, [
-      {
-        end: 80,
-        kind: "range",
-        start: 33,
-        text: "from the 1st of June until the 5th of June 2022",
-        value: {
-          max: {
-            end: 80,
-            kind: "time",
-            start: 64,
-            text: "5th of June 2022",
-            value: {
-              era: "CE",
-              grain: "day",
-              when: "2022-06-04T21:00:00.000Z",
+    if (res.success) {
+      assertEquals(res.value, [
+        {
+          end: 80,
+          kind: "range",
+          start: 33,
+          text: "from the 1st of June until the 5th of June 2022",
+          value: {
+            max: {
+              end: 80,
+              kind: "time",
+              start: 64,
+              text: "5th of June 2022",
+              value: {
+                era: "CE",
+                grain: "day",
+                when: "2022-06-04T21:00:00.000Z",
+              },
             },
-          },
-          min: {
-            end: 53,
-            kind: "time",
-            start: 42,
-            text: "1st of June",
-            value: {
-              era: "CE",
-              grain: "day",
-              when: "2022-05-31T21:00:00.000Z",
+            min: {
+              end: 53,
+              kind: "time",
+              start: 42,
+              text: "1st of June",
+              value: {
+                era: "CE",
+                grain: "day",
+                when: "2022-05-31T21:00:00.000Z",
+              },
             },
           },
         },
-      },
-    ]);
+      ]);
+    }
+  } finally {
+    time.restore();
   }
 });
 

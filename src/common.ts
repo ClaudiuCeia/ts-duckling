@@ -1,4 +1,5 @@
 import {
+  any,
   eof,
   map,
   Parser,
@@ -6,13 +7,12 @@ import {
   seqNonNull,
   skip1,
   space,
-} from "combine/mod.ts";
-import { any } from "../../combine/src/combinators.ts";
+} from "@claudiu-ceia/combine";
 
 export const dot = <T>(p: Parser<T>): Parser<T> =>
   map(
     seqNonNull(p, any(skip1(nonWord), skip1(space()), skip1(eof()))),
-    ([m]) => m
+    ([m]) => m,
   );
 
 export const __ = <T>(p: Parser<T>): Parser<T> =>

@@ -1,3 +1,18 @@
 {
-  "importMap": "import_map.json"
+  "imports": {
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.2.6",
+    "@std/assert": "jsr:@std/assert@1.0.18",
+    "@std/testing/time": "jsr:@std/testing@1.0.17/time",
+
+    "@data/countries-en-us": "./data/countries-en-us.json",
+    "@data/languages-en": "./data/languages-en.json",
+    "@data/tlds": "./data/tlds.json"
+  },
+  "tasks": {
+    "fmt": "deno fmt",
+    "lint": "deno lint",
+    "check": "deno check mod.ts",
+    "update:data": "deno run -A scripts/update_data.ts",
+    "test": "deno test"
+  }
 }

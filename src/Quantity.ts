@@ -1,28 +1,28 @@
 import {
   any,
-  createLanguage,
-  number,
-  seq,
-  str,
-  map,
   Context,
-  Parser,
-  minus,
+  createLanguageThis,
   digit,
-  repeat,
+  either,
+  eof,
   keepNonNull,
-  skip1,
-  sepBy1,
   many1,
+  map,
+  minus,
+  number,
   optional,
-  signed,
-  regex,
-  space,
+  Parser,
   peek,
-eof,
-either,
-} from "combine/mod.ts";
-import { __, dot, EntityLanguage, nonWord } from "./common.ts";
+  regex,
+  repeat,
+  sepBy1,
+  seq,
+  signed,
+  skip1,
+  space,
+  str,
+} from "@claudiu-ceia/combine";
+import { __, dot, nonWord } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 
@@ -38,7 +38,7 @@ const quantity = (
     amount: number;
   },
   before: Context,
-  after: Context
+  after: Context,
 ): QuantityEntity => {
   return ent(
     {
@@ -46,121 +46,153 @@ const quantity = (
     },
     "quantity",
     before,
-    after
+    after,
   );
 };
 
-type QuantityEntityLanguage = EntityLanguage<
-  {
-    Numbers: Parser<number>;
-    Literal: Parser<number>;
-    ShortLiteral: Parser<number>;
-    Under: Parser<string>;
-    LeadDigit: Parser<number>;
-    TwoLeadDigit: Parser<number>;
-    ThreeLeadDigit: Parser<number>;
-    ThreeDigitGroup: Parser<string>;
-    Signed: Parser<number>;
-    Fractional: Parser<string>;
-    FractionalComma: Parser<number>;
-    CommaSeparated: Parser<number>;
-    NonFractional: Parser<QuantityEntity>;
-    innerParser: Parser<QuantityEntity>;
-  },
-  QuantityEntity
->;
+type QuantityLanguage = {
+  Literal: () => Parser<number>;
+  ShortLiteral: () => Parser<number>;
+  Under: () => Parser<string>;
+  LeadDigit: () => Parser<number>;
+  TwoLeadDigit: () => Parser<number>;
+  ThreeLeadDigit: () => Parser<number>;
+  ThreeDigitGroup: () => Parser<string>;
+  CommaSeparated: () => Parser<number>;
+  Fractional: () => Parser<string>;
+  FractionalComma: () => Parser<number>;
+  Signed: () => Parser<number>;
+  NonFractional: () => Parser<QuantityEntity>;
+  Numbers: () => Parser<number>;
+  innerParser: () => Parser<QuantityEntity>;
+  parser: () => Parser<QuantityEntity>;
+};
 
-export const Quantity = createLanguage<QuantityEntityLanguage>({
-  Literal: () =>
-    any(
+export const Quantity = createLanguageThis<QuantityLanguage>({
+  Literal: function (): Parser<number> {
+    return any(
       map(regex(/hundreds?/i, "hundred"), () => 100),
       map(regex(/thousands?|k/i, "thousand"), () => 1000),
       map(regex(/millions?/i, "million"), () => 1000000),
       map(regex(/billions?/i, "billion"), () => 1000000000),
-      map(regex(/trillions?/i, "trillion"), () => 1000000000000)
-    ),
-  ShortLiteral: () =>
-    any(
+      map(regex(/trillions?/i, "trillion"), () => 1000000000000),
+    );
+  },
+  ShortLiteral: function (): Parser<number> {
+    return any(
       map(str("K"), () => 1000),
       map(str("M"), () => 1000000),
       map(str("B"), () => 1000000000),
-      map(str("T"), () => 1000000000000)
-    ),
-  Under: () =>
-    __(
-      any(fuzzyCase("under"), fuzzyCase("less than"), fuzzyCase("lower than"))
-    ),
-  LeadDigit: () => minus(digit(), str("0")),
-  TwoLeadDigit: (s) =>
-    map(seq(s.LeadDigit, digit()), ([d1, d2]) => parseInt(`${d1}${d2}`)),
-  ThreeLeadDigit: (s) =>
-    map(seq(s.TwoLeadDigit, digit()), ([d1, d2]) => parseInt(`${d1}${d2}`)),
-  ThreeDigitGroup: () =>
-    map(repeat(3, digit()), (digits) =>
-      digits.reduce((acc, d) => `${acc}${d}`, "")
-    ),
-  CommaSeparated: (s) =>
-    map(
+      map(str("T"), () => 1000000000000),
+    );
+  },
+  Under: function (): Parser<string> {
+    return __(
+      any(fuzzyCase("under"), fuzzyCase("less than"), fuzzyCase("lower than")),
+    );
+  },
+  LeadDigit: function (): Parser<number> {
+    return minus(digit(), str("0"));
+  },
+  TwoLeadDigit: function (): Parser<number> {
+    return map(
+      seq(this.LeadDigit, digit()),
+      ([d1, d2]) => parseInt(`${d1}${d2}`),
+    );
+  },
+  ThreeLeadDigit: function (): Parser<number> {
+    return map(
+      seq(this.TwoLeadDigit, digit()),
+      ([d1, d2]) => parseInt(`${d1}${d2}`),
+    );
+  },
+  ThreeDigitGroup: function (): Parser<string> {
+    return map(
+      repeat(3, digit()),
+      (digits) => digits.reduce((acc, d) => `${acc}${d}`, ""),
+    );
+  },
+  CommaSeparated: function (): Parser<number> {
+    return map(
       seq(
-        any(s.ThreeLeadDigit, s.TwoLeadDigit, s.LeadDigit),
+        any(this.ThreeLeadDigit, this.TwoLeadDigit, this.LeadDigit),
         str(","),
-        keepNonNull(sepBy1(s.ThreeDigitGroup, skip1(str(","))))
+        keepNonNull(sepBy1(this.ThreeDigitGroup, skip1(str(",")))),
       ),
       ([first, _dot, rest]) => {
         const restJoin = rest.reduce((acc, d) => `${acc}${d}`, "");
         return parseInt(`${first}${restJoin}`);
-      }
-    ),
-  Fractional: () =>
-    map(
+      },
+    );
+  },
+  Fractional: function (): Parser<string> {
+    return map(
       seq(
         str("."),
-        map(many1(digit()), (digs) => digs.reduce((acc, d) => `${acc}${d}`, ""))
+        map(
+          many1(digit()),
+          (digs) => digs.reduce((acc, d) => `${acc}${d}`, ""),
+        ),
       ),
-      ([_dot, rest]) => rest
-    ),
-  FractionalComma: (s) =>
-    map(seq(s.CommaSeparated, optional(s.Fractional)), ([num, fraction]) =>
-      parseFloat(`${num}.${fraction || ""}`)
-    ),
-  Signed: (s) =>
-    map(
-      seq(any(str("+"), str("-"), str("±")), any(number(), s.FractionalComma)),
-      ([sign, num]) => (sign === "-" ? num * -1 : num)
-    ),
-  NonFractional: (s) =>
-    map(
+      ([_dot, rest]) => rest,
+    );
+  },
+  FractionalComma: function (): Parser<number> {
+    return map(
+      seq(this.CommaSeparated, optional(this.Fractional)),
+      ([num, fraction]) => parseFloat(`${num}.${fraction || ""}`),
+    );
+  },
+  Signed: function (): Parser<number> {
+    return map(
+      seq(
+        any(str("+"), str("-"), str("±")),
+        any(number(), this.FractionalComma),
+      ),
+      ([sign, num]) => (sign === "-" ? num * -1 : num),
+    );
+  },
+  NonFractional: function (): Parser<QuantityEntity> {
+    return map(
       any(
-        s.CommaSeparated,
-        map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
+        this.CommaSeparated,
+        map(
+          seq(this.Under, any(this.CommaSeparated, number())),
+          ([, n]) => -n,
+        ),
         signed(),
-        number()
+        number(),
       ),
-      (n, b, a) => quantity({ amount: n }, b, a)
-    ),
-  Numbers: (s) =>
-    any(
-      s.FractionalComma,
-      map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
-      s.Signed,
-      number()
-    ),
-  innerParser: (s) =>
-    map(
+      (n, b, a) => quantity({ amount: n }, b, a),
+    );
+  },
+  Numbers: function (): Parser<number> {
+    return any(
+      this.FractionalComma,
+      map(seq(this.Under, any(this.FractionalComma, number())), ([, n]) => -n),
+      this.Signed,
+      number(),
+    );
+  },
+  innerParser: function (): Parser<QuantityEntity> {
+    return map(
       any(
         map(
           seq(
-            s.Numbers,
+            this.Numbers,
             optional(space()),
-            either(s.Literal, s.ShortLiteral),
-            peek(any(space(), nonWord, eof()))
+            either(this.Literal, this.ShortLiteral),
+            peek(any(space(), nonWord, eof())),
           ),
-          ([num, _, lit]) => num * lit
+          ([num, _, lit]) => num * lit,
         ),
-        s.Literal,
-        s.Numbers
+        this.Literal,
+        this.Numbers,
       ),
-      (n, b, a) => quantity({ amount: n }, b, a)
-    ),
-  parser: (s) => dot(s.innerParser),
+      (n, b, a) => quantity({ amount: n }, b, a),
+    );
+  },
+  parser: function (): Parser<QuantityEntity> {
+    return dot(this.innerParser);
+  },
 });

@@ -1,4 +1,5 @@
-import { assertEquals } from "https://deno.land/std@0.149.0/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
+import { FakeTime } from "@std/testing/time";
 import { Duckling, Time } from "../mod.ts";
 
 Deno.test("UnspecifiedGrainAmount", () => {
@@ -224,27 +225,32 @@ Deno.test("PartialDateMonthYear literal", () => {
 });
 
 Deno.test("PartialDateDayMonth literal", () => {
-  const res = Duckling([Time.parser]).extract({
-    text: `What date is it? 12th of June?`,
-    index: 0,
-  });
+  const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
+  try {
+    const res = Duckling([Time.parser]).extract({
+      text: `What date is it? 12th of June?`,
+      index: 0,
+    });
 
-  assertEquals(res.success, true);
+    assertEquals(res.success, true);
 
-  if (res.success) {
-    assertEquals(res.value, [
-      {
-        end: 29,
-        kind: "time",
-        start: 17,
-        text: "12th of June",
-        value: {
-          era: "CE",
-          grain: "day",
-          when: "2022-06-11T21:00:00.000Z",
+    if (res.success) {
+      assertEquals(res.value, [
+        {
+          end: 29,
+          kind: "time",
+          start: 17,
+          text: "12th of June",
+          value: {
+            era: "CE",
+            grain: "day",
+            when: "2022-06-11T21:00:00.000Z",
+          },
         },
-      },
-    ]);
+      ]);
+    }
+  } finally {
+    time.restore();
   }
 });
 
@@ -325,7 +331,8 @@ Deno.test("Era", () => {
 
 Deno.test("QualifiedGrain", () => {
   const res = Duckling([Time.parser]).extract({
-    text: `In the 5th century BC in ancient India, the grammarian Pāṇini formulated the grammar of Sanskrit.`,
+    text:
+      `In the 5th century BC in ancient India, the grammarian Pāṇini formulated the grammar of Sanskrit.`,
     index: 0,
   });
 
@@ -358,37 +365,42 @@ Deno.test("No grain quantity false positive", () => {
 });
 
 Deno.test("Literal month", () => {
-  const res = Duckling([Time.parser]).extract({
-    text: `July and August highs in Greece average around 35.8 °C`,
-    index: 0,
-  });
+  const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
+  try {
+    const res = Duckling([Time.parser]).extract({
+      text: `July and August highs in Greece average around 35.8 °C`,
+      index: 0,
+    });
 
-  assertEquals(res.success, true);
-  if (res.success) {
-    assertEquals(res.value, [
-      {
-        end: 4,
-        kind: "time",
-        start: 0,
-        text: "July",
-        value: {
-          era: "CE",
-          grain: "month",
-          when: "2022-06-30T21:00:00.000Z",
+    assertEquals(res.success, true);
+    if (res.success) {
+      assertEquals(res.value, [
+        {
+          end: 4,
+          kind: "time",
+          start: 0,
+          text: "July",
+          value: {
+            era: "CE",
+            grain: "month",
+            when: "2022-06-30T21:00:00.000Z",
+          },
         },
-      },
-      {
-        end: 15,
-        kind: "time",
-        start: 9,
-        text: "August",
-        value: {
-          era: "CE",
-          grain: "month",
-          when: "2022-07-31T21:00:00.000Z",
+        {
+          end: 15,
+          kind: "time",
+          start: 9,
+          text: "August",
+          value: {
+            era: "CE",
+            grain: "month",
+            when: "2022-07-31T21:00:00.000Z",
+          },
         },
-      },
-    ]);
+      ]);
+    }
+  } finally {
+    time.restore();
   }
 });
 

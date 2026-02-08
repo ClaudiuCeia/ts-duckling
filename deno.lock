@@ -1,0 +1,45 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@claudiu-ceia/combine@0.2.6": "0.2.6",
+    "jsr:@std/assert@1.0.18": "1.0.18",
+    "jsr:@std/async@^1.1.0": "1.1.1",
+    "jsr:@std/data-structures@^1.0.10": "1.0.10",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "jsr:@std/testing@1.0.17": "1.0.17"
+  },
+  "jsr": {
+    "@claudiu-ceia/combine@0.2.6": {
+      "integrity": "fcbf402de2a0d2ef68dfe75094a155db8ce5036f1b2573a92ddb69193326ec9e"
+    },
+    "@std/assert@1.0.18": {
+      "integrity": "270245e9c2c13b446286de475131dc688ca9abcd94fc5db41d43a219b34d1c78",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/async@1.1.1": {
+      "integrity": "8a79beb3378cc229ce65ba2c746cfd03e4855ddd891d1eb6b9e32128e0d5339c"
+    },
+    "@std/data-structures@1.0.10": {
+      "integrity": "f574f86b0e07c69b9edc555fcc814b57d29258bad39fd5a34ba8a80ecf033cfe"
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@std/testing@1.0.17": {
+      "integrity": "87bdc2700fa98249d48a17cd72413352d3d3680dcfbdb64947fd0982d6bbf681",
+      "dependencies": [
+        "jsr:@std/async",
+        "jsr:@std/data-structures"
+      ]
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@claudiu-ceia/combine@0.2.6",
+      "jsr:@std/assert@1.0.18",
+      "jsr:@std/testing@1.0.17"
+    ]
+  }
+}

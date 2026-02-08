@@ -1,9 +1,10 @@
-import { assertEquals } from "https://deno.land/std@0.149.0/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Educational", () => {
   const res = Duckling().extract({
-    text: `The term was coined by the Italian University of Bologna, which is considered to be the first university with a traditional founding date of 1088.`,
+    text:
+      `The term was coined by the Italian University of Bologna, which is considered to be the first university with a traditional founding date of 1088.`,
     index: 0,
   });
 
@@ -46,7 +47,8 @@ Deno.test("Educational", () => {
 
 Deno.test("New York City Hall", () => {
   const res = Duckling().extract({
-    text: `New York City Hall, the oldest continuous seat of local government in the United States, completed in 1812`,
+    text:
+      `New York City Hall, the oldest continuous seat of local government in the United States, completed in 1812`,
     index: 0,
   });
 
@@ -89,7 +91,8 @@ Deno.test("New York City Hall", () => {
 
 Deno.test("Fordwich Town Hall", () => {
   const res = Duckling().extract({
-    text: `16th-century Fordwich Town Hall in Kent, England, closely resembling a market hall in its design`,
+    text:
+      `16th-century Fordwich Town Hall in Kent, England, closely resembling a market hall in its design`,
     index: 0,
   });
 

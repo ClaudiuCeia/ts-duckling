@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.149.0/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
 import { Duckling } from "../mod.ts";
 
 Deno.test("Email in sentence", () => {

@@ -1,8 +1,20 @@
-import { any, Context, createLanguage, map, Parser } from "combine/mod.ts";
-import { EntityLanguage, __, dot } from "./common.ts";
+import { any, Context, createLanguageThis, map } from "@claudiu-ceia/combine";
+import { dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
-import languages from "https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-localenames-modern/main/en/languages.json" assert { type: "json" };
+import languages from "@data/languages-en" with { type: "json" };
 import { fuzzyCase } from "./parsers.ts";
+
+type CldrLanguages = {
+  main: {
+    en: {
+      localeDisplayNames: {
+        languages: Record<string, string>;
+      };
+    };
+  };
+};
+
+const cldr = languages as CldrLanguages;
 
 export type LanguageEntity = Entity<
   "language",
@@ -15,27 +27,22 @@ export type LanguageEntity = Entity<
 export const language = (
   value: LanguageEntity["value"],
   before: Context,
-  after: Context
+  after: Context,
 ): LanguageEntity => {
   return ent(value, "language", before, after);
 };
 
-type LanguageEntityLanguage = EntityLanguage<
-  {
-    Language: Parser<LanguageEntity>;
-  },
-  LanguageEntity
->;
-
-export const Language = createLanguage<LanguageEntityLanguage>({
-  Language: () => {
-    const langs = languages.main.en.localeDisplayNames.languages;
+export const Language = createLanguageThis({
+  Language() {
+    const langs = cldr.main.en.localeDisplayNames.languages;
     const lang = (code: string, name: string) =>
       map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
 
     return any(
-      ...Object.entries(langs).map(([code, name]) => lang(code, name))
+      ...Object.entries(langs).map(([code, name]) => lang(code, name)),
     );
   },
-  parser: (s) => dot(any(s.Language)),
+  parser() {
+    return dot(any(this.Language));
+  },
 });

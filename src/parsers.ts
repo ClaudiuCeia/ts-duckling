@@ -1,4 +1,4 @@
-import { Parser, success, failure } from "combine/mod.ts";
+import { failure, Parser, success } from "@claudiu-ceia/combine";
 
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {
@@ -6,7 +6,7 @@ export const fuzzyCase = (match: string): Parser<string> => {
     const endIdx = ctx.index + match.length;
     if (
       ctx.text.substring(ctx.index, endIdx).toLowerCase() ===
-      match.toLowerCase()
+        match.toLowerCase()
     ) {
       return success({ ...ctx, index: endIdx }, match);
     } else {

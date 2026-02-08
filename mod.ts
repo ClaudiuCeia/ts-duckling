@@ -1,17 +1,17 @@
 import {
   any,
-  createLanguage,
+  anyChar,
+  createLanguageThis,
   eof,
   manyTill,
   map,
-  skip1,
-  seq,
-  Parser,
   optional,
+  Parser,
+  seq,
+  skip1,
   space,
-  anyChar,
-} from "combine/mod.ts";
-import { word, __, dot } from "./src/common.ts";
+} from "@claudiu-ceia/combine";
+import { __, dot, word } from "./src/common.ts";
 import { Entity } from "./src/Entity.ts";
 import { Quantity, QuantityEntity } from "./src/Quantity.ts";
 import { Range } from "./src/Range.ts";
@@ -34,12 +34,6 @@ export type AnyEntity =
   | InstitutionEntity
   | LanguageEntity;
 
-type DucklingLanguage = {
-  Entity: Parser<AnyEntity>;
-  Unstructured: Parser<string>;
-  extract: Parser<(AnyEntity | null)[]>;
-};
-
 export const Duckling = (
   parsers: Parser<AnyEntity>[] = [
     Range.parser,
@@ -51,27 +45,30 @@ export const Duckling = (
     Email.parser,
     Institution.parser,
     Language.parser,
-  ]
+  ],
 ) =>
-  createLanguage<DucklingLanguage>({
-    Entity: () => any(...parsers),
-    Unstructured: () => any(dot(word), __(word), space()),
-    extract: (s) =>
-      map(
+  createLanguageThis({
+    Entity() {
+      return any(...parsers);
+    },
+    Unstructured() {
+      return any(dot(word), __(word), space());
+    },
+    extract() {
+      return map(
         seq(
           optional(space()),
           map(
             manyTill(
-              any(s.Entity, skip1(s.Unstructured), skip1(anyChar())),
-              skip1(eof())
+              any(this.Entity, skip1(this.Unstructured), skip1(anyChar())),
+              skip1(eof()),
             ),
-            ([...matches]) => {
-              return matches.filter((m) => !!m);
-            }
-          )
+            ([...matches]) => matches.filter((m) => !!m),
+          ),
         ),
-        ([, res]) => res
-      ),
+        ([, res]) => res,
+      );
+    },
   });
 
 export * from "./src/Entity.ts";

@@ -1,16 +1,15 @@
 import {
   any,
   Context,
-  createLanguage,
+  createLanguageThis,
+  digit,
+  letter,
+  manyTill,
   map,
-  Parser,
   seq,
   str,
-  manyTill,
-  letter,
-  digit,
-} from "combine/mod.ts";
-import { EntityLanguage, __, dot } from "./common.ts";
+} from "@claudiu-ceia/combine";
+import { dot } from "./common.ts";
 import { ent, Entity } from "./Entity.ts";
 import { URL } from "./URL.ts";
 
@@ -24,30 +23,23 @@ export type EmailEntity = Entity<
 export const email = (
   value: EmailEntity["value"],
   before: Context,
-  after: Context
+  after: Context,
 ): EmailEntity => {
   return ent(value, "email", before, after);
 };
 
-type EmailEntityLanguage = EntityLanguage<
-  {
-    Full: Parser<EmailEntity>;
-  },
-  EmailEntity
->;
-
-export const Email = createLanguage<EmailEntityLanguage>({
-  Full: () =>
-    map(
+export const Email = createLanguageThis({
+  Full() {
+    return map(
       seq(
         map(
           manyTill(
             any(letter(), digit(), str("."), str("-"), str("-"), str("+")),
-            str("@")
+            str("@"),
           ),
-          (p) => p.join("")
+          (p) => p.join(""),
         ),
-        URL.Domain
+        URL.Domain,
       ),
       ([firstPart, domain], b, a) =>
         email(
@@ -55,8 +47,11 @@ export const Email = createLanguage<EmailEntityLanguage>({
             email: `${firstPart}${domain}`,
           },
           b,
-          a
-        )
-    ),
-  parser: (s) => dot(any(s.Full)),
+          a,
+        ),
+    );
+  },
+  parser() {
+    return dot(any(this.Full));
+  },
 });

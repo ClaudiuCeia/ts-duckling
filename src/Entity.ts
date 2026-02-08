@@ -1,4 +1,4 @@
-import { Context } from "combine/mod.ts";
+import { Context } from "@claudiu-ceia/combine";
 
 export type Entity<Kind, Value> = {
   value: Value;
@@ -6,13 +6,13 @@ export type Entity<Kind, Value> = {
   start: number;
   end: number;
   text: string;
-}
+};
 
 export const ent = <Kind, Value>(
   value: Value,
   kind: Kind,
   before: Context,
-  after: Context
+  after: Context,
 ): Entity<Kind, Value> => {
   return {
     value,
