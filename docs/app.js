@@ -310,14 +310,20 @@ const groupByStart = (entities) => {
     if (!arr.length) continue;
     groups.push(arr);
 
-    // For annotation, prefer the smallest (shortest) match so we don't hide
-    // inner groups (e.g. CC + 4x quantity chunks).
-    const smallest = [...arr].sort((a, b) =>
+    // For annotation:
+    // - Prefer a non-quantity match when available (so "ip"/"url"/etc. is
+    //   visibly matched).
+    // - Otherwise, show the smallest match to avoid hiding inner groups.
+    const displayPool = arr.some((e) => e.kind !== "quantity")
+      ? arr.filter((e) => e.kind !== "quantity")
+      : arr;
+
+    const chosen = [...displayPool].sort((a, b) =>
       (a.end - a.start) - (b.end - b.start) ||
       (a.end - b.end) ||
       String(a.kind).localeCompare(b.kind)
     )[0];
-    display.push(smallest);
+    display.push(chosen);
   }
   return { map, groups, display };
 };
@@ -418,7 +424,41 @@ const openHovercard = (start, el, pinned) => {
   positionHovercard(el);
 };
 
-const annotateHtml = (text, entities, limit) => {
+const kindClasses = (kind) => {
+  switch (kind) {
+    case "quantity":
+      return "bg-amber-100 outline-amber-200 hover:bg-amber-200";
+    case "ip":
+      return "bg-indigo-100 outline-indigo-200 hover:bg-indigo-200";
+    case "email":
+      return "bg-emerald-100 outline-emerald-200 hover:bg-emerald-200";
+    case "url":
+      return "bg-sky-100 outline-sky-200 hover:bg-sky-200";
+    case "phone":
+      return "bg-fuchsia-100 outline-fuchsia-200 hover:bg-fuchsia-200";
+    case "ssn":
+    case "credit_card":
+      return "bg-rose-100 outline-rose-200 hover:bg-rose-200";
+    case "uuid":
+      return "bg-violet-100 outline-violet-200 hover:bg-violet-200";
+    case "time":
+      return "bg-blue-100 outline-blue-200 hover:bg-blue-200";
+    case "temperature":
+      return "bg-orange-100 outline-orange-200 hover:bg-orange-200";
+    case "range":
+      return "bg-cyan-100 outline-cyan-200 hover:bg-cyan-200";
+    case "location":
+      return "bg-lime-100 outline-lime-200 hover:bg-lime-200";
+    case "language":
+      return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
+    case "institution":
+      return "bg-green-100 outline-green-200 hover:bg-green-200";
+    default:
+      return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
+  }
+};
+
+const annotateHtml = (text, entities, limit, countsByStart) => {
   const view = typeof limit === "number" ? text.slice(0, limit) : text;
   const sorted = [...entities].sort((a, b) => a.start - b.start);
   let cursor = 0;
@@ -432,8 +472,14 @@ const annotateHtml = (text, entities, limit) => {
 
     parts.push(escapeHtml(view.slice(cursor, e.start)));
     const chunk = escapeHtml(view.slice(e.start, end));
+    const count = countsByStart?.get(e.start) ?? 1;
+    const multiDot = count > 1
+      ? `<span class="pointer-events-none absolute -right-1 -top-1 h-2 w-2 rounded-full bg-slate-400/80"></span>`
+      : "";
     parts.push(
-      `<span class="ent cursor-pointer rounded-md bg-teal-100 px-1 py-0.5 text-slate-900 outline outline-1 outline-teal-200 hover:bg-teal-200" data-idx="${idx}" data-start="${e.start}">${chunk}</span>`,
+      `<span class="ent relative cursor-pointer rounded-md px-1 py-0.5 text-slate-900 outline outline-1 ${
+        kindClasses(e.kind)
+      }" data-idx="${idx}" data-start="${e.start}">${chunk}${multiDot}</span>`,
     );
     cursor = end;
     idx++;
@@ -447,7 +493,16 @@ const renderAnnotated = (text, entities, limit) => {
   lastGroupsByStart = grouped.map;
   lastDisplayEntities = grouped.display;
 
-  els.annotated.innerHTML = annotateHtml(text, lastDisplayEntities, limit);
+  const counts = new Map();
+  for (const [start, arr] of lastGroupsByStart.entries()) {
+    counts.set(start, Array.isArray(arr) ? arr.length : 1);
+  }
+  els.annotated.innerHTML = annotateHtml(
+    text,
+    lastDisplayEntities,
+    limit,
+    counts,
+  );
   els.annotated.querySelectorAll(".ent").forEach((el) => {
     el.addEventListener("mouseenter", () => {
       if (cardPinned) return;
