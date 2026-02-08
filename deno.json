@@ -1,4 +1,19 @@
 {
+  "name": "@claudiu-ceia/ts-duckling",
+  "version": "0.0.11",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "publish": {
+    "exclude": [
+      ".github/",
+      "bench/",
+      "coverage/",
+      "docs/",
+      "scripts/",
+      "tests/"
+    ]
+  },
   "imports": {
     "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.2.8",
     "@std/assert": "jsr:@std/assert@1.0.18",

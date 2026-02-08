@@ -14,7 +14,7 @@ export type ApiKeyEntity = Entity<
   "api_key",
   {
     provider?: string;
-    key: string;  
+    key: string;
   }
 >;
 
@@ -105,9 +105,9 @@ export const apiKey = (
 
 export const ApiKey = createLanguageThis<ApiKeyLanguage>({
   /**
-   * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc. 
+   * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
    * This is optional since not all API keys have a prefix.
-   * 
+   *
    * Returns a provider name if a known prefix is matched, or undefined otherwise.
    * This allows downstream code to potentially apply provider-specific validation or parsing logic.
    */
