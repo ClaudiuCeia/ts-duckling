@@ -9,6 +9,14 @@
       content="Parse text into structured entities using ts-duckling. Runs fully in your browser."
     />
     <link rel="stylesheet" href="./style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "ts-duckling": "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts",
+          "@mozilla/readability": "https://esm.sh/@mozilla/readability@0.6.0"
+        }
+      }
+    </script>
   </head>
   <body>
     <header class="top">
@@ -22,7 +30,10 @@
         </div>
       </div>
       <div class="actions">
-        <button id="btn-run" class="btn primary" type="button">Extract</button>
+        <span id="status" class="status" aria-live="polite"></span>
+        <button id="btn-run" class="btn primary" type="button">
+          Extract
+        </button>
         <button id="btn-clear" class="btn" type="button">Clear</button>
       </div>
     </header>
@@ -58,6 +69,28 @@
           </div>
         </div>
         <div class="panel-body">
+          <div class="load-row">
+            <label class="load">
+              <span>Preset</span>
+              <select id="preset-text">
+                <option value="">(none)</option>
+                <option value="mixed">Mixed</option>
+                <option value="pii">PII</option>
+                <option value="article">Article-ish</option>
+              </select>
+            </label>
+            <label class="load grow">
+              <span>URL</span>
+              <input
+                id="url"
+                type="url"
+                placeholder="https://example.com/blog/post"
+              />
+            </label>
+            <button id="btn-load" class="btn small" type="button">
+              Load
+            </button>
+          </div>
           <textarea
             id="input"
             spellcheck="false"
@@ -66,12 +99,13 @@
         </div>
       </section>
 
-      <section class="panel wide">
+      <section class="panel">
         <div class="panel-head">
-          <h2>Result</h2>
+          <h2>Preview</h2>
           <div class="sub">
             <span id="match-count">0</span> matches
             <span class="dot">•</span>
+            <span id="timing" class="timing"></span>
             <label class="toggle">
               <input id="toggle-json" type="checkbox" />
               <span>Show JSON</span>
@@ -79,10 +113,17 @@
           </div>
         </div>
         <div class="panel-body result">
-          <div class="result-split">
+          <div class="result-split onecol">
             <div>
               <div class="caption">Annotated text</div>
               <div id="annotated" class="annotated" aria-live="polite"></div>
+              <details id="selected-wrap" class="selected hidden">
+                <summary>
+                  Selected:
+                  <span id="selected-title" class="selected-title">(none)</span>
+                </summary>
+                <pre id="selected-json"></pre>
+              </details>
             </div>
             <div id="json-wrap" class="json hidden">
               <div class="caption">Raw JSON</div>
@@ -95,7 +136,7 @@
 
     <footer class="foot">
       <div>
-        Bundled for the browser. No network calls on extraction.
+        Loaded from esm.sh. No network calls on extraction.
       </div>
       <div class="links">
         <a

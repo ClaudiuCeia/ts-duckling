@@ -6,7 +6,6 @@ import {
   IPAddress,
   Phone,
   SSN,
-  Time,
   URL,
   UUID,
 } from "../mod.ts";
