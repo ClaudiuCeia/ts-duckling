@@ -7,10 +7,8 @@ import {
   map,
   number,
   optional,
-  peek,
   regex,
   seq,
-  space,
   str,
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
@@ -45,6 +43,11 @@ export const URL = createLanguageThis({
   Port(): Parser<number> {
     return number();
   },
+  Suffix(): Parser<string> {
+    // Accept "/path", "?query", "#fragment" (but not a lone "/" at end).
+    // This covers Wikipedia-style URLs with fragments and queries.
+    return regex(/[/?#][^\s]+/i, "url-suffix");
+  },
   Domain(): Parser<string> {
     return map(
       seq(
@@ -58,8 +61,8 @@ export const URL = createLanguageThis({
           (parts) => parts.join(""),
         ),
         map(
-          seq(this.TLD, peek(any(str(":"), str("/"), space()))),
-          ([tld]) => tld,
+          this.TLD,
+          (tld) => tld,
         ),
       ),
       (parts) => parts.join(""),
@@ -72,13 +75,14 @@ export const URL = createLanguageThis({
         str("://"),
         this.Domain,
         optional(seq(str(":"), this.Port)),
+        optional(this.Suffix),
       ),
-      ([protocol, sep, domain, maybePort], b, a) =>
+      ([protocol, sep, domain, maybePort, maybeSuffix], b, a) =>
         url(
           {
             url: `${protocol}${sep}${domain}${
               maybePort ? `:${maybePort[1]}` : ""
-            }`,
+            }${maybeSuffix ?? ""}`,
           },
           b,
           a,
