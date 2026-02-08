@@ -74,6 +74,24 @@ export const time = (
 };
 
 export const Time = createLanguageThis({
+  ISODateTimeZ() {
+    // Example: 2004-07-12T22:18:09Z
+    // Keep it strict and UTC-only for now.
+    return map(
+      regex(
+        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i,
+        "iso-datetime-z",
+      ),
+      (raw, b, a) => {
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) {
+          // Should be unreachable given the regex, but keep it defensive.
+          return time({ when: raw, grain: "second" }, b, a);
+        }
+        return time({ when: d.toISOString(), grain: "second" }, b, a);
+      },
+    );
+  },
   Grain() {
     return any(
       regex(/sec(ond)?s?/i, "second"),
@@ -502,6 +520,7 @@ export const Time = createLanguageThis({
   parser() {
     return dot(
       any(
+        this.ISODateTimeZ,
         this.FullDateEra,
         this.FullDate,
         this.Relative,

@@ -76,6 +76,30 @@ Deno.test("Common", () => {
   }
 });
 
+Deno.test("ISODateTimeZ", () => {
+  const res = Duckling([Time.parser]).extract({
+    text: `Timestamp: 2004-07-12T22:18:09Z.`,
+    index: 0,
+  });
+
+  assertEquals(res.success, true);
+  if (res.success) {
+    assertEquals(res.value, [
+      {
+        end: 31,
+        kind: "time",
+        start: 11,
+        text: "2004-07-12T22:18:09Z",
+        value: {
+          era: "CE",
+          grain: "second",
+          when: "2004-07-12T22:18:09.000Z",
+        },
+      },
+    ]);
+  }
+});
+
 Deno.test("GrainQuantity", () => {
   const res = Duckling([Time.parser]).extract({
     text: `I'll get to it in 5 days, it only takes about 51615 seconds.`,
