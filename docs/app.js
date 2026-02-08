@@ -164,6 +164,14 @@ let activeEntEl = null;
 let cardPinned = false;
 let cardHideTimer = 0;
 
+const ATOMIC_KINDS = new Set([
+  "ip",
+  "url",
+  "email",
+  "uuid",
+  "phone",
+]);
+
 const fmtDuration = (ms) => {
   const n = Number(ms);
   if (!Number.isFinite(n) || n < 0) return "";
@@ -311,14 +319,14 @@ const groupByStart = (entities) => {
     groups.push(arr);
 
     // For annotation:
-    // - Prefer a non-quantity match when available (so "ip"/"url"/etc. is
-    //   visibly matched).
-    // - Otherwise, show the smallest match to avoid hiding inner groups.
-    const displayPool = arr.some((e) => e.kind !== "quantity")
-      ? arr.filter((e) => e.kind !== "quantity")
-      : arr;
+    // - Prefer "atomic" entities (ip/url/email/uuid/phone) so they look like
+    //   they matched.
+    // - Otherwise, pick the shortest match to surface useful sub-spans (e.g.
+    //   CC groups), without trying to render overlapping spans.
+    const atomic = arr.filter((e) => ATOMIC_KINDS.has(e.kind));
+    const pool = atomic.length ? atomic : arr;
 
-    const chosen = [...displayPool].sort((a, b) =>
+    const chosen = [...pool].sort((a, b) =>
       (a.end - a.start) - (b.end - b.start) ||
       (a.end - b.end) ||
       String(a.kind).localeCompare(b.kind)
@@ -488,10 +496,26 @@ const annotateHtml = (text, entities, limit, countsByStart) => {
   return parts.join("");
 };
 
+const suppressInnerQuantities = (displayEntities, allEntities) => {
+  const atomicSpans = allEntities
+    .filter((e) => e && ATOMIC_KINDS.has(e.kind))
+    .map((e) => ({ start: e.start, end: e.end }));
+
+  if (!atomicSpans.length) return displayEntities;
+
+  return displayEntities.filter((e) => {
+    if (!e || e.kind !== "quantity") return true;
+    for (const a of atomicSpans) {
+      if (e.start >= a.start && e.end <= a.end) return false;
+    }
+    return true;
+  });
+};
+
 const renderAnnotated = (text, entities, limit) => {
   const grouped = groupByStart(entities);
   lastGroupsByStart = grouped.map;
-  lastDisplayEntities = grouped.display;
+  lastDisplayEntities = suppressInnerQuantities(grouped.display, entities);
 
   const counts = new Map();
   for (const [start, arr] of lastGroupsByStart.entries()) {
