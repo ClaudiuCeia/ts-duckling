@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ts-duckling playground</title>
+    <meta
+      name="description"
+      content="Parse text into structured entities using ts-duckling. Runs fully in your browser."
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div class="titles">
+          <h1>ts-duckling</h1>
+          <p>
+            Browser playground. Choose parsers, paste text, extract entities.
+          </p>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btn-run" class="btn primary" type="button">Extract</button>
+        <button id="btn-clear" class="btn" type="button">Clear</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Parsers</h2>
+          <div class="sub">
+            <span id="parser-count">0</span> selected
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="preset-row">
+            <button id="preset-all" class="btn small" type="button">All</button>
+            <button id="preset-none" class="btn small" type="button">
+              None
+            </button>
+            <button id="preset-pii" class="btn small" type="button">PII</button>
+            <button id="preset-default" class="btn small" type="button">
+              Default
+            </button>
+          </div>
+          <div id="parser-list" class="parser-list" role="list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Input</h2>
+          <div class="sub">
+            <span id="char-count">0</span> chars
+          </div>
+        </div>
+        <div class="panel-body">
+          <textarea
+            id="input"
+            spellcheck="false"
+            placeholder="Try: Email me at no-reply+foo@some.domain.dev, call +14155552671, visit https://duckling.deno.dev/, SSN 123-45-6789, CC 4242 4242 4242 4242"
+          ></textarea>
+        </div>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>Result</h2>
+          <div class="sub">
+            <span id="match-count">0</span> matches
+            <span class="dot">•</span>
+            <label class="toggle">
+              <input id="toggle-json" type="checkbox" />
+              <span>Show JSON</span>
+            </label>
+          </div>
+        </div>
+        <div class="panel-body result">
+          <div class="result-split">
+            <div>
+              <div class="caption">Annotated text</div>
+              <div id="annotated" class="annotated" aria-live="polite"></div>
+            </div>
+            <div id="json-wrap" class="json hidden">
+              <div class="caption">Raw JSON</div>
+              <pre id="json"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div>
+        Bundled for the browser. No network calls on extraction.
+      </div>
+      <div class="links">
+        <a
+          href="https://github.com/ClaudiuCeia/ts-duckling"
+          target="_blank"
+          rel="noreferrer"
+        >repo</a>
+        <span class="dot">•</span>
+        <a
+          href="https://github.com/facebook/duckling"
+          target="_blank"
+          rel="noreferrer"
+        >original</a>
+      </div>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
