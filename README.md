@@ -36,11 +36,47 @@ import {
 } from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
 
 const text =
-  "Email me at foo@example.com and visit https://example.com tomorrow.";
+  "Email me at foo@example.com and visit https://example.com at 2004-07-12T22:18:09Z.";
 const entities = Duckling([Email.parser, URL.parser, Time.parser]).extract(
   text,
 );
 console.log(entities);
+```
+
+Output:
+
+```json
+[
+  {
+    "value": {
+      "email": "foo@example.com"
+    },
+    "kind": "email",
+    "start": 12,
+    "end": 27,
+    "text": "foo@example.com"
+  },
+  {
+    "value": {
+      "url": "https://example.com"
+    },
+    "kind": "url",
+    "start": 38,
+    "end": 57,
+    "text": "https://example.com"
+  },
+  {
+    "value": {
+      "when": "2004-07-12T22:18:09.000Z",
+      "grain": "second",
+      "era": "CE"
+    },
+    "kind": "time",
+    "start": 61,
+    "end": 81,
+    "text": "2004-07-12T22:18:09Z"
+  }
+]
 ```
 
 ## Supported Entities
@@ -78,6 +114,24 @@ const entities2 = Duckling([Time.parser]).extract("6/2022 is 0.00296735905");
 console.log(entities2);
 ```
 
+Output (timezone-dependent for some date forms):
+
+```json
+[
+  {
+    "value": {
+      "when": "2022-01-05T22:00:00.000Z",
+      "grain": "day",
+      "era": "CE"
+    },
+    "kind": "time",
+    "start": 0,
+    "end": 6,
+    "text": "6/2022"
+  }
+]
+```
+
 ## Adding New Entity Types
 
 Define a parser that returns an `Entity`, then pass its `.parser` to `Duckling`.
@@ -90,7 +144,6 @@ import {
   regex,
 } from "jsr:@claudiu-ceia/combine@^0.2.8";
 import {
-  type AnyEntity,
   Duckling,
   ent,
   type Entity,
@@ -112,11 +165,26 @@ const Hashtag = createLanguage<HashtagLanguage>({
   parser: (s) => s.Full,
 });
 
-type MyEntity = AnyEntity | HashtagEntity;
-const entities3 = Duckling<MyEntity>([Hashtag.parser]).extract(
+const entities3 = Duckling([Hashtag.parser]).extract(
   "hello #duckling",
 );
 console.log(entities3);
+```
+
+Output:
+
+```json
+[
+  {
+    "value": {
+      "tag": "duckling"
+    },
+    "kind": "hashtag",
+    "start": 6,
+    "end": 15,
+    "text": "#duckling"
+  }
+]
 ```
 
 # License

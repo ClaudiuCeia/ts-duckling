@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { type AnyEntity, Duckling, Quantity, SSN } from "../mod.ts";
+import { Duckling, Quantity, SSN } from "../mod.ts";
 
 Deno.test("SSN", () => {
   const res = Duckling([SSN.parser]).extract("My SSN is 123-45-6789.");
@@ -51,7 +51,7 @@ Deno.test("SSN invalid does not parse", () => {
 });
 
 Deno.test("SSN wins over Quantity even when Quantity is ordered first", () => {
-  const res = Duckling<AnyEntity>([Quantity.parser, SSN.parser]).extract(
+  const res = Duckling([Quantity.parser, SSN.parser]).extract(
     "My SSN is 123-45-6789.",
   );
 

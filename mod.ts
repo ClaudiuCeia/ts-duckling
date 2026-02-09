@@ -84,6 +84,11 @@ export type DucklingExtractor<E extends Entity<string, unknown>> = {
   extractParser: Parser<E[]>;
 };
 
+type EntityFromParser<P> = P extends Parser<infer E> ? E : never;
+type EntityFromParsers<P extends readonly Parser<unknown>[]> = EntityFromParser<
+  P[number]
+>;
+
 /**
  * Creates a Duckling-like extractor.
  *
@@ -109,13 +114,14 @@ const DefaultParsers: Parser<AnyEntity>[] = [
 ];
 
 export function Duckling(): DucklingExtractor<AnyEntity>;
-export function Duckling<E extends Entity<string, unknown>>(
-  parsers: Parser<E>[],
-): DucklingExtractor<E>;
-export function Duckling<E extends Entity<string, unknown>>(
-  parsers?: Parser<E>[],
-): DucklingExtractor<E> {
-  const ps = parsers ?? (DefaultParsers as unknown as Parser<E>[]);
+export function Duckling<
+  const P extends readonly Parser<Entity<string, unknown>>[],
+>(parsers: P): DucklingExtractor<EntityFromParsers<P>>;
+export function Duckling<
+  const P extends readonly Parser<Entity<string, unknown>>[],
+>(parsers?: P): DucklingExtractor<EntityFromParsers<P> | AnyEntity> {
+  type E = EntityFromParsers<P> | AnyEntity;
+  const ps = (parsers ?? DefaultParsers) as unknown as readonly Parser<E>[];
 
   const lang = createLanguageThis<DucklingLanguage<E>>({
     Entity() {
@@ -128,7 +134,7 @@ export function Duckling<E extends Entity<string, unknown>>(
       // overlapping matches (useful for debug/analysis and the demo UI).
       const p = step(
         recognizeAt(
-          ...(ps as [Parser<E>, ...Parser<E>[]]),
+          ...(ps as readonly [Parser<E>, ...Parser<E>[]]),
         ),
         "shortest",
       );

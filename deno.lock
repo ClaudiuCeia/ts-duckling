@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@claudiu-ceia/combine@0.2.8": "0.2.8",
+    "jsr:@claudiu-ceia/combine@~0.2.8": "0.2.8",
     "jsr:@std/assert@1.0.18": "1.0.18",
     "jsr:@std/async@^1.1.0": "1.1.1",
     "jsr:@std/data-structures@^1.0.10": "1.0.10",
