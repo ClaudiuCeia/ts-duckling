@@ -1,9 +1,4 @@
-import {
-  any,
-  type Context,
-  createLanguageThis,
-  map,
-} from "@claudiu-ceia/combine";
+import { any, type Context, createLanguage, map } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
@@ -45,25 +40,22 @@ export const language = (
 };
 
 type LanguageLanguage = {
-  Language: () => Parser<LanguageEntity>;
-  parser: () => Parser<LanguageEntity>;
+  Language: Parser<LanguageEntity>;
+  parser: Parser<LanguageEntity>;
 };
 
 /**
  * Language name parser language (English language names from CLDR).
  */
-export const Language: ReturnType<typeof createLanguageThis<LanguageLanguage>> =
-  createLanguageThis<LanguageLanguage>({
-    Language() {
-      const langs = cldr.main.en.localeDisplayNames.languages;
-      const lang = (code: string, name: string) =>
-        map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
+export const Language: LanguageLanguage = createLanguage<LanguageLanguage>({
+  Language: () => {
+    const langs = cldr.main.en.localeDisplayNames.languages;
+    const lang = (code: string, name: string) =>
+      map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
 
-      return any(
-        ...Object.entries(langs).map(([code, name]) => lang(code, name)),
-      );
-    },
-    parser() {
-      return dot(any(this.Language));
-    },
-  });
+    return any(
+      ...Object.entries(langs).map(([code, name]) => lang(code, name)),
+    );
+  },
+  parser: (s) => dot(any(s.Language)),
+});

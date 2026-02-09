@@ -1,7 +1,7 @@
 import {
   any,
   anyChar,
-  createLanguageThis,
+  createLanguage,
   eof,
   failure,
   manyTill,
@@ -56,9 +56,9 @@ export type AnyEntity =
   | ApiKeyEntity;
 
 type DucklingLanguage<E extends Entity<string, unknown>> = {
-  Entity: () => Parser<E[]>;
-  Unstructured: () => Parser<string>;
-  extract: () => Parser<E[]>;
+  Entity: Parser<E[]>;
+  Unstructured: Parser<string>;
+  extract: Parser<E[]>;
 };
 
 /**
@@ -123,8 +123,8 @@ export function Duckling<
   type E = EntityFromParsers<P> | AnyEntity;
   const ps = (parsers ?? DefaultParsers) as unknown as readonly Parser<E>[];
 
-  const lang = createLanguageThis<DucklingLanguage<E>>({
-    Entity() {
+  const lang: DucklingLanguage<E> = createLanguage<DucklingLanguage<E>>({
+    Entity: () => {
       if (ps.length === 0) {
         return (ctx) => failure(ctx, "entity");
       }
@@ -140,16 +140,16 @@ export function Duckling<
       );
       return map(p, (recs) => recs.map((r) => r.value));
     },
-    Unstructured() {
+    Unstructured: () => {
       return any(dot(word), __(word), space());
     },
-    extract() {
+    extract: (s) => {
       return map(
         seq(
           optional(space()),
           map(
             manyTill(
-              any(this.Entity, skip1(this.Unstructured), skip1(anyChar())),
+              any(s.Entity, skip1(s.Unstructured), skip1(anyChar())),
               skip1(eof()),
             ),
             ([...matches]) =>

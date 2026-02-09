@@ -1,6 +1,6 @@
 import {
   type Context,
-  createLanguageThis,
+  createLanguage,
   map,
   regex,
 } from "@claudiu-ceia/combine";
@@ -55,35 +55,27 @@ const isValidCard = (raw: string): boolean => {
 };
 
 type CreditCardLanguage = {
-  Raw: () => Parser<string>;
-  Full: () => Parser<CreditCardEntity>;
-  parser: () => Parser<CreditCardEntity>;
+  Raw: Parser<string>;
+  Full: Parser<CreditCardEntity>;
+  parser: Parser<CreditCardEntity>;
 };
 
 /**
  * Credit card parser language (13-19 digits with separators) validated via Luhn.
  */
-export const CreditCard: ReturnType<
-  typeof createLanguageThis<CreditCardLanguage>
-> = createLanguageThis<CreditCardLanguage>({
-  Raw(): Parser<string> {
-    // 13-19 digits with optional single separators (space or '-').
-    return guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard);
-  },
-  Full(): Parser<CreditCardEntity> {
-    return map(
-      this.Raw,
-      (raw, b, a) =>
-        creditCard(
-          {
-            digits: normalizeDigits(raw),
-          },
-          b,
-          a,
-        ),
-    );
-  },
-  parser(): Parser<CreditCardEntity> {
-    return dot(this.Full);
-  },
+export const CreditCard: CreditCardLanguage = createLanguage<
+  CreditCardLanguage
+>({
+  // 13-19 digits with optional single separators (space or '-').
+  Raw: () => guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard),
+  Full: (s) =>
+    map(s.Raw, (raw, b, a) =>
+      creditCard(
+        {
+          digits: normalizeDigits(raw),
+        },
+        b,
+        a,
+      )),
+  parser: (s) => dot(s.Full),
 });

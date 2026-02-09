@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguageThis,
+  createLanguage,
   either,
   letter,
   many,
@@ -44,44 +44,44 @@ export const institution = (
 };
 
 type InstitutionLanguage = {
-  Capitalized: () => Parser<string>;
-  Educational: () => Parser<string>;
-  Administrative: () => Parser<string>;
-  EducationalFull: () => Parser<InstitutionEntity>;
-  AdministrativeFull: () => Parser<InstitutionEntity>;
-  parser: () => Parser<InstitutionEntity>;
+  Capitalized: Parser<string>;
+  Educational: Parser<string>;
+  Administrative: Parser<string>;
+  EducationalFull: Parser<InstitutionEntity>;
+  AdministrativeFull: Parser<InstitutionEntity>;
+  parser: Parser<InstitutionEntity>;
 };
 
 /**
  * Institution parser language.
  */
-export const Institution: ReturnType<
-  typeof createLanguageThis<InstitutionLanguage>
-> = createLanguageThis<InstitutionLanguage>({
-  Capitalized: function (): Parser<string> {
+export const Institution: InstitutionLanguage = createLanguage<
+  InstitutionLanguage
+>({
+  Capitalized: (): Parser<string> => {
     return map(
       seq(regex(/[A-Z]/, "capital-letter"), many(letter())),
       ([capital, rest]) => `${capital}${rest.join("")}`,
     );
   },
-  Educational: function (): Parser<string> {
+  Educational: (): Parser<string> => {
     return any(
       fuzzyCase("university"),
       fuzzyCase("college"),
       fuzzyCase("school"),
     );
   },
-  Administrative: function (): Parser<string> {
+  Administrative: (): Parser<string> => {
     return any(fuzzyCase("city hall"), fuzzyCase("town hall"));
   },
-  EducationalFull: function (): Parser<InstitutionEntity> {
+  EducationalFull: (s): Parser<InstitutionEntity> => {
     return any(
       map(
         seq(
-          __(this.Educational),
+          __(s.Educational),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          sepBy1(this.Capitalized, space()),
+          sepBy1(s.Capitalized, space()),
         ),
         ([educational], b, a) =>
           institution(
@@ -96,11 +96,11 @@ export const Institution: ReturnType<
       ),
       map(
         seq(
-          many1(this.Capitalized),
-          this.Educational,
+          many1(s.Capitalized),
+          s.Educational,
           optional(__(str("of"))),
           optional(__(str("the"))),
-          many(this.Capitalized),
+          many(s.Capitalized),
         ),
         ([, educational], b, a) =>
           institution(
@@ -115,16 +115,16 @@ export const Institution: ReturnType<
       ),
     );
   },
-  AdministrativeFull: function (): Parser<InstitutionEntity> {
+  AdministrativeFull: (s): Parser<InstitutionEntity> => {
     return any(
       map(
         seq(
-          __(this.Capitalized),
+          __(s.Capitalized),
           either(
-            peek(this.Administrative),
-            manyTill(__(this.Capitalized), peek(this.Administrative)),
+            peek(s.Administrative),
+            manyTill(__(s.Capitalized), peek(s.Administrative)),
           ),
-          this.Administrative,
+          s.Administrative,
         ),
         ([, , administrative], b, a) =>
           institution(
@@ -139,10 +139,10 @@ export const Institution: ReturnType<
       ),
       map(
         seq(
-          __(this.Administrative),
+          __(s.Administrative),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          sepBy1(this.Capitalized, space()),
+          sepBy1(s.Capitalized, space()),
         ),
         ([administrative], b, a) =>
           institution(
@@ -157,7 +157,7 @@ export const Institution: ReturnType<
       ),
     );
   },
-  parser: function (): Parser<InstitutionEntity> {
-    return dot(any(this.EducationalFull, this.AdministrativeFull));
+  parser: (s): Parser<InstitutionEntity> => {
+    return dot(any(s.EducationalFull, s.AdministrativeFull));
   },
 });

@@ -22,7 +22,7 @@ Online playground: https://claudiuceia.github.io/ts-duckling/
 ## Install (Deno / JSR)
 
 ```ts
-import { Duckling } from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
+import { Duckling } from "jsr:@claudiu-ceia/ts-duckling@^0.0.15";
 ```
 
 ## Quickstart
@@ -33,7 +33,7 @@ import {
   Email,
   Time,
   URL,
-} from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
+} from "jsr:@claudiu-ceia/ts-duckling@^0.0.15";
 
 const text =
   "Email me at foo@example.com and visit https://example.com at 2004-07-12T22:18:09Z.";
@@ -147,7 +147,7 @@ import {
   Duckling,
   ent,
   type Entity,
-} from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
+} from "jsr:@claudiu-ceia/ts-duckling@^0.0.15";
 
 type HashtagEntity = Entity<"hashtag", { tag: string }>;
 

@@ -31,9 +31,8 @@ const textPII = [
 ].join(" | ");
 
 Deno.bench("extract: PII-heavy (many matches)", () => {
-  const res = piiDuckling.extract({ text: textPII, index: 0 });
-  if (!res.success) throw new Error("unexpected parse failure");
-  if (res.value.length < 6) throw new Error("unexpected low match count");
+  const entities = piiDuckling.extract(textPII);
+  if (entities.length < 6) throw new Error("unexpected low match count");
 });
 
 const defaultDuckling = Duckling();
@@ -46,9 +45,8 @@ const textMixed = [
 
 Deno.bench("extract: default Duckling (mixed)", () => {
   using _time = new FakeTime("2022-01-07T12:00:00.000Z");
-  const res = defaultDuckling.extract({ text: textMixed, index: 0 });
-  if (!res.success) throw new Error("unexpected parse failure");
-  if (!res.value.some((e) => e.kind === "time")) {
+  const entities = defaultDuckling.extract(textMixed);
+  if (!entities.some((e) => e.kind === "time")) {
     throw new Error("expected at least one time entity");
   }
 });

@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguageThis,
+  createLanguage,
   either,
   map,
   optional,
@@ -50,73 +50,73 @@ export const temp = (
 };
 
 type TemperatureLanguage = {
-  Degrees: () => Parser<string>;
-  UnitCelsius: () => Parser<"Celsius">;
-  UnitFahrenheit: () => Parser<"Fahrenheit">;
-  Celsius: () => Parser<TemperatureEntity>;
-  Fahrenheit: () => Parser<TemperatureEntity>;
-  Unspecified: () => Parser<TemperatureEntity>;
-  BelowZero: () => Parser<TemperatureEntity>;
-  parser: () => Parser<TemperatureEntity>;
+  Degrees: Parser<string>;
+  UnitCelsius: Parser<"Celsius">;
+  UnitFahrenheit: Parser<"Fahrenheit">;
+  Celsius: Parser<TemperatureEntity>;
+  Fahrenheit: Parser<TemperatureEntity>;
+  Unspecified: Parser<TemperatureEntity>;
+  BelowZero: Parser<TemperatureEntity>;
+  parser: Parser<TemperatureEntity>;
 };
 
 /**
  * Temperature parser language.
  */
-export const Temperature: ReturnType<
-  typeof createLanguageThis<TemperatureLanguage>
-> = createLanguageThis<TemperatureLanguage>({
-  Degrees: function (): Parser<string> {
+export const Temperature: TemperatureLanguage = createLanguage<
+  TemperatureLanguage
+>({
+  Degrees: (): Parser<string> => {
     return either(str("°"), str("degrees"));
   },
-  UnitCelsius: function (): Parser<"Celsius"> {
+  UnitCelsius: (): Parser<"Celsius"> => {
     return map(any(str("Celsius"), str("celsius"), str("C")), () => "Celsius");
   },
-  UnitFahrenheit: function (): Parser<"Fahrenheit"> {
+  UnitFahrenheit: (): Parser<"Fahrenheit"> => {
     return map(
       any(str("Fahrenheit"), str("fahrenheit"), str("F")),
       () => "Fahrenheit",
     );
   },
-  Celsius: function (): Parser<TemperatureEntity> {
+  Celsius: (s): Parser<TemperatureEntity> => {
     return map(
       seqNonNull<QuantityEntity | string | null>(
         Quantity.innerParser,
         optional(space()),
-        optional(this.Degrees),
+        optional(s.Degrees),
         optional(space()),
-        this.UnitCelsius,
+        s.UnitCelsius,
       ),
       ([amt], b, a) =>
         temp({ amount: amt as QuantityEntity, unit: "Celsius" }, b, a),
     );
   },
-  Fahrenheit: function (): Parser<TemperatureEntity> {
+  Fahrenheit: (s): Parser<TemperatureEntity> => {
     return map(
       seqNonNull<QuantityEntity | string | null>(
         Quantity.innerParser,
         optional(space()),
-        optional(this.Degrees),
+        optional(s.Degrees),
         optional(space()),
-        this.UnitFahrenheit,
+        s.UnitFahrenheit,
       ),
       ([amt], b, a) =>
         temp({ amount: amt as QuantityEntity, unit: "Fahrenheit" }, b, a),
     );
   },
-  Unspecified: function (): Parser<TemperatureEntity> {
+  Unspecified: (s): Parser<TemperatureEntity> => {
     return map(
-      seq(Quantity.innerParser, optional(space()), this.Degrees),
+      seq(Quantity.innerParser, optional(space()), s.Degrees),
       ([amt], b, a) => temp({ amount: amt as QuantityEntity }, b, a),
     );
   },
-  BelowZero: function (): Parser<TemperatureEntity> {
+  BelowZero: (s): Parser<TemperatureEntity> => {
     return map(
       seq(
         Quantity.innerParser,
-        optional(this.Degrees),
+        optional(s.Degrees),
         optional(space()),
-        optional(either(this.UnitCelsius, this.UnitFahrenheit)),
+        optional(either(s.UnitCelsius, s.UnitFahrenheit)),
         seqNonNull(
           skip1(space()),
           __(str("below")),
@@ -139,9 +139,9 @@ export const Temperature: ReturnType<
         ),
     );
   },
-  parser: function (): Parser<TemperatureEntity> {
+  parser: (s): Parser<TemperatureEntity> => {
     return dot(
-      any(this.BelowZero, this.Celsius, this.Fahrenheit, this.Unspecified),
+      any(s.BelowZero, s.Celsius, s.Fahrenheit, s.Unspecified),
     );
   },
 });

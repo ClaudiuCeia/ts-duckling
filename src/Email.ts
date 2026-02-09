@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguageThis,
+  createLanguage,
   digit,
   letter,
   manyTill,
@@ -36,38 +36,34 @@ export const email = (
 };
 
 type EmailLanguage = {
-  Full: () => Parser<EmailEntity>;
-  parser: () => Parser<EmailEntity>;
+  Full: Parser<EmailEntity>;
+  parser: Parser<EmailEntity>;
 };
 
 /**
  * Email address parser language.
  */
-export const Email: ReturnType<typeof createLanguageThis<EmailLanguage>> =
-  createLanguageThis<EmailLanguage>({
-    Full() {
-      return map(
-        seq(
-          map(
-            manyTill(
-              any(letter(), digit(), str("."), str("-"), str("-"), str("+")),
-              str("@"),
-            ),
-            (p) => p.join(""),
+export const Email: EmailLanguage = createLanguage<EmailLanguage>({
+  Full: () =>
+    map(
+      seq(
+        map(
+          manyTill(
+            any(letter(), digit(), str("."), str("-"), str("-"), str("+")),
+            str("@"),
           ),
-          URL.Domain,
+          (p) => p.join(""),
         ),
-        ([firstPart, domain], b, a) =>
-          email(
-            {
-              email: `${firstPart}${domain}`,
-            },
-            b,
-            a,
-          ),
-      );
-    },
-    parser() {
-      return dot(any(this.Full));
-    },
-  });
+        URL.Domain,
+      ),
+      ([firstPart, domain], b, a) =>
+        email(
+          {
+            email: `${firstPart}${domain}`,
+          },
+          b,
+          a,
+        ),
+    ),
+  parser: (s) => dot(any(s.Full)),
+});

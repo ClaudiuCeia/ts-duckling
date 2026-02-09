@@ -1,6 +1,6 @@
 import {
   type Context,
-  createLanguageThis,
+  createLanguage,
   map,
   regex,
 } from "@claudiu-ceia/combine";
@@ -30,32 +30,31 @@ export const uuid = (
 };
 
 type UUIDLanguage = {
-  Full: () => Parser<UUIDEntity>;
-  parser: () => Parser<UUIDEntity>;
+  Full: Parser<UUIDEntity>;
+  parser: Parser<UUIDEntity>;
 };
 
 /**
  * UUID parser language.
  */
-export const UUID: ReturnType<typeof createLanguageThis<UUIDLanguage>> =
-  createLanguageThis<UUIDLanguage>({
-    Full(): Parser<UUIDEntity> {
-      return map(
-        regex(
-          /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
-          "uuid",
+export const UUID: UUIDLanguage = createLanguage<UUIDLanguage>({
+  Full: (): Parser<UUIDEntity> => {
+    return map(
+      regex(
+        /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+        "uuid",
+      ),
+      (m, b, a) =>
+        uuid(
+          {
+            uuid: m.toLowerCase(),
+          },
+          b,
+          a,
         ),
-        (m, b, a) =>
-          uuid(
-            {
-              uuid: m.toLowerCase(),
-            },
-            b,
-            a,
-          ),
-      );
-    },
-    parser(): Parser<UUIDEntity> {
-      return dot(this.Full);
-    },
-  });
+    );
+  },
+  parser: (s): Parser<UUIDEntity> => {
+    return dot(s.Full);
+  },
+});

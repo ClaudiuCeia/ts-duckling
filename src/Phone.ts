@@ -1,6 +1,6 @@
 import {
   type Context,
-  createLanguageThis,
+  createLanguage,
   map,
   regex,
 } from "@claudiu-ceia/combine";
@@ -31,29 +31,25 @@ export const phone = (
 };
 
 type PhoneLanguage = {
-  Full: () => Parser<PhoneEntity>;
-  parser: () => Parser<PhoneEntity>;
+  Full: Parser<PhoneEntity>;
+  parser: Parser<PhoneEntity>;
 };
 
 /**
  * Phone number parser language (E.164: `+` followed by 8-15 digits).
  */
-export const Phone: ReturnType<typeof createLanguageThis<PhoneLanguage>> =
-  createLanguageThis<PhoneLanguage>({
-    Full(): Parser<PhoneEntity> {
-      return map(
-        regex(/\+\d{8,15}/, "phone"),
-        (m, b, a) =>
-          phone(
-            {
-              phone: m,
-            },
-            b,
-            a,
-          ),
-      );
-    },
-    parser(): Parser<PhoneEntity> {
-      return dot(this.Full);
-    },
-  });
+export const Phone: PhoneLanguage = createLanguage<PhoneLanguage>({
+  Full: () =>
+    map(
+      regex(/\+\d{8,15}/, "phone"),
+      (m, b, a) =>
+        phone(
+          {
+            phone: m,
+          },
+          b,
+          a,
+        ),
+    ),
+  parser: (s) => dot(s.Full),
+});
