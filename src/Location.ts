@@ -1,6 +1,12 @@
-import { any, Context, createLanguageThis, map } from "@claudiu-ceia/combine";
+import {
+  any,
+  type Context,
+  createLanguageThis,
+  map,
+} from "@claudiu-ceia/combine";
+import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 import countries from "@data/countries-en-us" with { type: "json" };
 import { fuzzyCase } from "./parsers.ts";
 
@@ -22,22 +28,28 @@ export const location = (
   return ent(value, "location", before, after);
 };
 
-export const Location = createLanguageThis({
-  Country() {
-    return map(
-      any(...Object.values(countriesByCode).map(fuzzyCase)),
-      (country, b, a) =>
-        location(
-          {
-            place: country,
-            type: "country",
-          },
-          b,
-          a,
-        ),
-    );
-  },
-  parser() {
-    return dot(any(this.Country));
-  },
-});
+type LocationLanguage = {
+  Country: () => Parser<LocationEntity>;
+  parser: () => Parser<LocationEntity>;
+};
+
+export const Location: ReturnType<typeof createLanguageThis<LocationLanguage>> =
+  createLanguageThis<LocationLanguage>({
+    Country() {
+      return map(
+        any(...Object.values(countriesByCode).map(fuzzyCase)),
+        (country, b, a) =>
+          location(
+            {
+              place: country,
+              type: "country",
+            },
+            b,
+            a,
+          ),
+      );
+    },
+    parser() {
+      return dot(any(this.Country));
+    },
+  });

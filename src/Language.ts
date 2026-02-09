@@ -1,6 +1,12 @@
-import { any, Context, createLanguageThis, map } from "@claudiu-ceia/combine";
+import {
+  any,
+  type Context,
+  createLanguageThis,
+  map,
+} from "@claudiu-ceia/combine";
+import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 import languages from "@data/languages-en" with { type: "json" };
 import { fuzzyCase } from "./parsers.ts";
 
@@ -32,17 +38,23 @@ export const language = (
   return ent(value, "language", before, after);
 };
 
-export const Language = createLanguageThis({
-  Language() {
-    const langs = cldr.main.en.localeDisplayNames.languages;
-    const lang = (code: string, name: string) =>
-      map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
+type LanguageLanguage = {
+  Language: () => Parser<LanguageEntity>;
+  parser: () => Parser<LanguageEntity>;
+};
 
-    return any(
-      ...Object.entries(langs).map(([code, name]) => lang(code, name)),
-    );
-  },
-  parser() {
-    return dot(any(this.Language));
-  },
-});
+export const Language: ReturnType<typeof createLanguageThis<LanguageLanguage>> =
+  createLanguageThis<LanguageLanguage>({
+    Language() {
+      const langs = cldr.main.en.localeDisplayNames.languages;
+      const lang = (code: string, name: string) =>
+        map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
+
+      return any(
+        ...Object.entries(langs).map(([code, name]) => lang(code, name)),
+      );
+    },
+    parser() {
+      return dot(any(this.Language));
+    },
+  });

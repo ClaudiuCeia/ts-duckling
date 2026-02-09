@@ -1,6 +1,6 @@
 import {
   any,
-  Context,
+  type Context,
   createLanguageThis,
   either,
   letter,
@@ -18,7 +18,7 @@ import {
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { __, dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 
 export type InstitutionEntity = Entity<
@@ -46,7 +46,9 @@ type InstitutionLanguage = {
   parser: () => Parser<InstitutionEntity>;
 };
 
-export const Institution = createLanguageThis<InstitutionLanguage>({
+export const Institution: ReturnType<
+  typeof createLanguageThis<InstitutionLanguage>
+> = createLanguageThis<InstitutionLanguage>({
   Capitalized: function (): Parser<string> {
     return map(
       seq(regex(/[A-Z]/, "capital-letter"), many(letter())),

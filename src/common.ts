@@ -2,7 +2,7 @@ import {
   any,
   eof,
   map,
-  Parser,
+  type Parser,
   regex,
   seqNonNull,
   skip1,

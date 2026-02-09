@@ -1,4 +1,4 @@
-import { failure, Parser, success } from "@claudiu-ceia/combine";
+import { failure, type Parser, success } from "@claudiu-ceia/combine";
 
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {

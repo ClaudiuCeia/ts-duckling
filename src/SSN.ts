@@ -1,5 +1,5 @@
 import {
-  Context,
+  type Context,
   createLanguageThis,
   map,
   seq,
@@ -8,9 +8,9 @@ import {
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
-import { IntN, QuantityEntity } from "./Quantity.ts";
+import { IntN, type QuantityEntity } from "./Quantity.ts";
 
 export type SSNEntity = Entity<
   "ssn",
@@ -40,61 +40,62 @@ type SSNLanguage = {
   parser: () => Parser<SSNEntity>;
 };
 
-export const SSN = createLanguageThis<SSNLanguage>({
-  Parts(): Parser<{
-    area: QuantityEntity;
-    group: QuantityEntity;
-    serial: QuantityEntity;
-  }> {
-    return guard(
-      map(
-        seq(
-          IntN(3),
-          skip1(str("-")),
-          IntN(2),
-          skip1(str("-")),
-          IntN(4),
+export const SSN: ReturnType<typeof createLanguageThis<SSNLanguage>> =
+  createLanguageThis<SSNLanguage>({
+    Parts(): Parser<{
+      area: QuantityEntity;
+      group: QuantityEntity;
+      serial: QuantityEntity;
+    }> {
+      return guard(
+        map(
+          seq(
+            IntN(3),
+            skip1(str("-")),
+            IntN(2),
+            skip1(str("-")),
+            IntN(4),
+          ),
+          ([area, , group, , serial]) => ({ area, group, serial }),
         ),
-        ([area, , group, , serial]) => ({ area, group, serial }),
-      ),
-      ({ area, group, serial }) => {
-        const a = area.value.amount;
-        const g = group.value.amount;
-        const s = serial.value.amount;
+        ({ area, group, serial }) => {
+          const a = area.value.amount;
+          const g = group.value.amount;
+          const s = serial.value.amount;
 
-        // Basic SSA constraints; not exhaustive, but avoids obvious false positives.
-        if (
-          !Number.isInteger(a) || !Number.isInteger(g) || !Number.isInteger(s)
-        ) {
-          return false;
-        }
-        if (a < 1 || a > 899 || a === 666) return false;
-        if (g < 1 || g > 99) return false;
-        if (s < 1 || s > 9999) return false;
+          // Basic SSA constraints; not exhaustive, but avoids obvious false positives.
+          if (
+            !Number.isInteger(a) || !Number.isInteger(g) || !Number.isInteger(s)
+          ) {
+            return false;
+          }
+          if (a < 1 || a > 899 || a === 666) return false;
+          if (g < 1 || g > 99) return false;
+          if (s < 1 || s > 9999) return false;
 
-        return true;
-      },
-      "ssn",
-    );
-  },
-  Full(): Parser<SSNEntity> {
-    return map(
-      this.Parts,
-      ({ area, group, serial }, b, a) =>
-        ssn(
-          {
-            ssn: b.text.substring(b.index, a.index),
-            area,
-            group,
-            serial,
-          },
-          b,
-          a,
-        ),
-    );
-  },
-  parser(): Parser<SSNEntity> {
-    // Use dot to ensure we end on a token boundary (like other entities).
-    return dot(this.Full);
-  },
-});
+          return true;
+        },
+        "ssn",
+      );
+    },
+    Full(): Parser<SSNEntity> {
+      return map(
+        this.Parts,
+        ({ area, group, serial }, b, a) =>
+          ssn(
+            {
+              ssn: b.text.substring(b.index, a.index),
+              area,
+              group,
+              serial,
+            },
+            b,
+            a,
+          ),
+      );
+    },
+    parser(): Parser<SSNEntity> {
+      // Use dot to ensure we end on a token boundary (like other entities).
+      return dot(this.Full);
+    },
+  });

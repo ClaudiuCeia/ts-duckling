@@ -1,7 +1,12 @@
-import { Context, createLanguageThis, map, regex } from "@claudiu-ceia/combine";
+import {
+  type Context,
+  createLanguageThis,
+  map,
+  regex,
+} from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 
 export type CreditCardEntity = Entity<
@@ -49,7 +54,9 @@ type CreditCardLanguage = {
   parser: () => Parser<CreditCardEntity>;
 };
 
-export const CreditCard = createLanguageThis<CreditCardLanguage>({
+export const CreditCard: ReturnType<
+  typeof createLanguageThis<CreditCardLanguage>
+> = createLanguageThis<CreditCardLanguage>({
   Raw(): Parser<string> {
     // 13-19 digits with optional single separators (space or '-').
     return guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard);

@@ -7,28 +7,28 @@ import {
   manyTill,
   map,
   optional,
-  Parser,
+  type Parser,
   seq,
   skip1,
   space,
 } from "@claudiu-ceia/combine";
 import { recognizeAt, step } from "@claudiu-ceia/combine/nondeterministic";
 import { __, dot, word } from "./src/common.ts";
-import { Quantity, QuantityEntity } from "./src/Quantity.ts";
+import { Quantity, type QuantityEntity } from "./src/Quantity.ts";
 import { Range, type RangeEntity } from "./src/Range.ts";
-import { Temperature, TemperatureEntity } from "./src/Temperature.ts";
-import { Time, TimeEntity } from "./src/Time.ts";
-import { Location, LocationEntity } from "./src/Location.ts";
-import { URL, URLEntity } from "./src/URL.ts";
-import { Email, EmailEntity } from "./src/Email.ts";
-import { Institution, InstitutionEntity } from "./src/Institution.ts";
-import { Language, LanguageEntity } from "./src/Language.ts";
-import { Phone, PhoneEntity } from "./src/Phone.ts";
-import { IPAddress, IPAddressEntity } from "./src/IPAddress.ts";
-import { SSN, SSNEntity } from "./src/SSN.ts";
-import { CreditCard, CreditCardEntity } from "./src/CreditCard.ts";
-import { UUID, UUIDEntity } from "./src/UUID.ts";
-import { ApiKey } from "./src/ApiKey.ts";
+import { Temperature, type TemperatureEntity } from "./src/Temperature.ts";
+import { Time, type TimeEntity } from "./src/Time.ts";
+import { Location, type LocationEntity } from "./src/Location.ts";
+import { URL, type URLEntity } from "./src/URL.ts";
+import { Email, type EmailEntity } from "./src/Email.ts";
+import { Institution, type InstitutionEntity } from "./src/Institution.ts";
+import { Language, type LanguageEntity } from "./src/Language.ts";
+import { Phone, type PhoneEntity } from "./src/Phone.ts";
+import { IPAddress, type IPAddressEntity } from "./src/IPAddress.ts";
+import { SSN, type SSNEntity } from "./src/SSN.ts";
+import { CreditCard, type CreditCardEntity } from "./src/CreditCard.ts";
+import { UUID, type UUIDEntity } from "./src/UUID.ts";
+import { ApiKey, type ApiKeyEntity } from "./src/ApiKey.ts";
 
 export type AnyEntity =
   | TemperatureEntity
@@ -45,9 +45,18 @@ export type AnyEntity =
   | IPAddressEntity
   | SSNEntity
   | CreditCardEntity
-  | UUIDEntity;
+  | UUIDEntity
+  | ApiKeyEntity;
 
-export const Duckling = (
+type DucklingLanguage = {
+  Entity: () => Parser<AnyEntity[]>;
+  Unstructured: () => Parser<string>;
+  extract: () => Parser<AnyEntity[]>;
+};
+
+export const Duckling: (
+  parsers?: Parser<AnyEntity>[],
+) => ReturnType<typeof createLanguageThis<DucklingLanguage>> = (
   parsers: Parser<AnyEntity>[] = [
     Range.parser,
     Email.parser,
@@ -66,7 +75,7 @@ export const Duckling = (
     ApiKey.parser,
   ],
 ) =>
-  createLanguageThis({
+  createLanguageThis<DucklingLanguage>({
     Entity() {
       if (parsers.length === 0) {
         return (ctx) => failure(ctx, "entity");
@@ -119,4 +128,5 @@ export * from "./src/CreditCard.ts";
 export * from "./src/UUID.ts";
 export * from "./src/Institution.ts";
 export * from "./src/Language.ts";
+export * from "./src/ApiKey.ts";
 export * from "./src/ApiKey.ts";

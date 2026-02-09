@@ -1,7 +1,12 @@
-import { Context, createLanguageThis, map, regex } from "@claudiu-ceia/combine";
+import {
+  type Context,
+  createLanguageThis,
+  map,
+  regex,
+} from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 
 export type PhoneEntity = Entity<
   "phone",
@@ -19,21 +24,27 @@ export const phone = (
   return ent(value, "phone", before, after);
 };
 
-export const Phone = createLanguageThis({
-  Full(): Parser<PhoneEntity> {
-    return map(
-      regex(/\+\d{8,15}/, "phone"),
-      (m, b, a) =>
-        phone(
-          {
-            phone: m,
-          },
-          b,
-          a,
-        ),
-    );
-  },
-  parser(): Parser<PhoneEntity> {
-    return dot(this.Full);
-  },
-});
+type PhoneLanguage = {
+  Full: () => Parser<PhoneEntity>;
+  parser: () => Parser<PhoneEntity>;
+};
+
+export const Phone: ReturnType<typeof createLanguageThis<PhoneLanguage>> =
+  createLanguageThis<PhoneLanguage>({
+    Full(): Parser<PhoneEntity> {
+      return map(
+        regex(/\+\d{8,15}/, "phone"),
+        (m, b, a) =>
+          phone(
+            {
+              phone: m,
+            },
+            b,
+            a,
+          ),
+      );
+    },
+    parser(): Parser<PhoneEntity> {
+      return dot(this.Full);
+    },
+  });

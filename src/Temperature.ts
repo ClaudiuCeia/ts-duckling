@@ -1,6 +1,6 @@
 import {
   any,
-  Context,
+  type Context,
   createLanguageThis,
   either,
   map,
@@ -13,8 +13,8 @@ import {
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { __, dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
-import { Quantity, QuantityEntity } from "./Quantity.ts";
+import { ent, type Entity } from "./Entity.ts";
+import { Quantity, type QuantityEntity } from "./Quantity.ts";
 
 export type TemperatureEntity = Entity<
   "temperature",
@@ -54,7 +54,9 @@ type TemperatureLanguage = {
   parser: () => Parser<TemperatureEntity>;
 };
 
-export const Temperature = createLanguageThis<TemperatureLanguage>({
+export const Temperature: ReturnType<
+  typeof createLanguageThis<TemperatureLanguage>
+> = createLanguageThis<TemperatureLanguage>({
   Degrees: function (): Parser<string> {
     return either(str("°"), str("degrees"));
   },

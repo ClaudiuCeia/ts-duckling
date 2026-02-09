@@ -1,4 +1,4 @@
-import { failure, Parser } from "@claudiu-ceia/combine";
+import { failure, type Parser } from "@claudiu-ceia/combine";
 
 // Run a semantic check after parsing without consuming input on failure.
 export const guard = <T>(

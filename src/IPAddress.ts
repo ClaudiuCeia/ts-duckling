@@ -1,13 +1,13 @@
 import {
   any,
-  Context,
+  type Context,
   createLanguageThis,
   map,
   regex,
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 
 export type IPAddressEntity = Entity<
   "ip",
@@ -33,7 +33,9 @@ type IPAddressLanguage = {
   parser: () => Parser<IPAddressEntity>;
 };
 
-export const IPAddress = createLanguageThis<IPAddressLanguage>({
+export const IPAddress: ReturnType<
+  typeof createLanguageThis<IPAddressLanguage>
+> = createLanguageThis<IPAddressLanguage>({
   IPv4(): Parser<string> {
     // 0-255
     return regex(

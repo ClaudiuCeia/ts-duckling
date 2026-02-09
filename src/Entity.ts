@@ -1,4 +1,4 @@
-import { Context } from "@claudiu-ceia/combine";
+import type { Context } from "@claudiu-ceia/combine";
 
 export type Entity<Kind, Value> = {
   value: Value;

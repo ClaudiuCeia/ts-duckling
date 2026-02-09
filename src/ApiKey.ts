@@ -1,6 +1,6 @@
 import {
   any,
-  Context,
+  type Context,
   createLanguageThis,
   map,
   regex,
@@ -8,7 +8,7 @@ import {
 } from "@claudiu-ceia/combine";
 import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
-import { ent, Entity } from "./Entity.ts";
+import { ent, type Entity } from "./Entity.ts";
 
 export type ApiKeyEntity = Entity<
   "api_key",
@@ -103,39 +103,40 @@ export const apiKey = (
   return ent(value, "api_key", before, after);
 };
 
-export const ApiKey = createLanguageThis<ApiKeyLanguage>({
-  /**
-   * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
-   * This is optional since not all API keys have a prefix.
-   *
-   * Returns a provider name if a known prefix is matched, or undefined otherwise.
-   * This allows downstream code to potentially apply provider-specific validation or parsing logic.
-   */
-  Prefix(): Parser<string> {
-    return map(
-      regex(ProviderPrefixRegex, "api-key-prefix"),
-      (prefix) => ProviderPrefixes[prefix],
-    );
-  },
-  /**
-   * Parses a known provider prefix + key body.
-   */
-  PrefixKey(): Parser<ApiKeyEntity["value"]> {
-    return map(
-      seq(
+export const ApiKey: ReturnType<typeof createLanguageThis<ApiKeyLanguage>> =
+  createLanguageThis<ApiKeyLanguage>({
+    /**
+     * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
+     * This is optional since not all API keys have a prefix.
+     *
+     * Returns a provider name if a known prefix is matched, or undefined otherwise.
+     * This allows downstream code to potentially apply provider-specific validation or parsing logic.
+     */
+    Prefix(): Parser<string> {
+      return map(
         regex(ProviderPrefixRegex, "api-key-prefix"),
-        regex(/[A-Za-z0-9][A-Za-z0-9._-]{7,199}/, "api-key-body"),
-      ),
-      ([prefix, body]) => ({
-        provider: ProviderPrefixes[prefix],
-        key: `${prefix}${body}`,
-      }),
-    );
-  },
-  Full(): Parser<ApiKeyEntity> {
-    return map(this.PrefixKey, (value, b, a) => apiKey(value, b, a));
-  },
-  parser(): Parser<ApiKeyEntity> {
-    return dot(any(this.Full));
-  },
-});
+        (prefix) => ProviderPrefixes[prefix],
+      );
+    },
+    /**
+     * Parses a known provider prefix + key body.
+     */
+    PrefixKey(): Parser<ApiKeyEntity["value"]> {
+      return map(
+        seq(
+          regex(ProviderPrefixRegex, "api-key-prefix"),
+          regex(/[A-Za-z0-9][A-Za-z0-9._-]{7,199}/, "api-key-body"),
+        ),
+        ([prefix, body]) => ({
+          provider: ProviderPrefixes[prefix],
+          key: `${prefix}${body}`,
+        }),
+      );
+    },
+    Full(): Parser<ApiKeyEntity> {
+      return map(this.PrefixKey, (value, b, a) => apiKey(value, b, a));
+    },
+    parser(): Parser<ApiKeyEntity> {
+      return dot(any(this.Full));
+    },
+  });
