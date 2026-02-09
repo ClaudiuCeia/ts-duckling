@@ -14,6 +14,7 @@ import {
 } from "@claudiu-ceia/combine";
 import { recognizeAt, step } from "@claudiu-ceia/combine/nondeterministic";
 import { __, dot, word } from "./src/common.ts";
+import type { Entity } from "./src/Entity.ts";
 import { Quantity, type QuantityEntity } from "./src/Quantity.ts";
 import { Range, type RangeEntity } from "./src/Range.ts";
 import { Temperature, type TemperatureEntity } from "./src/Temperature.ts";
@@ -54,42 +55,71 @@ export type AnyEntity =
   | UUIDEntity
   | ApiKeyEntity;
 
-type DucklingLanguage = {
-  Entity: () => Parser<AnyEntity[]>;
+type DucklingLanguage<E extends Entity<string, unknown>> = {
+  Entity: () => Parser<E[]>;
   Unstructured: () => Parser<string>;
-  extract: () => Parser<AnyEntity[]>;
+  extract: () => Parser<E[]>;
 };
 
 /**
- * Creates a Duckling-like extractor language.
+ * A Duckling-like extractor.
  *
- * It parses arbitrary text and returns entity matches produced by the provided
+ * This is a convenience wrapper around the internal parser combinator grammar,
+ * so callers can simply pass a string.
+ */
+export type DucklingExtractor<E extends Entity<string, unknown>> = {
+  /**
+   * Extract entities from `text` (starting at index 0).
+   */
+  extract: (text: string) => E[];
+  /**
+   * Extract entities starting at `index` in `text`.
+   */
+  extractAt: (input: { text: string; index: number }) => E[];
+  /**
+   * Low-level parser for advanced use.
+   *
+   * Note: this parser expects a `{ text, index }` context input.
+   */
+  extractParser: Parser<E[]>;
+};
+
+/**
+ * Creates a Duckling-like extractor.
+ *
+ * It scans arbitrary text and returns entity matches produced by the provided
  * entity parsers.
  */
-export const Duckling: (
-  parsers?: Parser<AnyEntity>[],
-) => ReturnType<typeof createLanguageThis<DucklingLanguage>> = (
-  parsers: Parser<AnyEntity>[] = [
-    Range.parser,
-    Email.parser,
-    URL.parser,
-    UUID.parser,
-    Phone.parser,
-    IPAddress.parser,
-    SSN.parser,
-    CreditCard.parser,
-    Time.parser,
-    Temperature.parser,
-    Quantity.parser,
-    Location.parser,
-    Institution.parser,
-    Language.parser,
-    ApiKey.parser,
-  ],
-) =>
-  createLanguageThis<DucklingLanguage>({
+const DefaultParsers: Parser<AnyEntity>[] = [
+  Range.parser,
+  Email.parser,
+  URL.parser,
+  UUID.parser,
+  Phone.parser,
+  IPAddress.parser,
+  SSN.parser,
+  CreditCard.parser,
+  Time.parser,
+  Temperature.parser,
+  Quantity.parser,
+  Location.parser,
+  Institution.parser,
+  Language.parser,
+  ApiKey.parser,
+];
+
+export function Duckling(): DucklingExtractor<AnyEntity>;
+export function Duckling<E extends Entity<string, unknown>>(
+  parsers: Parser<E>[],
+): DucklingExtractor<E>;
+export function Duckling<E extends Entity<string, unknown>>(
+  parsers?: Parser<E>[],
+): DucklingExtractor<E> {
+  const ps = parsers ?? (DefaultParsers as unknown as Parser<E>[]);
+
+  const lang = createLanguageThis<DucklingLanguage<E>>({
     Entity() {
-      if (parsers.length === 0) {
+      if (ps.length === 0) {
         return (ctx) => failure(ctx, "entity");
       }
 
@@ -98,7 +128,7 @@ export const Duckling: (
       // overlapping matches (useful for debug/analysis and the demo UI).
       const p = step(
         recognizeAt(
-          ...(parsers as [Parser<AnyEntity>, ...Parser<AnyEntity>[]]),
+          ...(ps as [Parser<E>, ...Parser<E>[]]),
         ),
         "shortest",
       );
@@ -117,13 +147,27 @@ export const Duckling: (
               skip1(eof()),
             ),
             ([...matches]) =>
-              matches.filter((m): m is AnyEntity[] => Array.isArray(m)).flat(),
+              matches.filter((m): m is E[] => Array.isArray(m)).flat(),
           ),
         ),
         ([, res]) => res,
       );
     },
   });
+
+  const extractAt = (input: { text: string; index: number }): E[] => {
+    const res = lang.extract(input);
+    return res.success ? res.value : [];
+  };
+
+  const extract = (text: string): E[] => extractAt({ text, index: 0 });
+
+  return {
+    extract,
+    extractAt,
+    extractParser: lang.extract,
+  };
+}
 
 export * from "./src/Entity.ts";
 export * from "./src/Quantity.ts";

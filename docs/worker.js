@@ -63,10 +63,9 @@ self.onmessage = async (ev) => {
     : [];
 
   const t0 = performance.now();
-  const res = m.Duckling(parsers).extract({ text: input, index: 0 });
+  const entities = m.Duckling(parsers).extract(input);
   const ms = performance.now() - t0;
 
-  const entities = res.success ? res.value : [];
   self.postMessage({
     type: "result",
     reqId,

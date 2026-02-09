@@ -22,7 +22,7 @@ Online playground: https://claudiuceia.github.io/ts-duckling/
 ## Install (Deno / JSR)
 
 ```ts
-import { Duckling } from "jsr:@claudiu-ceia/ts-duckling@^0.0.13";
+import { Duckling } from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
 ```
 
 ## Quickstart
@@ -33,20 +33,14 @@ import {
   Email,
   Time,
   URL,
-} from "jsr:@claudiu-ceia/ts-duckling@^0.0.13";
+} from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
 
 const text =
   "Email me at foo@example.com and visit https://example.com tomorrow.";
-const res = Duckling([Email.parser, URL.parser, Time.parser]).extract({
+const entities = Duckling([Email.parser, URL.parser, Time.parser]).extract(
   text,
-  index: 0,
-});
-
-if (res.success) {
-  console.log(res.value);
-} else {
-  console.error(res.expected, res.location);
-}
+);
+console.log(entities);
 ```
 
 ## Supported Entities
@@ -80,23 +74,8 @@ entities:
 
 ```ts
 // ts-duckling falsely assumes that 6/2022 is a date
-const res = Duckling([Time.parser]).extract({
-  text: "6/2022 is 0.00296735905",
-  index: 0,
-});
-
-if (res.success) {
-  console.log(res.value);
-  // [
-  //   {
-  //     kind: "time",
-  //     start: 0,
-  //     end: 6,
-  //     text: "6/2022",
-  //     value: { when: "...", grain: "day", era: "CE" },
-  //   },
-  // ]
-}
+const entities2 = Duckling([Time.parser]).extract("6/2022 is 0.00296735905");
+console.log(entities2);
 ```
 
 ## Adding New Entity Types
@@ -105,7 +84,7 @@ Define a parser that returns an `Entity`, then pass its `.parser` to `Duckling`.
 
 ```ts
 import {
-  createLanguageThis,
+  createLanguage,
   map,
   type Parser,
   regex,
@@ -115,31 +94,29 @@ import {
   Duckling,
   ent,
   type Entity,
-} from "jsr:@claudiu-ceia/ts-duckling@^0.0.13";
+} from "jsr:@claudiu-ceia/ts-duckling@^0.0.14";
 
 type HashtagEntity = Entity<"hashtag", { tag: string }>;
 
-const Hashtag = createLanguageThis({
-  Full() {
-    return map(
+type HashtagLanguage = {
+  Full: Parser<HashtagEntity>;
+  parser: Parser<HashtagEntity>;
+};
+
+const Hashtag = createLanguage<HashtagLanguage>({
+  Full: () =>
+    map(
       regex(/#[A-Za-z0-9_]{2,64}/, "hashtag"),
       (m, b, a) => ent({ tag: m.slice(1) }, "hashtag", b, a),
-    );
-  },
-  parser() {
-    return this.Full;
-  },
+    ),
+  parser: (s) => s.Full,
 });
 
-// `Duckling` is typed to the built-in entity union (`AnyEntity`).
-// To mix in custom entities, widen the type (or cast) and handle it downstream.
-const res2 = Duckling([Hashtag.parser as unknown as Parser<AnyEntity>]).extract(
-  {
-    text: "hello #duckling",
-    index: 0,
-  },
+type MyEntity = AnyEntity | HashtagEntity;
+const entities3 = Duckling<MyEntity>([Hashtag.parser]).extract(
+  "hello #duckling",
 );
-if (res2.success) console.log(res2.value);
+console.log(entities3);
 ```
 
 # License
