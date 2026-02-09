@@ -8,6 +8,9 @@ import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
+/**
+ * UUID entity (canonical 8-4-4-4-12 form).
+ */
 export type UUIDEntity = Entity<
   "uuid",
   {
@@ -15,6 +18,9 @@ export type UUIDEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `UUIDEntity`.
+ */
 export const uuid = (
   value: UUIDEntity["value"],
   before: Context,
@@ -28,6 +34,9 @@ type UUIDLanguage = {
   parser: () => Parser<UUIDEntity>;
 };
 
+/**
+ * UUID parser language.
+ */
 export const UUID: ReturnType<typeof createLanguageThis<UUIDLanguage>> =
   createLanguageThis<UUIDLanguage>({
     Full(): Parser<UUIDEntity> {

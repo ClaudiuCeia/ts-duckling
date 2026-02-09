@@ -8,6 +8,9 @@ import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
+/**
+ * Phone number entity (strict-ish E.164).
+ */
 export type PhoneEntity = Entity<
   "phone",
   {
@@ -16,6 +19,9 @@ export type PhoneEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `PhoneEntity`.
+ */
 export const phone = (
   value: PhoneEntity["value"],
   before: Context,
@@ -29,6 +35,9 @@ type PhoneLanguage = {
   parser: () => Parser<PhoneEntity>;
 };
 
+/**
+ * Phone number parser language (E.164: `+` followed by 8-15 digits).
+ */
 export const Phone: ReturnType<typeof createLanguageThis<PhoneLanguage>> =
   createLanguageThis<PhoneLanguage>({
     Full(): Parser<PhoneEntity> {

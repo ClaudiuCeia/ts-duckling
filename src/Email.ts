@@ -14,6 +14,9 @@ import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { URL } from "./URL.ts";
 
+/**
+ * Email address entity.
+ */
 export type EmailEntity = Entity<
   "email",
   {
@@ -21,6 +24,9 @@ export type EmailEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing an `EmailEntity`.
+ */
 export const email = (
   value: EmailEntity["value"],
   before: Context,
@@ -34,6 +40,9 @@ type EmailLanguage = {
   parser: () => Parser<EmailEntity>;
 };
 
+/**
+ * Email address parser language.
+ */
 export const Email: ReturnType<typeof createLanguageThis<EmailLanguage>> =
   createLanguageThis<EmailLanguage>({
     Full() {

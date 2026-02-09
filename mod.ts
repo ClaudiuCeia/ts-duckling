@@ -30,6 +30,12 @@ import { CreditCard, type CreditCardEntity } from "./src/CreditCard.ts";
 import { UUID, type UUIDEntity } from "./src/UUID.ts";
 import { ApiKey, type ApiKeyEntity } from "./src/ApiKey.ts";
 
+/**
+ * Union of all entity types returned by the built-in parsers.
+ *
+ * Note: `Duckling().extract()` can return multiple matches for the same span
+ * (for example a structured parser + a more generic `quantity` match).
+ */
 export type AnyEntity =
   | TemperatureEntity
   | TimeEntity
@@ -54,6 +60,12 @@ type DucklingLanguage = {
   extract: () => Parser<AnyEntity[]>;
 };
 
+/**
+ * Creates a Duckling-like extractor language.
+ *
+ * It parses arbitrary text and returns entity matches produced by the provided
+ * entity parsers.
+ */
 export const Duckling: (
   parsers?: Parser<AnyEntity>[],
 ) => ReturnType<typeof createLanguageThis<DucklingLanguage>> = (
@@ -128,5 +140,4 @@ export * from "./src/CreditCard.ts";
 export * from "./src/UUID.ts";
 export * from "./src/Institution.ts";
 export * from "./src/Language.ts";
-export * from "./src/ApiKey.ts";
 export * from "./src/ApiKey.ts";

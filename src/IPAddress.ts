@@ -9,6 +9,9 @@ import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
+/**
+ * IP address entity (IPv4 or IPv6).
+ */
 export type IPAddressEntity = Entity<
   "ip",
   {
@@ -17,6 +20,9 @@ export type IPAddressEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing an `IPAddressEntity`.
+ */
 export const ipAddress = (
   value: IPAddressEntity["value"],
   before: Context,
@@ -33,6 +39,11 @@ type IPAddressLanguage = {
   parser: () => Parser<IPAddressEntity>;
 };
 
+/**
+ * IP address parser language.
+ *
+ * Note: IPv6 currently supports deterministic full form only (no `::` compression).
+ */
 export const IPAddress: ReturnType<
   typeof createLanguageThis<IPAddressLanguage>
 > = createLanguageThis<IPAddressLanguage>({

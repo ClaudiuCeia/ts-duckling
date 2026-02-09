@@ -12,6 +12,9 @@ import { fuzzyCase } from "./parsers.ts";
 
 const countriesByCode = countries as Record<string, string>;
 
+/**
+ * Location entity (currently countries only, dataset-backed).
+ */
 export type LocationEntity = Entity<
   "location",
   {
@@ -20,6 +23,9 @@ export type LocationEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `LocationEntity`.
+ */
 export const location = (
   value: LocationEntity["value"],
   before: Context,
@@ -33,6 +39,9 @@ type LocationLanguage = {
   parser: () => Parser<LocationEntity>;
 };
 
+/**
+ * Location parser language (countries list).
+ */
 export const Location: ReturnType<typeof createLanguageThis<LocationLanguage>> =
   createLanguageThis<LocationLanguage>({
     Country() {

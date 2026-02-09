@@ -22,6 +22,9 @@ type CldrLanguages = {
 
 const cldr = languages as CldrLanguages;
 
+/**
+ * Language name entity (CLDR-backed).
+ */
 export type LanguageEntity = Entity<
   "language",
   {
@@ -30,6 +33,9 @@ export type LanguageEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `LanguageEntity`.
+ */
 export const language = (
   value: LanguageEntity["value"],
   before: Context,
@@ -43,6 +49,9 @@ type LanguageLanguage = {
   parser: () => Parser<LanguageEntity>;
 };
 
+/**
+ * Language name parser language (English language names from CLDR).
+ */
 export const Language: ReturnType<typeof createLanguageThis<LanguageLanguage>> =
   createLanguageThis<LanguageLanguage>({
     Language() {

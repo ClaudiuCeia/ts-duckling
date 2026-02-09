@@ -1,5 +1,11 @@
 import type { Context } from "@claudiu-ceia/combine";
 
+/**
+ * Common shape for extracted entities.
+ *
+ * `start`/`end` are indices in the original input string, and `text` is the
+ * matched substring.
+ */
 export type Entity<Kind, Value> = {
   value: Value;
   kind: Kind;
@@ -8,6 +14,9 @@ export type Entity<Kind, Value> = {
   text: string;
 };
 
+/**
+ * Helper for constructing an `Entity` from a parse span.
+ */
 export const ent = <Kind, Value>(
   value: Value,
   kind: Kind,

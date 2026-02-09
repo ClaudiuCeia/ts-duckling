@@ -10,6 +10,11 @@ import type { Parser } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
+/**
+ * API key entity for a set of common providers.
+ *
+ * This intentionally targets "high precision" deterministic prefixes (no ML).
+ */
 export type ApiKeyEntity = Entity<
   "api_key",
   {
@@ -95,6 +100,9 @@ const ProviderPrefixRegex = new RegExp(
     .join("|"),
 );
 
+/**
+ * Helper for constructing an `ApiKeyEntity`.
+ */
 export const apiKey = (
   value: ApiKeyEntity["value"],
   before: Context,
@@ -103,6 +111,9 @@ export const apiKey = (
   return ent(value, "api_key", before, after);
 };
 
+/**
+ * API key parser language.
+ */
 export const ApiKey: ReturnType<typeof createLanguageThis<ApiKeyLanguage>> =
   createLanguageThis<ApiKeyLanguage>({
     /**

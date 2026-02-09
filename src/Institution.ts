@@ -21,6 +21,9 @@ import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 
+/**
+ * Institution entity (schools, universities, town/city halls).
+ */
 export type InstitutionEntity = Entity<
   "institution",
   {
@@ -29,6 +32,9 @@ export type InstitutionEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing an `InstitutionEntity`.
+ */
 export const institution = (
   value: InstitutionEntity["value"],
   before: Context,
@@ -46,6 +52,9 @@ type InstitutionLanguage = {
   parser: () => Parser<InstitutionEntity>;
 };
 
+/**
+ * Institution parser language.
+ */
 export const Institution: ReturnType<
   typeof createLanguageThis<InstitutionLanguage>
 > = createLanguageThis<InstitutionLanguage>({

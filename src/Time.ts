@@ -45,6 +45,14 @@ type TimeGranularity =
   | "centuries"
   | "era";
 
+/**
+ * Time entity.
+ *
+ * `value.when` is either:
+ * - an ISO timestamp (UTC) for absolute times, or
+ * - a relative expression string (e.g. `"-2 days"`), or
+ * - a tuple for ranges.
+ */
 export type TimeEntity = Entity<
   "time",
   {
@@ -54,10 +62,16 @@ export type TimeEntity = Entity<
   }
 >;
 
+/**
+ * Input shape for constructing a `TimeEntity` where `era` is optional.
+ */
 export type NoEraTimeEntityValue = Omit<TimeEntity["value"], "era"> & {
   era?: TimeEntity["value"]["era"];
 };
 
+/**
+ * Helper for constructing a `TimeEntity`.
+ */
 export const time = (
   value: NoEraTimeEntityValue,
   before: Context,
@@ -99,6 +113,9 @@ type TimeLanguage = {
   parser: () => Parser<TimeEntity>;
 };
 
+/**
+ * Time parser language (relative times, dates, day-of-week, ISO `...Z` timestamps).
+ */
 export const Time: ReturnType<typeof createLanguageThis<TimeLanguage>> =
   createLanguageThis<TimeLanguage>({
     ISODateTimeZ() {

@@ -12,6 +12,9 @@ import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 import { IntN, type QuantityEntity } from "./Quantity.ts";
 
+/**
+ * US Social Security Number entity (AAA-GG-SSSS).
+ */
 export type SSNEntity = Entity<
   "ssn",
   {
@@ -22,6 +25,9 @@ export type SSNEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing an `SSNEntity`.
+ */
 export const ssn = (
   value: SSNEntity["value"],
   before: Context,
@@ -40,6 +46,9 @@ type SSNLanguage = {
   parser: () => Parser<SSNEntity>;
 };
 
+/**
+ * SSN parser language with basic SSA constraints to avoid false positives.
+ */
 export const SSN: ReturnType<typeof createLanguageThis<SSNLanguage>> =
   createLanguageThis<SSNLanguage>({
     Parts(): Parser<{

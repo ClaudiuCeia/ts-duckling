@@ -9,6 +9,9 @@ import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 
+/**
+ * Credit card entity (digits only, normalized).
+ */
 export type CreditCardEntity = Entity<
   "credit_card",
   {
@@ -17,6 +20,9 @@ export type CreditCardEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `CreditCardEntity`.
+ */
 export const creditCard = (
   value: CreditCardEntity["value"],
   before: Context,
@@ -54,6 +60,9 @@ type CreditCardLanguage = {
   parser: () => Parser<CreditCardEntity>;
 };
 
+/**
+ * Credit card parser language (13-19 digits with separators) validated via Luhn.
+ */
 export const CreditCard: ReturnType<
   typeof createLanguageThis<CreditCardLanguage>
 > = createLanguageThis<CreditCardLanguage>({

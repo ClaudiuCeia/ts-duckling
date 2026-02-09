@@ -26,6 +26,9 @@ import { __, dot, nonWord } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 
+/**
+ * Numeric quantity entity.
+ */
 export type QuantityEntity = Entity<
   "quantity",
   {
@@ -33,8 +36,11 @@ export type QuantityEntity = Entity<
   }
 >;
 
-// Digits-only integer quantity. Useful for structured tokens where Quantity.innerParser
-// is too permissive (e.g. it may consume trailing punctuation like "6789.").
+/**
+ * Digits-only integer quantity.
+ *
+ * Useful for structured tokens where `Quantity.innerParser` is too permissive.
+ */
 export const Int = (): Parser<QuantityEntity> => {
   return map(
     map(many1(digit()), (ds) => parseInt(ds.join(""))),
@@ -42,7 +48,9 @@ export const Int = (): Parser<QuantityEntity> => {
   );
 };
 
-// Parse exactly N digits as a QuantityEntity.
+/**
+ * Parses exactly `n` digits as a `QuantityEntity`.
+ */
 export const IntN = (n: number): Parser<QuantityEntity> => {
   return map(
     map(repeat(n, digit()), (ds) => parseInt(ds.join(""))),
@@ -85,6 +93,9 @@ type QuantityLanguage = {
   parser: () => Parser<QuantityEntity>;
 };
 
+/**
+ * Quantity parser language.
+ */
 export const Quantity: ReturnType<typeof createLanguageThis<QuantityLanguage>> =
   createLanguageThis<QuantityLanguage>({
     Literal: function (): Parser<number> {

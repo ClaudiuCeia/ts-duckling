@@ -18,6 +18,9 @@ import tlds from "@data/tlds" with { type: "json" };
 
 const tldList = tlds as string[];
 
+/**
+ * URL entity.
+ */
 export type URLEntity = Entity<
   "url",
   {
@@ -25,6 +28,9 @@ export type URLEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `URLEntity`.
+ */
 export const url = (
   value: URLEntity["value"],
   before: Context,
@@ -43,6 +49,9 @@ type URLLanguage = {
   parser: () => Parser<URLEntity>;
 };
 
+/**
+ * URL parser language (http/https/ftp with optional port, path, query, fragment).
+ */
 export const URL: ReturnType<typeof createLanguageThis<URLLanguage>> =
   createLanguageThis<URLLanguage>({
     Protocol(): Parser<string> {

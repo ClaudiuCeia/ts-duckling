@@ -16,6 +16,9 @@ import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
 
+/**
+ * Temperature entity with a numeric amount (as a `quantity`) and a unit.
+ */
 export type TemperatureEntity = Entity<
   "temperature",
   {
@@ -24,6 +27,9 @@ export type TemperatureEntity = Entity<
   }
 >;
 
+/**
+ * Helper for constructing a `TemperatureEntity`.
+ */
 export const temp = (
   value: {
     amount: QuantityEntity;
@@ -54,6 +60,9 @@ type TemperatureLanguage = {
   parser: () => Parser<TemperatureEntity>;
 };
 
+/**
+ * Temperature parser language.
+ */
 export const Temperature: ReturnType<
   typeof createLanguageThis<TemperatureLanguage>
 > = createLanguageThis<TemperatureLanguage>({

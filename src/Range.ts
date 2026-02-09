@@ -16,6 +16,9 @@ import { Quantity } from "./Quantity.ts";
 import { Temperature, type TemperatureEntity } from "./Temperature.ts";
 import { Time, time, type TimeEntity } from "./Time.ts";
 
+/**
+ * Range entity, e.g. time ranges ("from Monday to Friday") or temperature ranges.
+ */
 export type RangeEntity<E extends Entity<unknown, unknown>> = Entity<
   "range",
   {
@@ -44,6 +47,9 @@ type RangeLanguage = {
   parser: () => Parser<AnyRangeEntity>;
 };
 
+/**
+ * Range parser language (time ranges, year ranges, temperature ranges).
+ */
 export const Range: ReturnType<typeof createLanguageThis<RangeLanguage>> =
   createLanguageThis<RangeLanguage>({
     TemperatureRange(): Parser<RangeEntity<TemperatureEntity>> {
