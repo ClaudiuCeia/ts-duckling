@@ -377,24 +377,27 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
     return any(str("/"), str(" "), str("-"), str("."));
   },
   PartialDateMonthYear(s) {
-    return safe(map(
-      any(
-        seq(s.NumericMonth, s.DateSeparator, s.Year),
-        seq(s.LiteralMonth, s.DateSeparator, s.Year),
+    return safe(
+      map(
+        any(
+          seq(s.NumericMonth, s.DateSeparator, s.Year),
+          seq(s.LiteralMonth, s.DateSeparator, s.Year),
+        ),
+        ([month, separator, year], b, a) => {
+          return time(
+            {
+              when: new Date(
+                `01${separator}${month}${separator}${year}`,
+              ).toISOString(),
+              grain: "day",
+            },
+            b,
+            a,
+          );
+        },
       ),
-      ([month, separator, year], b, a) => {
-        return time(
-          {
-            when: new Date(
-              `01${separator}${month}${separator}${year}`,
-            ).toISOString(),
-            grain: "day",
-          },
-          b,
-          a,
-        );
-      },
-    ), "valid date");
+      "valid date",
+    );
   },
   QualifiedDay(s) {
     return map(
@@ -435,82 +438,91 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
     );
   },
   PartialDateDayMonth(s) {
-    return safe(map(
-      seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth),
-      ([day, _of, month], b, a) => {
-        const year = new Date().getFullYear();
-        return time(
-          {
-            when: new Date(`${day} ${month} ${year}`).toISOString(),
-            grain: "day",
-          },
-          b,
-          a,
-        );
-      },
-    ), "valid date");
-  },
-  FullDate(s) {
-    return any(
-      safe(map(
-        seq(s.PartialDateDayMonth, space(), s.Year),
-        ([partialDayMonth, _sp, year], b, a) => {
-          const original = partialDayMonth.value.when;
-          if (typeof original !== "string") {
-            throw new Error(`
-              Unexpected partial date match:
-              ${JSON.stringify(partialDayMonth)}
-            `);
-          }
-
-          const date = new Date(original);
-          date.setFullYear(year);
-
-          return time({ when: date.toISOString(), grain: "day" }, b, a);
-        },
-      ), "valid date"),
-      safe(map(
-        any(
-          seq(
-            s.Day,
-            s.DateSeparator,
-            s.NumericMonth,
-            s.DateSeparator,
-            s.Year,
-          ),
-          seq(
-            s.Day,
-            s.DateSeparator,
-            s.LiteralMonth,
-            s.DateSeparator,
-            s.Year,
-          ),
-          seq(
-            s.NumericMonth,
-            s.DateSeparator,
-            s.Day,
-            s.DateSeparator,
-            s.Year,
-          ),
-          seq(
-            s.LiteralMonth,
-            s.DateSeparator,
-            s.Day,
-            s.DateSeparator,
-            s.Year,
-          ),
-        ),
-        ([first, s1, mid, s2, year], b, a) => {
+    return safe(
+      map(
+        seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth),
+        ([day, _of, month], b, a) => {
+          const year = new Date().getFullYear();
           return time(
             {
-              when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
+              when: new Date(`${day} ${month} ${year}`).toISOString(),
               grain: "day",
             },
             b,
             a,
           );
         },
-      ), "valid date"),
+      ),
+      "valid date",
+    );
+  },
+  FullDate(s) {
+    return any(
+      safe(
+        map(
+          seq(s.PartialDateDayMonth, space(), s.Year),
+          ([partialDayMonth, _sp, year], b, a) => {
+            const original = partialDayMonth.value.when;
+            if (typeof original !== "string") {
+              throw new Error(`
+              Unexpected partial date match:
+              ${JSON.stringify(partialDayMonth)}
+            `);
+            }
+
+            const date = new Date(original);
+            date.setFullYear(year);
+
+            return time({ when: date.toISOString(), grain: "day" }, b, a);
+          },
+        ),
+        "valid date",
+      ),
+      safe(
+        map(
+          any(
+            seq(
+              s.Day,
+              s.DateSeparator,
+              s.NumericMonth,
+              s.DateSeparator,
+              s.Year,
+            ),
+            seq(
+              s.Day,
+              s.DateSeparator,
+              s.LiteralMonth,
+              s.DateSeparator,
+              s.Year,
+            ),
+            seq(
+              s.NumericMonth,
+              s.DateSeparator,
+              s.Day,
+              s.DateSeparator,
+              s.Year,
+            ),
+            seq(
+              s.LiteralMonth,
+              s.DateSeparator,
+              s.Day,
+              s.DateSeparator,
+              s.Year,
+            ),
+          ),
+          ([first, s1, mid, s2, year], b, a) => {
+            return time(
+              {
+                when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
+                grain: "day",
+              },
+              b,
+              a,
+            );
+          },
+        ),
+        "valid date",
+      ),
     );
   },
   PartialDateMonthYearEra(s) {
@@ -582,17 +594,20 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
         s.GrainQuantity,
         s.UnspecifiedGrainAmount,
         s.YearEra,
-        safe(map(s.LiteralMonth, (month, b, a) => {
-          const year = new Date().getFullYear();
-          return time(
-            {
-              when: new Date(`01 ${month} ${year}`).toISOString(),
-              grain: "month",
-            },
-            b,
-            a,
-          );
-        }), "valid date"),
+        safe(
+          map(s.LiteralMonth, (month, b, a) => {
+            const year = new Date().getFullYear();
+            return time(
+              {
+                when: new Date(`01 ${month} ${year}`).toISOString(),
+                grain: "month",
+              },
+              b,
+              a,
+            );
+          }),
+          "valid date",
+        ),
       ),
     );
   },

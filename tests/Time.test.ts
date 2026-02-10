@@ -413,12 +413,19 @@ Deno.test("Circa time", () => {
 });
 Deno.test("FullDate: invalid date backtracks instead of throwing", () => {
   // 31st of February is not a real date — should not throw
-  const res = Duckling([Time.parser]).extract("On 31/02/2024 something happened");
+  const res = Duckling([Time.parser]).extract(
+    "On 31/02/2024 something happened",
+  );
   // Should not contain an entity for this invalid date
   for (const entity of res) {
     if (entity.kind === "time" && typeof entity.value.when === "string") {
-      assertEquals(entity.value.when !== "Invalid Date", true,
-        `Should not produce Invalid Date, got entity: ${JSON.stringify(entity)}`);
+      assertEquals(
+        entity.value.when !== "Invalid Date",
+        true,
+        `Should not produce Invalid Date, got entity: ${
+          JSON.stringify(entity)
+        }`,
+      );
     }
   }
 });
@@ -444,8 +451,13 @@ Deno.test("FullDate: does not crash on nonsense date-like input", () => {
     // Just verify it doesn't throw and doesn't produce "Invalid Date"
     for (const entity of res) {
       if (entity.kind === "time" && typeof entity.value.when === "string") {
-        assertEquals(entity.value.when !== "Invalid Date", true,
-          `Should not produce Invalid Date for "${input}", got: ${JSON.stringify(entity)}`);
+        assertEquals(
+          entity.value.when !== "Invalid Date",
+          true,
+          `Should not produce Invalid Date for "${input}", got: ${
+            JSON.stringify(entity)
+          }`,
+        );
       }
     }
   }
