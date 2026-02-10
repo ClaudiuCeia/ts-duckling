@@ -42,3 +42,31 @@ Deno.test("IPv6 full form", () => {
     },
   ]);
 });
+
+Deno.test("IPv6 compressed loopback ::1", () => {
+  const res = Duckling([IPAddress.parser]).extract("lo ::1 ok");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.ip, "::1");
+  assertEquals(res[0].value.version, 6);
+});
+
+Deno.test("IPv6 compressed 2001:db8::1", () => {
+  const res = Duckling([IPAddress.parser]).extract("addr 2001:db8::1 ok");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.ip, "2001:db8::1");
+  assertEquals(res[0].value.version, 6);
+});
+
+Deno.test("IPv6 compressed fe80::1", () => {
+  const res = Duckling([IPAddress.parser]).extract("link fe80::1 ok");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.ip, "fe80::1");
+  assertEquals(res[0].value.version, 6);
+});
+
+Deno.test("IPv6 compressed all-zeros ::", () => {
+  const res = Duckling([IPAddress.parser]).extract("unspecified :: ok");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.ip, "::");
+  assertEquals(res[0].value.version, 6);
+});

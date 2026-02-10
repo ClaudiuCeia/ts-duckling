@@ -32,6 +32,9 @@ import { SSN, type SSNEntity } from "./src/SSN.ts";
 import { CreditCard, type CreditCardEntity } from "./src/CreditCard.ts";
 import { UUID, type UUIDEntity } from "./src/UUID.ts";
 import { ApiKey, type ApiKeyEntity } from "./src/ApiKey.ts";
+import { IBAN, type IBANEntity } from "./src/IBAN.ts";
+import { MACAddress, type MACAddressEntity } from "./src/MACAddress.ts";
+import { JWT, type JWTEntity } from "./src/JWT.ts";
 
 /**
  * Union of all entity types produced by the built-in parsers.
@@ -55,7 +58,10 @@ export type AnyEntity =
   | SSNEntity
   | CreditCardEntity
   | UUIDEntity
-  | ApiKeyEntity;
+  | ApiKeyEntity
+  | IBANEntity
+  | MACAddressEntity
+  | JWTEntity;
 
 const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   Range.parser,
@@ -73,13 +79,17 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   CreditCard.parser,
   UUID.parser,
   ApiKey.parser,
+  IBAN.parser,
+  MACAddress.parser,
+  JWT.parser,
 ];
 
 /**
  * Union of entity types considered Personally Identifiable Information (PII).
  *
  * Covers: email addresses, phone numbers, IP addresses, Social Security
- * Numbers, credit card numbers, UUIDs, and API keys.
+ * Numbers, credit card numbers, UUIDs, API keys, IBANs, MAC addresses,
+ * and JWTs.
  */
 export type PIIEntity =
   | EmailEntity
@@ -88,7 +98,10 @@ export type PIIEntity =
   | SSNEntity
   | CreditCardEntity
   | UUIDEntity
-  | ApiKeyEntity;
+  | ApiKeyEntity
+  | IBANEntity
+  | MACAddressEntity
+  | JWTEntity;
 
 /**
  * Pre-built parser tuple targeting PII entities.
@@ -112,6 +125,9 @@ export const PIIParsers: ParserTuple<
     CreditCardEntity,
     UUIDEntity,
     ApiKeyEntity,
+    IBANEntity,
+    MACAddressEntity,
+    JWTEntity,
   ]
 > = [
   Email.parser,
@@ -121,6 +137,9 @@ export const PIIParsers: ParserTuple<
   CreditCard.parser,
   UUID.parser,
   ApiKey.parser,
+  IBAN.parser,
+  MACAddress.parser,
+  JWT.parser,
 ];
 
 type NonEmptyArray<T> = [T, ...T[]];
@@ -483,3 +502,6 @@ export * from "./src/UUID.ts";
 export * from "./src/Institution.ts";
 export * from "./src/Language.ts";
 export * from "./src/ApiKey.ts";
+export * from "./src/IBAN.ts";
+export * from "./src/MACAddress.ts";
+export * from "./src/JWT.ts";

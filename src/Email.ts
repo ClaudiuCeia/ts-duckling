@@ -49,7 +49,7 @@ export const Email: EmailLanguage = createLanguage<EmailLanguage>({
       seq(
         map(
           manyTill(
-            any(letter(), digit(), str("."), str("-"), str("-"), str("+")),
+            any(letter(), digit(), str("."), str("-"), str("+"), str("_")),
             str("@"),
           ),
           (p) => p.join(""),
