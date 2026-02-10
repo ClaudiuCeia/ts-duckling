@@ -26,9 +26,11 @@
   "tasks": {
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "check": "deno check mod.ts",
+    "check": "deno fmt && deno lint && deno test",
     "update:data": "deno run -A scripts/update_data.ts",
-    "test": "deno test"
+    "test": "deno test",
+    "hooks:install": "ln -sf ../../scripts/pre-commit .git/hooks/pre-commit && chmod +x scripts/pre-commit",
+    "hooks:uninstall": "rm -f .git/hooks/pre-commit"
   },
   "exclude": ["./docs/"]
 }
