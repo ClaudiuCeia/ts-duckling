@@ -8,10 +8,6 @@
  * @module
  */
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
 /**
  * An entity together with the rendered text of its children.
  *
@@ -72,10 +68,6 @@ export interface RenderMapEntity<E, R> {
  */
 export type RenderMapFn<E, R> = (ctx: RenderMapEntity<E, R>) => R;
 
-// ---------------------------------------------------------------------------
-// Internal types
-// ---------------------------------------------------------------------------
-
 /** @internal Node in the entity span tree used by `render`. */
 export type SpanNode = {
   start: number;
@@ -83,10 +75,6 @@ export type SpanNode = {
   entity: { kind: string; start: number; end: number; text: string } | null;
   children: SpanNode[];
 };
-
-// ---------------------------------------------------------------------------
-// Tree builder
-// ---------------------------------------------------------------------------
 
 /**
  * Build a tree of non-overlapping entity spans.
@@ -121,10 +109,18 @@ export function buildSpanTree(
       stack.pop();
     }
 
+    // Pop parents that only partially contain this entity (one-sided overlap).
+    // Full containment (start >= parent.start AND end <= parent.end) → child.
+    // Partial overlap (extends past parent) → independent, try a higher parent.
+    while (
+      stack.length > 1 &&
+      e.end > stack[stack.length - 1].end
+    ) {
+      stack.pop();
+    }
+
     const parent = stack[stack.length - 1];
 
-    // Skip entities that overlap but aren't fully contained
-    if (e.end > parent.end) continue;
     // Skip if this entity starts before the parent
     if (e.start < parent.start) continue;
 
@@ -140,10 +136,6 @@ export function buildSpanTree(
 
   return root;
 }
-
-// ---------------------------------------------------------------------------
-// Renderers
-// ---------------------------------------------------------------------------
 
 /**
  * Recursively render a span tree node into a single string.
