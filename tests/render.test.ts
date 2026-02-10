@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import {
+  CreditCard,
   Duckling,
   Email,
   PIIParsers,
@@ -108,6 +109,21 @@ Deno.test("render: nested children text is passed pre-rendered", () => {
   assertEquals(ssnCall !== undefined, true);
   // The SSN's children should contain the rendered quantities
   assertEquals(ssnCall!.children, "[quantity]-[quantity]-[quantity]");
+});
+
+Deno.test("render: CC with trailing dot — all four groups rendered inside parent", () => {
+  // The `dot` combinator in the last quantity consumes the trailing ".",
+  // making the child span extend past the CC parent. buildSpanTree clamps
+  // the child's rendering bounds to the parent so all four groups appear
+  // and the "." falls outside the CC span.
+  const result = Duckling([Quantity.parser, CreditCard.parser]).render(
+    "CC 4242 4242 4242 4242.",
+    ({ entity, children }) => `<${entity.kind}>${children}</${entity.kind}>`,
+  );
+  assertEquals(
+    result,
+    "CC <credit_card><quantity>4242</quantity> <quantity>4242</quantity> <quantity>4242</quantity> <quantity>4242</quantity></credit_card>.",
+  );
 });
 
 // ── Edge cases ──────────────────────────────────────────────────────

@@ -109,24 +109,21 @@ export function buildSpanTree(
       stack.pop();
     }
 
-    // Pop parents that only partially contain this entity (one-sided overlap).
-    // Full containment (start >= parent.start AND end <= parent.end) → child.
-    // Partial overlap (extends past parent) → independent, try a higher parent.
-    while (
-      stack.length > 1 &&
-      e.end > stack[stack.length - 1].end
-    ) {
-      stack.pop();
-    }
-
     const parent = stack[stack.length - 1];
 
     // Skip if this entity starts before the parent
     if (e.start < parent.start) continue;
 
+    // Clamp rendering bounds to the parent. The entity data is unchanged —
+    // only the tree node position is tightened so text isn't duplicated.
+    // Example: quantity "4242." [18,23] inside credit_card [3,22]
+    //   → node renders [18,22], callback still sees entity.end === 23.
+    const clampedEnd = Math.min(e.end, parent.end);
+    if (clampedEnd <= e.start) continue;
+
     const node: SpanNode = {
       start: e.start,
-      end: e.end,
+      end: clampedEnd,
       entity: e,
       children: [],
     };
