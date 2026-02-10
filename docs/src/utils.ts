@@ -1,22 +1,37 @@
 /** Tailwind classes for each entity kind. */
 export function kindClasses(kind: string): string {
   switch (kind) {
-    case "quantity":    return "bg-amber-100 outline-amber-200 hover:bg-amber-200";
-    case "ip":          return "bg-indigo-100 outline-indigo-200 hover:bg-indigo-200";
-    case "email":       return "bg-emerald-100 outline-emerald-200 hover:bg-emerald-200";
-    case "url":         return "bg-sky-100 outline-sky-200 hover:bg-sky-200";
-    case "phone":       return "bg-fuchsia-100 outline-fuchsia-200 hover:bg-fuchsia-200";
+    case "quantity":
+      return "bg-amber-100 outline-amber-200 hover:bg-amber-200";
+    case "ip":
+      return "bg-indigo-100 outline-indigo-200 hover:bg-indigo-200";
+    case "email":
+      return "bg-emerald-100 outline-emerald-200 hover:bg-emerald-200";
+    case "url":
+      return "bg-sky-100 outline-sky-200 hover:bg-sky-200";
+    case "phone":
+      return "bg-fuchsia-100 outline-fuchsia-200 hover:bg-fuchsia-200";
     case "ssn":
-    case "credit_card": return "bg-rose-100 outline-rose-200 hover:bg-rose-200";
-    case "uuid":        return "bg-violet-100 outline-violet-200 hover:bg-violet-200";
-    case "time":        return "bg-blue-100 outline-blue-200 hover:bg-blue-200";
-    case "temperature": return "bg-orange-100 outline-orange-200 hover:bg-orange-200";
-    case "range":       return "bg-cyan-100 outline-cyan-200 hover:bg-cyan-200";
-    case "location":    return "bg-lime-100 outline-lime-200 hover:bg-lime-200";
-    case "language":    return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
-    case "institution": return "bg-green-100 outline-green-200 hover:bg-green-200";
-    case "api_key":     return "bg-pink-100 outline-pink-200 hover:bg-pink-200";
-    default:            return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
+    case "credit_card":
+      return "bg-rose-100 outline-rose-200 hover:bg-rose-200";
+    case "uuid":
+      return "bg-violet-100 outline-violet-200 hover:bg-violet-200";
+    case "time":
+      return "bg-blue-100 outline-blue-200 hover:bg-blue-200";
+    case "temperature":
+      return "bg-orange-100 outline-orange-200 hover:bg-orange-200";
+    case "range":
+      return "bg-cyan-100 outline-cyan-200 hover:bg-cyan-200";
+    case "location":
+      return "bg-lime-100 outline-lime-200 hover:bg-lime-200";
+    case "language":
+      return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
+    case "institution":
+      return "bg-green-100 outline-green-200 hover:bg-green-200";
+    case "api_key":
+      return "bg-pink-100 outline-pink-200 hover:bg-pink-200";
+    default:
+      return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
   }
 }
 

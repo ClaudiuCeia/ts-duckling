@@ -1,20 +1,20 @@
 import type { Parser } from "@claudiu-ceia/combine";
 import {
-  Range,
-  Time,
-  Temperature,
-  Quantity,
-  Location,
-  URL,
+  ApiKey,
+  CreditCard,
   Email,
   Institution,
-  Language,
-  Phone,
   IPAddress,
+  Language,
+  Location,
+  Phone,
+  Quantity,
+  Range,
   SSN,
-  CreditCard,
+  Temperature,
+  Time,
+  URL,
   UUID,
-  ApiKey,
 } from "@claudiu-ceia/ts-duckling";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -48,7 +48,10 @@ export async function loadUrlText(raw: string): Promise<LoadResult> {
   const t0 = performance.now();
   const html = await fetchHtml(url);
   const doc = new DOMParser().parseFromString(html, "text/html");
-  const parsed = new Readability(doc, { baseURI: url } as ConstructorParameters<typeof Readability>[1]).parse();
+  const parsed = new Readability(
+    doc,
+    { baseURI: url } as ConstructorParameters<typeof Readability>[1],
+  ).parse();
   const text = parsed?.textContent?.trim()
     ? parsed.textContent.trim()
     : (doc.body?.innerText || "").trim();

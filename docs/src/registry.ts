@@ -6,19 +6,55 @@ export type ParserInfo = {
 };
 
 export const PARSER_REGISTRY: ParserInfo[] = [
-  { id: "Range", label: "Range", desc: "Intervals: time and temperature ranges" },
-  { id: "Time", label: "Time", desc: "Dates, relative time, day of week, circa" },
-  { id: "Temperature", label: "Temperature", desc: "Temperatures with optional unit" },
-  { id: "Quantity", label: "Quantity", desc: "Numbers: literals, commas, fractions" },
-  { id: "Location", label: "Location", desc: "Countries and cities (dataset-backed)" },
-  { id: "URL", label: "URL", desc: "http/https/ftp URLs (domain + optional port)" },
+  {
+    id: "Range",
+    label: "Range",
+    desc: "Intervals: time and temperature ranges",
+  },
+  {
+    id: "Time",
+    label: "Time",
+    desc: "Dates, relative time, day of week, circa",
+  },
+  {
+    id: "Temperature",
+    label: "Temperature",
+    desc: "Temperatures with optional unit",
+  },
+  {
+    id: "Quantity",
+    label: "Quantity",
+    desc: "Numbers: literals, commas, fractions",
+  },
+  {
+    id: "Location",
+    label: "Location",
+    desc: "Countries and cities (dataset-backed)",
+  },
+  {
+    id: "URL",
+    label: "URL",
+    desc: "http/https/ftp URLs (domain + optional port)",
+  },
   { id: "Email", label: "Email", desc: "Email addresses" },
-  { id: "Institution", label: "Institution", desc: "Town halls, schools, etc." },
-  { id: "Language", label: "Language", desc: "Language names (dataset-backed)" },
+  {
+    id: "Institution",
+    label: "Institution",
+    desc: "Town halls, schools, etc.",
+  },
+  {
+    id: "Language",
+    label: "Language",
+    desc: "Language names (dataset-backed)",
+  },
   { id: "Phone", label: "Phone", desc: "E.164: +<digits> (8–15)" },
   { id: "IPAddress", label: "IP address", desc: "IPv4 + IPv6 full form" },
   { id: "SSN", label: "SSN", desc: "US SSN: AAA-GG-SSSS (basic constraints)" },
-  { id: "CreditCard", label: "Credit card", desc: "13–19 digits (spaces/dashes) + Luhn" },
+  {
+    id: "CreditCard",
+    label: "Credit card",
+    desc: "13–19 digits (spaces/dashes) + Luhn",
+  },
   { id: "UUID", label: "UUID", desc: "Canonical 8-4-4-4-12 UUID" },
   { id: "ApiKey", label: "API key", desc: "Common API key patterns" },
 ];
@@ -26,13 +62,33 @@ export const PARSER_REGISTRY: ParserInfo[] = [
 export const ALL_IDS = PARSER_REGISTRY.map((p) => p.id);
 
 export const PII_IDS = [
-  "Email", "URL", "UUID", "Phone", "IPAddress", "SSN", "CreditCard", "ApiKey",
+  "Email",
+  "URL",
+  "UUID",
+  "Phone",
+  "IPAddress",
+  "SSN",
+  "CreditCard",
+  "ApiKey",
 ];
 
 /** Parser ordering sent to the worker (priority: specific → generic). */
 export const PARSER_PRIORITY = [
-  "Email", "URL", "UUID", "Phone", "IPAddress", "SSN", "CreditCard", "ApiKey",
-  "Time", "Temperature", "Range", "Location", "Institution", "Language", "Quantity",
+  "Email",
+  "URL",
+  "UUID",
+  "Phone",
+  "IPAddress",
+  "SSN",
+  "CreditCard",
+  "ApiKey",
+  "Time",
+  "Temperature",
+  "Range",
+  "Location",
+  "Institution",
+  "Language",
+  "Quantity",
 ];
 
 export const PRESETS: Record<string, string> = {

@@ -1,16 +1,24 @@
-import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import {
-  Duckling,
-  type RenderMapFn,
-} from "@claudiu-ceia/ts-duckling";
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Duckling, type RenderMapFn } from "@claudiu-ceia/ts-duckling";
 import { Header } from "./components/Header";
 import { ParserSidebar } from "./components/ParserSidebar";
 import { AnnotatedText } from "./components/AnnotatedText";
 import { Hovercard } from "./components/Hovercard";
 import { extract, type ExtractResult } from "./extract-client";
 import type { EntityResult } from "./types";
-import { PARSER_PRIORITY, PRESETS, ALL_IDS } from "./registry";
-import { fmtDuration, loadSelection, saveSelection, kindClasses } from "./utils";
+import { ALL_IDS, PARSER_PRIORITY, PRESETS } from "./registry";
+import {
+  fmtDuration,
+  kindClasses,
+  loadSelection,
+  saveSelection,
+} from "./utils";
 import { loadUrlText } from "./fetch-url";
 import { registry } from "./parsers";
 
@@ -29,8 +37,12 @@ export function App() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [hovercardEntities, setHovercardEntities] = useState<EntityResult[]>([]);
-  const [hovercardAnchor, setHovercardAnchor] = useState<HTMLElement | null>(null);
+  const [hovercardEntities, setHovercardEntities] = useState<EntityResult[]>(
+    [],
+  );
+  const [hovercardAnchor, setHovercardAnchor] = useState<HTMLElement | null>(
+    null,
+  );
 
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -69,7 +81,11 @@ export function App() {
         return (
           <span
             key={`${entity.start}-${entity.end}-${entity.kind}`}
-            className={`ent relative cursor-pointer rounded-md px-1 py-0.5 text-slate-900 outline-1 ${kindClasses(entity.kind)}${hasChildren ? " border-b-2 border-dashed border-slate-400/40" : ""}`}
+            className={`ent relative cursor-pointer rounded-md px-1 py-0.5 text-slate-900 outline-1 ${
+              kindClasses(entity.kind)
+            }${
+              hasChildren ? " border-b-2 border-dashed border-slate-400/40" : ""
+            }`}
             onClick={(ev: React.MouseEvent<HTMLSpanElement>) => {
               ev.stopPropagation();
               // Show all entities contained within this span
@@ -149,9 +165,7 @@ export function App() {
       if (controller.signal.aborted) return;
 
       setSegments(segs);
-      const suffix = result.truncated
-        ? ` (prefix ${result.length} chars)`
-        : "";
+      const suffix = result.truncated ? ` (prefix ${result.length} chars)` : "";
       setTiming(`${fmtDuration(result.ms)}${suffix}`);
       setStatus("");
     } catch (err) {
@@ -263,19 +277,28 @@ export function App() {
 
       <main className="mx-auto max-w-7xl px-6 py-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-          <ParserSidebar selected={selected} onSelectionChange={onSelectionChange} />
+          <ParserSidebar
+            selected={selected}
+            onSelectionChange={onSelectionChange}
+          />
 
           <div className="space-y-4">
             {/* Input section */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="text-sm font-semibold tracking-wide text-slate-900">Input</h2>
-                <div className="text-sm text-slate-500">{input.length} chars</div>
+                <h2 className="text-sm font-semibold tracking-wide text-slate-900">
+                  Input
+                </h2>
+                <div className="text-sm text-slate-500">
+                  {input.length} chars
+                </div>
               </div>
               <div className="p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[160px_1fr]">
                   <label className="text-sm text-slate-600">
-                    <div className="mb-1 font-medium text-slate-700">Preset</div>
+                    <div className="mb-1 font-medium text-slate-700">
+                      Preset
+                    </div>
                     <select
                       value={preset}
                       onChange={(e) => handlePreset(e.target.value)}
@@ -289,14 +312,17 @@ export function App() {
                   </label>
 
                   <div>
-                    <div className="mb-1 text-sm font-medium text-slate-700">Max chars</div>
+                    <div className="mb-1 text-sm font-medium text-slate-700">
+                      Max chars
+                    </div>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min={500}
                         step={500}
                         value={maxChars}
-                        onChange={(e) => setMaxChars(Number(e.target.value) || 8000)}
+                        onChange={(e) =>
+                          setMaxChars(Number(e.target.value) || 8000)}
                         className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40"
                       />
                       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -319,7 +345,9 @@ export function App() {
                       type="text"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleLoadUrl(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleLoadUrl();
+                      }}
                       placeholder="https://en.wikipedia.org/wiki/Perceptual_hashing"
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40"
                     />
@@ -336,7 +364,10 @@ export function App() {
 
                 <textarea
                   value={input}
-                  onChange={(e) => { setInput(e.target.value); setPreset(""); }}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    setPreset("");
+                  }}
                   disabled={spinning}
                   spellCheck={false}
                   className="mt-4 h-56 w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 font-mono text-sm leading-relaxed text-slate-900 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
@@ -348,13 +379,17 @@ export function App() {
             {/* Preview section */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="text-sm font-semibold tracking-wide text-slate-900">Preview</h2>
+                <h2 className="text-sm font-semibold tracking-wide text-slate-900">
+                  Preview
+                </h2>
                 <div className="flex items-center gap-3 text-sm text-slate-500">
                   <span>{entities.length} matches</span>
                   {elapsed && (
                     <>
                       <span className="text-slate-300">•</span>
-                      <span className="font-mono text-teal-600 tabular-nums">{elapsed}</span>
+                      <span className="font-mono text-teal-600 tabular-nums">
+                        {elapsed}
+                      </span>
                     </>
                   )}
                   {timing && !elapsed && (
@@ -379,7 +414,9 @@ export function App() {
                   Annotated text
                 </div>
                 <div className="mt-2">
-                  <AnnotatedText segments={segments.length > 0 ? segments : [input]} />
+                  <AnnotatedText
+                    segments={segments.length > 0 ? segments : [input]}
+                  />
                 </div>
 
                 {showJson && (
@@ -401,7 +438,10 @@ export function App() {
       <Hovercard
         entities={hovercardEntities}
         anchor={hovercardAnchor}
-        onClose={() => { setHovercardEntities([]); setHovercardAnchor(null); }}
+        onClose={() => {
+          setHovercardEntities([]);
+          setHovercardAnchor(null);
+        }}
       />
     </>
   );

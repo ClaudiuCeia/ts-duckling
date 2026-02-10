@@ -1,7 +1,4 @@
-import {
-  Duckling,
-  type AsyncScanOptions,
-} from "@claudiu-ceia/ts-duckling";
+import { type AsyncScanOptions, Duckling } from "@claudiu-ceia/ts-duckling";
 import type { EntityResult } from "./types";
 import { registry } from "./parsers";
 

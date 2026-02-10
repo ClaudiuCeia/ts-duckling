@@ -566,7 +566,9 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
             label = `${clockStr}${maybeSpace ?? ""}${tz}`;
           } else {
             const [open, tzName, close] = tz;
-            label = `${clockStr}${maybeSpace ?? ""}${open ?? ""}${tzName}${close ?? ""}`;
+            label = `${clockStr}${maybeSpace ?? ""}${open ?? ""}${tzName}${
+              close ?? ""
+            }`;
           }
         }
         return time(

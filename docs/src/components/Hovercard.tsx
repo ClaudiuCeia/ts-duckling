@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EntityResult } from "../types";
 
 type Props = {
@@ -25,7 +25,10 @@ export function Hovercard({ entities, anchor, onClose }: Props) {
     if (top + c.height + margin > window.innerHeight) {
       top = a.top - c.height - 10;
     }
-    top = Math.max(margin, Math.min(top, window.innerHeight - c.height - margin));
+    top = Math.max(
+      margin,
+      Math.min(top, window.innerHeight - c.height - margin),
+    );
 
     let left = a.left;
     if (left + c.width + margin > window.innerWidth) {
@@ -64,8 +67,9 @@ export function Hovercard({ entities, anchor, onClose }: Props) {
               Match
             </div>
             <div className="mt-1 truncate font-mono text-sm text-slate-900">
-              {match.kind} &nbsp;"{match.text.length > 60 ? `${match.text.slice(0, 60)}…` : match.text}"
-              &nbsp;[{match.start},{match.end}]
+              {match.kind} &nbsp;"{match.text.length > 60
+                ? `${match.text.slice(0, 60)}…`
+                : match.text}" &nbsp;[{match.start},{match.end}]
             </div>
             {entities.length > 1 && (
               <div className="mt-2 flex flex-wrap gap-2">

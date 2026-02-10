@@ -1,5 +1,5 @@
 import { ParserCheckbox } from "./ParserCheckbox";
-import { PARSER_REGISTRY, ALL_IDS, PII_IDS } from "../registry";
+import { ALL_IDS, PARSER_REGISTRY, PII_IDS } from "../registry";
 
 type Props = {
   selected: Set<string>;
@@ -26,10 +26,20 @@ export function ParserSidebar({ selected, onSelectionChange }: Props) {
       </div>
       <div className="p-4">
         <div className="flex flex-wrap gap-2 pb-3">
-          <QuickBtn label="All" onClick={() => onSelectionChange(new Set(ALL_IDS))} />
+          <QuickBtn
+            label="All"
+            onClick={() => onSelectionChange(new Set(ALL_IDS))}
+          />
           <QuickBtn label="None" onClick={() => onSelectionChange(new Set())} />
-          <QuickBtn label="PII" onClick={() => onSelectionChange(new Set(PII_IDS))} />
-          <QuickBtn label="Default" onClick={() => onSelectionChange(new Set(ALL_IDS))} active />
+          <QuickBtn
+            label="PII"
+            onClick={() => onSelectionChange(new Set(PII_IDS))}
+          />
+          <QuickBtn
+            label="Default"
+            onClick={() => onSelectionChange(new Set(ALL_IDS))}
+            active
+          />
         </div>
         <div className="space-y-2" role="list">
           {PARSER_REGISTRY.map((p) => (
@@ -52,7 +62,13 @@ export function ParserSidebar({ selected, onSelectionChange }: Props) {
   );
 }
 
-function QuickBtn({ label, onClick, active }: { label: string; onClick: () => void; active?: boolean }) {
+function QuickBtn(
+  { label, onClick, active }: {
+    label: string;
+    onClick: () => void;
+    active?: boolean;
+  },
+) {
   return (
     <button
       type="button"
