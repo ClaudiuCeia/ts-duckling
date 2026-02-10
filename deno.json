@@ -30,5 +30,5 @@
     "update:data": "deno run -A scripts/update_data.ts",
     "test": "deno test"
   },
-  "exclude": ["./docs"]
+  "exclude": ["./docs/"]
 }
