@@ -14,6 +14,8 @@ import {
   step,
 } from "@claudiu-ceia/combine";
 import { __, dot, word } from "./src/common.ts";
+import { buildSpanTree, renderMapNode, renderNode } from "./src/render.ts";
+import type { RenderFn, RenderMapFn } from "./src/render.ts";
 import { Quantity, type QuantityEntity } from "./src/Quantity.ts";
 import { Range, type RangeEntity } from "./src/Range.ts";
 import { Temperature, type TemperatureEntity } from "./src/Temperature.ts";
@@ -139,6 +141,13 @@ export interface RedactOptions<K extends string = string> {
   kinds?: K[];
 }
 
+export type {
+  RenderEntity,
+  RenderFn,
+  RenderMapEntity,
+  RenderMapFn,
+} from "./src/render.ts";
+
 /**
  * Create an extractor that scans free-form text and returns all matching
  * entities.
@@ -155,6 +164,8 @@ export interface RedactOptions<K extends string = string> {
 export function Duckling(): {
   extract: (text: string) => AnyEntity[];
   redact: (text: string, opts?: RedactOptions<AnyEntity["kind"]>) => string;
+  render: (text: string, fn: RenderFn<AnyEntity>) => string;
+  renderMap: <R>(text: string, fn: RenderMapFn<AnyEntity, R>) => (string | R)[];
 };
 /**
  * Create an extractor with a specific set of parsers. The return type is
@@ -181,6 +192,11 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
       T[number] extends { kind: infer K extends string } ? K : string
     >,
   ) => string;
+  render: (text: string, fn: RenderFn<T[number]>) => string;
+  renderMap: <R>(
+    text: string,
+    fn: RenderMapFn<T[number], R>,
+  ) => (string | R)[];
 };
 
 // deno-lint-ignore no-explicit-any
@@ -224,13 +240,81 @@ export function Duckling(parsers?: any): any {
   return {
     extract: parse,
     /**
+     * Replace entity spans using a callback function.
+     *
+     * Entities are arranged into a tree: wider spans become parents of
+     * narrower ones contained within them. The callback receives each entity
+     * together with the already-rendered text of its children, allowing
+     * nested rendering (e.g. an SSN wrapping its quantity sub-parts).
+     *
+     * Return a replacement string to transform the span, or `undefined` to
+     * leave it as-is.
+     *
+     * @example
+     * ```ts
+     * // Wrap entities in HTML tags
+     * Duckling().render(
+     *   "Email me at a@b.com",
+     *   ({ entity, children }) =>
+     *     `<mark data-kind="${entity.kind}">${children}</mark>`,
+     * );
+     * // → 'Email me at <mark data-kind="email">a@b.com</mark>'
+     * ```
+     */
+    render: (
+      input: string,
+      fn: RenderFn<unknown>,
+    ): string => {
+      const all = parse(input) as {
+        kind: string;
+        start: number;
+        end: number;
+        text: string;
+      }[];
+      if (all.length === 0) return input;
+      const tree = buildSpanTree(all, input.length);
+      return renderNode(tree, input, fn);
+    },
+    /**
+     * Map entity spans to arbitrary values, returning an array of segments.
+     *
+     * Like {@link render}, entities are arranged into a span tree. The
+     * callback receives each entity and its children as `(string | R)[]`
+     * segments — ideal for frameworks like React where you need element
+     * arrays rather than concatenated strings.
+     *
+     * @example
+     * ```tsx
+     * // React: wrap entities in <mark> elements
+     * const segments = Duckling([Email.parser]).renderMap<JSX.Element>(
+     *   "Contact a@b.com please",
+     *   ({ entity, children }) =>
+     *     <mark data-kind={entity.kind}>{children}</mark>,
+     * );
+     * // → ["Contact ", <mark data-kind="email">a@b.com</mark>, " please"]
+     * ```
+     */
+    renderMap: <R>(
+      input: string,
+      // deno-lint-ignore no-explicit-any
+      fn: RenderMapFn<any, R>,
+    ): (string | R)[] => {
+      const all = parse(input) as {
+        kind: string;
+        start: number;
+        end: number;
+        text: string;
+      }[];
+      if (all.length === 0) return [input];
+      const tree = buildSpanTree(all, input.length);
+      return renderMapNode<R>(tree, input, fn);
+    },
+    /**
      * Extract entities and replace each matched span with a mask character.
      *
-     * When `opts.kinds` is provided, only entities of those kinds are redacted;
-     * otherwise **every** detected entity is masked.
-     *
-     * Overlapping entities are handled correctly — each character position is
-     * replaced at most once.
+     * Implemented on top of {@link render}. When `opts.kinds` is provided,
+     * only entities of those kinds are redacted; otherwise **every** detected
+     * entity is masked.
      *
      * @example
      * ```ts
@@ -253,19 +337,17 @@ export function Duckling(parsers?: any): any {
         kind: string;
         start: number;
         end: number;
+        text: string;
       }[];
       const filtered = opts.kinds
         ? all.filter((e) => opts.kinds!.includes(e.kind))
         : all;
       if (filtered.length === 0) return input;
 
-      const chars = [...input];
-      for (const e of filtered) {
-        for (let i = e.start; i < e.end; i++) {
-          chars[i] = mask;
-        }
-      }
-      return chars.join("");
+      const tree = buildSpanTree(filtered, input.length);
+      return renderNode(tree, input, ({ entity }) => {
+        return mask.repeat(entity.end - entity.start);
+      });
     },
   };
 }

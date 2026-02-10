@@ -10,7 +10,7 @@
 
 <p align="center">
   A tiny, deterministic entity extractor for TypeScript.<br>
-  <b>Extract</b> structured data and <b>redact</b> PII from free-form text — no ML, no network calls.
+  <b>Extract</b> structured data, <b>render</b> rich highlights, and <b>redact</b> PII from free-form text — no ML, no network calls.
 </p>
 
 <p align="center">
@@ -23,16 +23,19 @@
 ```ts
 import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
 
-// Extract structured entities
+// Extract structured entities from a chat message
 const entities = Duckling().extract(
-  "Email me at foo@bar.com — meeting at 3pm",
+  "Hey! Meet me at Times Square tomorrow at 3pm. My email is alex@company.io",
 );
-// → [{ kind: "email", value: { email: "foo@bar.com" }, ... },
-//    { kind: "time",  value: { when: "...", grain: "hour" }, ... }]
+// → [{ kind: "location", text: "Times Square", ... },
+//    { kind: "time",     text: "tomorrow at 3pm", ... },
+//    { kind: "email",    text: "alex@company.io", ... }]
 
 // Redact PII in one line
-Duckling(PIIParsers).redact("Email me at foo@bar.com, SSN 123-45-6789");
-// → "Email me at ███████████████, SSN ███████████"
+Duckling(PIIParsers).redact(
+  "Contact alex@company.io, SSN 078-05-1120, or call +14155552671",
+);
+// → "Contact ██████████████████, SSN ███████████, or call ████████████"
 ```
 
 ## Overview
@@ -46,8 +49,10 @@ TypeScript and running anywhere — Deno, Node, or the browser.
 - **Deterministic** — same input always produces the same output
 - **Typed** — parser selection narrows the return type automatically
 - **Composable** — bring your own parsers alongside the built-in ones
-- **Self-contained** — no native dependencies, no runtime downloads, no network calls
-- **Runs everywhere** — Deno, Node.js, and browsers (see the [live playground](https://claudiuceia.github.io/ts-duckling/))
+- **Self-contained** — no native dependencies, no runtime downloads, no network
+  calls
+- **Runs everywhere** — Deno, Node.js, and browsers (see the
+  [live playground](https://claudiuceia.github.io/ts-duckling/))
 
 ## Documentation
 
@@ -56,14 +61,20 @@ TypeScript and running anywhere — Deno, Node, or the browser.
   - [Extract entities](#extract-entities)
   - [Pick specific parsers](#pick-specific-parsers)
   - [Redact PII](#redact-pii)
+  - [Render entities](#render-entities)
+  - [Map entities to components](#map-entities-to-components)
   - [Custom entities](#custom-entities)
 - [Supported entities](#supported-entities)
 - [API reference](#api-reference)
   - [`Duckling()`](#duckling-1)
   - [`.extract(text)`](#extracttext)
+  - [`.render(text, fn)`](#rendertext-fn)
+  - [`.renderMap(text, fn)`](#rendermaptext-fn)
   - [`.redact(text, opts?)`](#redacttext-opts)
   - [`PIIParsers`](#piiparsers)
   - [`RedactOptions`](#redactoptions)
+  - [`RenderFn`](#renderfn)
+  - [`RenderMapFn`](#rendermapfn)
   - [`AnyEntity`](#anyentity)
   - [`PIIEntity`](#piientity)
 - [Caveats](#caveats)
@@ -99,16 +110,16 @@ Call `Duckling()` with no arguments to use **all 15 built-in parsers**:
 ```ts
 import { Duckling } from "@claudiu-ceia/ts-duckling";
 
-const entities = Duckling().extract(
-  "Email me at foo@example.com and visit https://example.com tomorrow at 3pm.",
-);
+const msg =
+  "Hey! I'll be in Germany next Friday at 5pm. Shoot me a message at alex@company.io or visit https://example.com/invite";
 
-for (const e of entities) {
+for (const e of Duckling().extract(msg)) {
   console.log(e.kind, e.text);
 }
-// email  foo@example.com
-// url    https://example.com
-// time   tomorrow at 3pm
+// location  Germany
+// time      next Friday at 5pm
+// email     alex@company.io
+// url       https://example.com/invite
 ```
 
 Each entity carries structured data:
@@ -116,11 +127,11 @@ Each entity carries structured data:
 ```ts
 // entities[0]
 {
-  kind: "email",
-  value: { email: "foo@example.com" },
-  start: 12,
-  end: 27,
-  text: "foo@example.com"
+  kind: "location",
+  value: { location: "Germany" },
+  start: 16,
+  end: 23,
+  text: "Germany"
 }
 ```
 
@@ -130,12 +141,12 @@ Pass an array of parsers to narrow both **what gets extracted** and **the return
 type**:
 
 ```ts
-import { Duckling, Email, URL } from "@claudiu-ceia/ts-duckling";
+import { Duckling, Email, Time, URL } from "@claudiu-ceia/ts-duckling";
 
-const entities = Duckling([Email.parser, URL.parser]).extract(
-  "Reach me at a@b.com or https://example.com",
+const entities = Duckling([Email.parser, URL.parser, Time.parser]).extract(
+  "Ping me at alex@company.io or https://meet.com — available tomorrow at 2pm",
 );
-// entities: (EmailEntity | URLEntity)[]
+// entities: (EmailEntity | URLEntity | TimeEntity)[]
 ```
 
 ### Redact PII
@@ -146,17 +157,127 @@ Use `.redact()` to replace matched entity spans with a mask character:
 import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
 
 // Redact all PII (email, phone, IP, SSN, credit card, UUID, API key)
-Duckling(PIIParsers).redact("Contact foo@bar.com, SSN 078-05-1120");
-// → "Contact ███████████████, SSN ███████████"
+Duckling(PIIParsers).redact(
+  "Patient email: john.doe@clinic.org, SSN 078-05-1120, phone +14155552671",
+);
+// → "Patient email: ██████████████████████, SSN ███████████, phone ████████████"
 
 // Custom mask character
 Duckling(PIIParsers).redact("Call +14155552671", { mask: "X" });
 // → "Call XXXXXXXXXXXX"
 
 // Redact only specific kinds
-Duckling(PIIParsers).redact("foo@bar.com 123-45-6789", { kinds: ["ssn"] });
-// → "foo@bar.com ███████████"
+Duckling(PIIParsers).redact(
+  "Contact john.doe@clinic.org, SSN 078-05-1120",
+  { kinds: ["ssn"] },
+);
+// → "Contact john.doe@clinic.org, SSN ███████████"
 ```
+
+### Render entities
+
+Use `.render()` to replace entity spans via a callback — perfect for turning
+plain-text messages into HTML with highlighted or linked entities:
+
+```ts
+import { Duckling } from "@claudiu-ceia/ts-duckling";
+
+const msg =
+  "Hey! Meet at Times Square tomorrow at 3pm, email me at alex@company.io or check https://example.com/rsvp";
+
+const html = Duckling().render(msg, ({ entity, children }) => {
+  switch (entity.kind) {
+    case "url":
+      return `<a href="${children}">${children}</a>`;
+    case "email":
+      return `<a href="mailto:${children}">${children}</a>`;
+    default:
+      return `<mark data-kind="${entity.kind}">${children}</mark>`;
+  }
+});
+// → 'Hey! Meet at <mark data-kind="location">Times Square</mark>
+//    <mark data-kind="time">tomorrow at 3pm</mark>, email me at
+//    <a href="mailto:alex@company.io">alex@company.io</a> or check
+//    <a href="https://example.com/rsvp">https://example.com/rsvp</a>'
+```
+
+Nested entities (e.g. an SSN containing quantity sub-parts) are rendered
+inside-out — inner entities are transformed first, and the parent receives the
+result:
+
+```ts
+import { Duckling, Quantity, SSN } from "@claudiu-ceia/ts-duckling";
+
+Duckling([Quantity.parser, SSN.parser]).render(
+  "SSN 123-45-6789",
+  ({ entity, children }) => `<${entity.kind}>${children}</${entity.kind}>`,
+);
+// → "SSN <ssn><quantity>123</quantity>-<quantity>45</quantity>-<quantity>6789</quantity></ssn>"
+```
+
+Return `undefined` to leave a span unchanged — useful for selective rendering:
+
+```ts
+import { Duckling } from "@claudiu-ceia/ts-duckling";
+
+// Only make URLs clickable, leave everything else as plain text
+Duckling().render(
+  "Visit https://example.com — event on next Friday at 5pm in Germany",
+  ({ entity, children }) => {
+    if (entity.kind === "url") return `<a href="${children}">${children}</a>`;
+    return undefined;
+  },
+);
+// → 'Visit <a href="https://example.com">https://example.com</a> — event on next Friday at 5pm in Germany'
+```
+
+### Map entities to components
+
+Use `.renderMap()` when you need an **array of segments** instead of a single
+string — ideal for React, Preact, Solid, or any framework that renders element
+trees:
+
+```tsx
+import { Duckling } from "@claudiu-ceia/ts-duckling";
+
+const msg = "Hey! I'm at Times Square, email me at alex@company.io";
+
+const segments = Duckling().renderMap<JSX.Element>(
+  msg,
+  ({ entity, children }) => (
+    <mark key={entity.start} data-kind={entity.kind}>
+      {children}
+    </mark>
+  ),
+);
+// → ["Hey! I'm at ", <mark data-kind="location">Times Square</mark>,
+//    ", email me at ", <mark data-kind="email">alex@company.io</mark>]
+
+// Drop it straight into a component
+function HighlightedMessage({ text }: { text: string }) {
+  const segments = Duckling().renderMap<JSX.Element>(
+    text,
+    ({ entity, children }) => {
+      switch (entity.kind) {
+        case "url":
+          return <a href={entity.text}>{children}</a>;
+        case "email":
+          return <a href={`mailto:${entity.text}`}>{children}</a>;
+        case "time":
+          return <time>{children}</time>;
+        default:
+          return <mark data-kind={entity.kind}>{children}</mark>;
+      }
+    },
+  );
+
+  return <p>{segments}</p>;
+}
+```
+
+Like `.render()`, nested entities are handled automatically — child spans are
+mapped first, and the parent callback receives the already-mapped children as
+`(string | R)[]`.
 
 ### Custom entities
 
@@ -192,7 +313,7 @@ Custom parsers compose freely with the built-in ones:
 import { Email } from "@claudiu-ceia/ts-duckling";
 
 const entities = Duckling([Email.parser, Hashtag.parser]).extract(
-  "Email a@b.com with #feedback",
+  "Email alex@company.io with #feedback",
 );
 // entities: (EmailEntity | HashtagEntity)[]
 ```
@@ -222,11 +343,16 @@ const entities = Duckling([Email.parser, Hashtag.parser]).extract(
 ### `Duckling()`
 
 ```ts
-function Duckling(): { extract; redact };
-function Duckling<T>(parsers: ParserTuple<T>): { extract; redact };
+function Duckling(): { extract; render; renderMap; redact };
+function Duckling<T>(parsers: ParserTuple<T>): {
+  extract;
+  render;
+  renderMap;
+  redact;
+};
 ```
 
-Creates an extractor/redactor pair. Without arguments, uses all 15 built-in
+Creates an extractor/renderer/redactor. Without arguments, uses all 15 built-in
 parsers and returns `AnyEntity[]`. When given an explicit parser array, the
 return type narrows to the union of those entity types.
 
@@ -239,15 +365,40 @@ extract(text: string): Entity[]
 Scans `text` and returns all matched entities, each with `kind`, `value`,
 `start`, `end`, and `text` fields. Entities are returned in order of appearance.
 
+### `.render(text, fn)`
+
+```ts
+render(text: string, fn: RenderFn<Entity>): string
+```
+
+Extracts entities, arranges them into a span tree (wider spans parent narrower
+ones), and calls `fn` for each entity node. The callback receives the entity and
+the already-rendered text of its children. Return a replacement string, or
+`undefined` to leave the span as-is.
+
+### `.renderMap(text, fn)`
+
+```ts
+renderMap<R>(text: string, fn: RenderMapFn<Entity, R>): (string | R)[]
+```
+
+Like `.render()`, but instead of producing a single string, returns an array of
+segments: plain-text strings interleaved with values of type `R` produced by
+your callback. This is the API you want for React/JSX — map entities to
+elements, and the result is ready to drop into a component's children.
+
+The callback receives `{ entity, children }` where `children` is
+`(string | R)[]` — nested entities are already mapped.
+
 ### `.redact(text, opts?)`
 
 ```ts
 redact(text: string, opts?: RedactOptions): string
 ```
 
-Extracts entities then replaces each matched character with `opts.mask` (default
-`"█"`). When `opts.kinds` is set, only those entity kinds are masked.
-Overlapping spans are handled correctly.
+Built on top of `.render()`. Extracts entities then replaces each matched span
+with `opts.mask` (default `"█"`). When `opts.kinds` is set, only those entity
+kinds are masked. Overlapping/nested spans are resolved via the span tree.
 
 ### `PIIParsers`
 
@@ -274,6 +425,32 @@ interface RedactOptions<K extends string = string> {
   kinds?: K[]; // when omitted, all entities are redacted
 }
 ```
+
+### `RenderFn`
+
+```ts
+type RenderFn<E> = (ctx: {
+  entity: E;
+  children: string;
+}) => string | undefined;
+```
+
+Callback for `.render()`. Receives the entity and the already-rendered text of
+its nested children. Return a replacement string, or `undefined` to leave the
+span unchanged.
+
+### `RenderMapFn`
+
+```ts
+type RenderMapFn<E, R> = (ctx: {
+  entity: E;
+  children: (string | R)[];
+}) => R;
+```
+
+Callback for `.renderMap()`. Receives the entity and its children as an array of
+plain-text strings and already-mapped `R` values. Return a value of type `R` to
+replace the span.
 
 ### `AnyEntity`
 
