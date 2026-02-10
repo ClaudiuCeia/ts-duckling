@@ -36,6 +36,14 @@
       ]
     }
   },
+  "redirects": {
+    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts": "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts"
+  },
+  "remote": {
+    "https://esm.sh/@jsr/claudiu-ceia__combine@0.2.6/denonext/claudiu-ceia__combine.mjs": "dd12f93a369e87c87b011ed7c0178a2aaffab32e7c07d66912702be3188f58cc",
+    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/denonext/mod.ts.mjs": "5f836821e56a3ac0b6b4113badc2f9c1c71bf77385b2233ef37f863ffbce5fba",
+    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts": "c58207de2fd57424550e59178ba2519cf55d7857a8444da745f5a346f609fb44"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@claudiu-ceia/combine@0.2.8",

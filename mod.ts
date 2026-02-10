@@ -1,7 +1,5 @@
 import {
-  any,
   anyChar,
-  createLanguage,
   eof,
   failure,
   manyTill,
@@ -11,10 +9,11 @@ import {
   seq,
   skip1,
   space,
+  any,
+  recognizeAt,
+  step,
 } from "@claudiu-ceia/combine";
-import { recognizeAt, step } from "@claudiu-ceia/combine/nondeterministic";
 import { __, dot, word } from "./src/common.ts";
-import type { Entity } from "./src/Entity.ts";
 import { Quantity, type QuantityEntity } from "./src/Quantity.ts";
 import { Range, type RangeEntity } from "./src/Range.ts";
 import { Temperature, type TemperatureEntity } from "./src/Temperature.ts";
@@ -32,10 +31,10 @@ import { UUID, type UUIDEntity } from "./src/UUID.ts";
 import { ApiKey, type ApiKeyEntity } from "./src/ApiKey.ts";
 
 /**
- * Union of all entity types returned by the built-in parsers.
+ * Union of all entity types produced by the built-in parsers.
  *
- * Note: `Duckling().extract()` can return multiple matches for the same span
- * (for example a structured parser + a more generic `quantity` match).
+ * This is the element type returned by `Duckling().extract(...)` when no
+ * custom parser list is provided.
  */
 export type AnyEntity =
   | TemperatureEntity
@@ -55,123 +54,98 @@ export type AnyEntity =
   | UUIDEntity
   | ApiKeyEntity;
 
-type DucklingLanguage<E extends Entity<string, unknown>> = {
-  Entity: Parser<E[]>;
-  Unstructured: Parser<string>;
-  extract: Parser<E[]>;
-};
-
-/**
- * A Duckling-like extractor.
- *
- * This is a convenience wrapper around the internal parser combinator grammar,
- * so callers can simply pass a string.
- */
-export type DucklingExtractor<E extends Entity<string, unknown>> = {
-  /**
-   * Extract entities from `text` (starting at index 0).
-   */
-  extract: (text: string) => E[];
-  /**
-   * Extract entities starting at `index` in `text`.
-   */
-  extractAt: (input: { text: string; index: number }) => E[];
-  /**
-   * Low-level parser for advanced use.
-   *
-   * Note: this parser expects a `{ text, index }` context input.
-   */
-  extractParser: Parser<E[]>;
-};
-
-type EntityFromParser<P> = P extends Parser<infer E> ? E : never;
-type EntityFromParsers<P extends readonly Parser<unknown>[]> = EntityFromParser<
-  P[number]
->;
-
-/**
- * Creates a Duckling-like extractor.
- *
- * It scans arbitrary text and returns entity matches produced by the provided
- * entity parsers.
- */
-const DefaultParsers: Parser<AnyEntity>[] = [
+const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   Range.parser,
-  Email.parser,
-  URL.parser,
-  UUID.parser,
-  Phone.parser,
-  IPAddress.parser,
-  SSN.parser,
-  CreditCard.parser,
   Time.parser,
   Temperature.parser,
   Quantity.parser,
   Location.parser,
+  URL.parser,
+  Email.parser,
   Institution.parser,
   Language.parser,
+  Phone.parser,
+  IPAddress.parser,
+  SSN.parser,
+  CreditCard.parser,
+  UUID.parser,
   ApiKey.parser,
 ];
 
-export function Duckling(): DucklingExtractor<AnyEntity>;
-export function Duckling<
-  const P extends readonly Parser<Entity<string, unknown>>[],
->(parsers: P): DucklingExtractor<EntityFromParsers<P>>;
-export function Duckling<
-  const P extends readonly Parser<Entity<string, unknown>>[],
->(parsers?: P): DucklingExtractor<EntityFromParsers<P> | AnyEntity> {
-  type E = EntityFromParsers<P> | AnyEntity;
-  const ps = (parsers ?? DefaultParsers) as unknown as readonly Parser<E>[];
+type NonEmptyArray<T> = [T, ...T[]];
+type ParserTuple<T extends NonEmptyArray<unknown>> = {
+  [K in keyof T]: Parser<T[K]>;
+};
 
-  const lang: DucklingLanguage<E> = createLanguage<DucklingLanguage<E>>({
-    Entity: () => {
-      if (ps.length === 0) {
-        return (ctx) => failure(ctx, "entity");
-      }
+/**
+ * Create an extractor that scans free-form text and returns all matching
+ * entities.
+ *
+ * Called without arguments, uses all built-in parsers and returns
+ * `AnyEntity[]`.
+ *
+ * @example
+ * ```ts
+ * const entities = Duckling().extract("It's 90F outside, email me at a@b.com");
+ * // entities: AnyEntity[]
+ * ```
+ */
+export function Duckling(): { extract: (text: string) => AnyEntity[] };
+/**
+ * Create an extractor with a specific set of parsers. The return type is
+ * automatically narrowed to the union of the entity types produced by the
+ * given parsers.
+ *
+ * @param parsers - A non-empty array of entity parsers.
+ *
+ * @example
+ * ```ts
+ * const entities = Duckling([Email.parser, URL.parser]).extract(
+ *   "Reach me at a@b.com or https://example.com",
+ * );
+ * // entities: (EmailEntity | URLEntity)[]
+ * ```
+ */
+export function Duckling<T extends NonEmptyArray<unknown>>(
+  parsers: ParserTuple<T>,
+): { extract: (text: string) => T[number][] };
 
-      // Return all entity matches at the current position, but only advance by
-      // the shortest match. This ensures we don't "skip over" potential
-      // overlapping matches (useful for debug/analysis and the demo UI).
-      const p = step(
-        recognizeAt(
-          ...(ps as readonly [Parser<E>, ...Parser<E>[]]),
+export function Duckling(parsers: Parser<unknown>[] = DefaultParsers) {
+  let parser: Parser<unknown>;
+
+  if (parsers.length === 0) {
+    parser = (ctx) => failure(ctx, "entity");
+  }
+
+  const entities = map(
+    step(
+      recognizeAt(...(parsers as NonEmptyArray<Parser<unknown>>)),
+      "shortest",
+    ),
+    (recs) => recs.map((r) => r.value),
+  );
+
+  const unstructured = any(dot(word), __(word), space());
+  parser = map(
+    seq(
+      optional(space()),
+      map(
+        manyTill(
+          any(entities, skip1(unstructured), skip1(anyChar())),
+          skip1(eof()),
         ),
-        "shortest",
-      );
-      return map(p, (recs) => recs.map((r) => r.value));
-    },
-    Unstructured: () => {
-      return any(dot(word), __(word), space());
-    },
-    extract: (s) => {
-      return map(
-        seq(
-          optional(space()),
-          map(
-            manyTill(
-              any(s.Entity, skip1(s.Unstructured), skip1(anyChar())),
-              skip1(eof()),
-            ),
-            ([...matches]) =>
-              matches.filter((m): m is E[] => Array.isArray(m)).flat(),
-          ),
-        ),
-        ([, res]) => res,
-      );
-    },
-  });
-
-  const extractAt = (input: { text: string; index: number }): E[] => {
-    const res = lang.extract(input);
-    return res.success ? res.value : [];
-  };
-
-  const extract = (text: string): E[] => extractAt({ text, index: 0 });
+        ([...matches]) =>
+          matches.filter((m): m is AnyEntity[] => Array.isArray(m)).flat(),
+      ),
+    ),
+    ([, res]) => res,
+  );
 
   return {
-    extract,
-    extractAt,
-    extractParser: lang.extract,
+    extract: (input: string) => {
+      const result = parser({ text: input, index: 0 });
+      return result.success ? result.value : [];
+    },
   };
 }
 
