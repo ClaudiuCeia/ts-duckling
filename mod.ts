@@ -72,10 +72,72 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   ApiKey.parser,
 ];
 
+/**
+ * Union of entity types considered Personally Identifiable Information (PII).
+ *
+ * Covers: email addresses, phone numbers, IP addresses, Social Security
+ * Numbers, credit card numbers, UUIDs, and API keys.
+ */
+export type PIIEntity =
+  | EmailEntity
+  | PhoneEntity
+  | IPAddressEntity
+  | SSNEntity
+  | CreditCardEntity
+  | UUIDEntity
+  | ApiKeyEntity;
+
+/**
+ * Pre-built parser tuple targeting PII entities.
+ *
+ * Pass this to {@link Duckling} for a quick redaction pipeline:
+ *
+ * @example
+ * ```ts
+ * import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
+ *
+ * Duckling(PIIParsers).redact("Email me at a@b.com, SSN 123-45-6789");
+ * // → "Email me at ███████████████, SSN ███████████"
+ * ```
+ */
+export const PIIParsers: ParserTuple<
+  [
+    EmailEntity,
+    PhoneEntity,
+    IPAddressEntity,
+    SSNEntity,
+    CreditCardEntity,
+    UUIDEntity,
+    ApiKeyEntity,
+  ]
+> = [
+  Email.parser,
+  Phone.parser,
+  IPAddress.parser,
+  SSN.parser,
+  CreditCard.parser,
+  UUID.parser,
+  ApiKey.parser,
+];
+
 type NonEmptyArray<T> = [T, ...T[]];
 type ParserTuple<T extends NonEmptyArray<unknown>> = {
   [K in keyof T]: Parser<T[K]>;
 };
+
+/**
+ * Options for {@link Duckling().redact}.
+ *
+ * @property mask  - The character used to replace each redacted character.
+ *                   Defaults to `"█"`.
+ * @property kinds - If provided, only entities whose `kind` matches one of
+ *                   these values are redacted. When omitted **all** extracted
+ *                   entities are redacted.
+ */
+export interface RedactOptions<K extends string = string> {
+  mask?: string;
+  kinds?: K[];
+}
 
 /**
  * Create an extractor that scans free-form text and returns all matching
@@ -90,7 +152,10 @@ type ParserTuple<T extends NonEmptyArray<unknown>> = {
  * // entities: AnyEntity[]
  * ```
  */
-export function Duckling(): { extract: (text: string) => AnyEntity[] };
+export function Duckling(): {
+  extract: (text: string) => AnyEntity[];
+  redact: (text: string, opts?: RedactOptions<AnyEntity["kind"]>) => string;
+};
 /**
  * Create an extractor with a specific set of parsers. The return type is
  * automatically narrowed to the union of the entity types produced by the
@@ -108,18 +173,28 @@ export function Duckling(): { extract: (text: string) => AnyEntity[] };
  */
 export function Duckling<T extends NonEmptyArray<unknown>>(
   parsers: ParserTuple<T>,
-): { extract: (text: string) => T[number][] };
+): {
+  extract: (text: string) => T[number][];
+  redact: (
+    text: string,
+    opts?: RedactOptions<
+      T[number] extends { kind: infer K extends string } ? K : string
+    >,
+  ) => string;
+};
 
-export function Duckling(parsers: Parser<unknown>[] = DefaultParsers) {
+// deno-lint-ignore no-explicit-any
+export function Duckling(parsers?: any): any {
+  const p: Parser<unknown>[] = parsers ?? DefaultParsers;
   let parser: Parser<unknown>;
 
-  if (parsers.length === 0) {
+  if (p.length === 0) {
     parser = (ctx) => failure(ctx, "entity");
   }
 
   const entities = map(
     step(
-      recognizeAt(...(parsers as NonEmptyArray<Parser<unknown>>)),
+      recognizeAt(...(p as NonEmptyArray<Parser<unknown>>)),
       "shortest",
     ),
     (recs) => recs.map((r) => r.value),
@@ -141,10 +216,56 @@ export function Duckling(parsers: Parser<unknown>[] = DefaultParsers) {
     ([, res]) => res,
   );
 
+  const parse = (input: string): unknown[] => {
+    const result = parser({ text: input, index: 0 });
+    return result.success ? (result.value as unknown[]) : [];
+  };
+
   return {
-    extract: (input: string) => {
-      const result = parser({ text: input, index: 0 });
-      return result.success ? result.value : [];
+    extract: parse,
+    /**
+     * Extract entities and replace each matched span with a mask character.
+     *
+     * When `opts.kinds` is provided, only entities of those kinds are redacted;
+     * otherwise **every** detected entity is masked.
+     *
+     * Overlapping entities are handled correctly — each character position is
+     * replaced at most once.
+     *
+     * @example
+     * ```ts
+     * Duckling().redact("Email me at a@b.com, SSN 123-45-6789");
+     * // → "Email me at ███████, SSN ███████████"
+     *
+     * Duckling().redact("Call +14155552671", { kinds: ["phone"] });
+     * // → "Call ████████████"
+     *
+     * Duckling().redact("SSN 123-45-6789", { mask: "X" });
+     * // → "SSN XXXXXXXXXXX"
+     * ```
+     */
+    redact: (
+      input: string,
+      opts: RedactOptions = {},
+    ): string => {
+      const mask = opts.mask ?? "█";
+      const all = parse(input) as {
+        kind: string;
+        start: number;
+        end: number;
+      }[];
+      const filtered = opts.kinds
+        ? all.filter((e) => opts.kinds!.includes(e.kind))
+        : all;
+      if (filtered.length === 0) return input;
+
+      const chars = [...input];
+      for (const e of filtered) {
+        for (let i = e.start; i < e.end; i++) {
+          chars[i] = mask;
+        }
+      }
+      return chars.join("");
     },
   };
 }
