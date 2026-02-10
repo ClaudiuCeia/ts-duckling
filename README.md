@@ -110,7 +110,7 @@ npx jsr add @claudiu-ceia/ts-duckling
 
 ### Extract entities
 
-Call `Duckling()` with no arguments to use **all 18 built-in parsers**:
+Call `Duckling()` with no arguments to use **all 19 built-in parsers**:
 
 ```ts
 import { Duckling } from "@claudiu-ceia/ts-duckling";
@@ -362,33 +362,35 @@ const entities = Duckling([Email.parser, Hashtag.parser]).extract(
 
 ## Supported entities
 
-| Entity          | Kind           | Example matches                                           |
-| --------------- | -------------- | --------------------------------------------------------- |
-| **Time**        | `time`         | `tomorrow at 3pm`, `next Friday`, `2024-01-15T10:30:00Z`  |
-| **Range**       | `range`        | `2020-2024`, `20°C to 30°C`, `Monday to Friday`           |
-| **Temperature** | `temperature`  | `72°F`, `20 celsius`, `-5°C`                               |
-| **Quantity**    | `quantity`     | `5 kg`, `100 miles`, `3,500.00`                            |
-| **Location**    | `location`     | `United States`, `Germany`, `Japan`                        |
-| **URL**         | `url`          | `https://example.com/path?q=1`                             |
-| **Institution** | `institution`  | `University of Oxford`, `New York City Hall`               |
-| **Language**    | `language`     | `English`, `Japanese`, `Portuguese`                        |
+| Entity          | Kind          | Example matches                                          |
+| --------------- | ------------- | -------------------------------------------------------- |
+| **Time**        | `time`        | `tomorrow at 3pm`, `next Friday`, `2024-01-15T10:30:00Z` |
+| **Range**       | `range`       | `2020-2024`, `20°C to 30°C`, `Monday to Friday`          |
+| **Temperature** | `temperature` | `72°F`, `20 celsius`, `-5°C`                             |
+| **Quantity**    | `quantity`    | `5 kg`, `100 miles`, `3,500.00`                          |
+| **Location**    | `location`    | `United States`, `Germany`, `Japan`                      |
+| **URL**         | `url`         | `https://example.com/path?q=1`                           |
+| **Institution** | `institution` | `University of Oxford`, `New York City Hall`             |
+| **Language**    | `language`    | `English`, `Japanese`, `Portuguese`                      |
 
 ### PII
 
-Available via `PIIParsers` for targeted redaction with `Duckling(PIIParsers).redact(…)`.
+Available via `PIIParsers` for targeted redaction with
+`Duckling(PIIParsers).redact(…)`.
 
-| Entity          | Kind           | Example matches                                           |
-| --------------- | -------------- | --------------------------------------------------------- |
-| **Email**       | `email`        | `user@example.com`, `first.last@company.io`                |
-| **Phone**       | `phone`        | `+14155552671`, `+44 20 7123 4567`, `(415) 555-2671`      |
-| **IP address**  | `ip`           | `192.168.1.1`, `2001:db8::1`, `::1`                       |
-| **SSN**         | `ssn`          | `123-45-6789`                                              |
-| **Credit card** | `credit_card`  | `4111 1111 1111 1111`, `5500-0000-0000-0004`               |
-| **UUID**        | `uuid`         | `550e8400-e29b-41d4-a716-446655440000`                     |
-| **API key**     | `api_key`      | `sk-proj-abc123…`, `ghp_abc123…`, `AKIA…`                  |
-| **IBAN**        | `iban`         | `GB29NWBK60161331926819`, `DE89 3704 0044 0532 0130 00`    |
-| **MAC address** | `mac_address`  | `00:1A:2B:3C:4D:5E`, `001A.2B3C.4D5E`                     |
-| **JWT**         | `jwt`          | `eyJhbGciOiJIUzI1NiIs…`                                   |
+| Entity          | Kind             | Example matches                                         |
+| --------------- | ---------------- | ------------------------------------------------------- |
+| **Email**       | `email`          | `user@example.com`, `first.last@company.io`             |
+| **Phone**       | `phone`          | `+14155552671`, `+44 20 7123 4567`, `(415) 555-2671`    |
+| **IP address**  | `ip`             | `192.168.1.1`, `2001:db8::1`, `::1`                     |
+| **SSN**         | `ssn`            | `123-45-6789`                                           |
+| **Credit card** | `credit_card`    | `4111 1111 1111 1111`, `5500-0000-0000-0004`            |
+| **UUID**        | `uuid`           | `550e8400-e29b-41d4-a716-446655440000`                  |
+| **API key**     | `api_key`        | `sk-proj-abc123…`, `ghp_abc123…`, `AKIA…`               |
+| **IBAN**        | `iban`           | `GB29NWBK60161331926819`, `DE89 3704 0044 0532 0130 00` |
+| **MAC address** | `mac_address`    | `00:1A:2B:3C:4D:5E`, `001A.2B3C.4D5E`                   |
+| **JWT**         | `jwt`            | `eyJhbGciOiJIUzI1NiIs…`                                 |
+| **Crypto**      | `crypto_address` | `0x742d35Cc…f2bD18`, `bc1qar0srrr…`, `1BvBMSEY…`        |
 
 ## API reference
 
@@ -415,7 +417,7 @@ function Duckling<T>(parsers: ParserTuple<T>): {
 };
 ```
 
-Creates an extractor/renderer/redactor. Without arguments, uses all 18 built-in
+Creates an extractor/renderer/redactor. Without arguments, uses all 19 built-in
 parsers and returns `AnyEntity[]`. When given an explicit parser array, the
 return type narrows to the union of those entity types.
 
@@ -520,6 +522,7 @@ const PIIParsers: [
   IBANParser,
   MACAddressParser,
   JWTParser,
+  CryptoAddressParser,
 ];
 ```
 
@@ -563,13 +566,13 @@ replace the span.
 
 ### `AnyEntity`
 
-Union of all 18 built-in entity types. This is the return element type of
+Union of all 19 built-in entity types. This is the return element type of
 `Duckling().extract(...)`.
 
 ### `PIIEntity`
 
-Union of the 10 PII entity types:
-`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity`.
+Union of the 11 PII entity types:
+`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity | CryptoAddressEntity`.
 
 ## Caveats
 

@@ -35,6 +35,10 @@ import { ApiKey, type ApiKeyEntity } from "./src/ApiKey.ts";
 import { IBAN, type IBANEntity } from "./src/IBAN.ts";
 import { MACAddress, type MACAddressEntity } from "./src/MACAddress.ts";
 import { JWT, type JWTEntity } from "./src/JWT.ts";
+import {
+  CryptoAddress,
+  type CryptoAddressEntity,
+} from "./src/CryptoAddress.ts";
 
 /**
  * Union of all entity types produced by the built-in parsers.
@@ -61,7 +65,8 @@ export type AnyEntity =
   | ApiKeyEntity
   | IBANEntity
   | MACAddressEntity
-  | JWTEntity;
+  | JWTEntity
+  | CryptoAddressEntity;
 
 const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   Range.parser,
@@ -82,6 +87,7 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   IBAN.parser,
   MACAddress.parser,
   JWT.parser,
+  CryptoAddress.parser,
 ];
 
 /**
@@ -89,7 +95,7 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
  *
  * Covers: email addresses, phone numbers, IP addresses, Social Security
  * Numbers, credit card numbers, UUIDs, API keys, IBANs, MAC addresses,
- * and JWTs.
+ * JWTs, and cryptocurrency wallet addresses.
  */
 export type PIIEntity =
   | EmailEntity
@@ -101,7 +107,8 @@ export type PIIEntity =
   | ApiKeyEntity
   | IBANEntity
   | MACAddressEntity
-  | JWTEntity;
+  | JWTEntity
+  | CryptoAddressEntity;
 
 /**
  * Pre-built parser tuple targeting PII entities.
@@ -128,6 +135,7 @@ export const PIIParsers: ParserTuple<
     IBANEntity,
     MACAddressEntity,
     JWTEntity,
+    CryptoAddressEntity,
   ]
 > = [
   Email.parser,
@@ -140,6 +148,7 @@ export const PIIParsers: ParserTuple<
   IBAN.parser,
   MACAddress.parser,
   JWT.parser,
+  CryptoAddress.parser,
 ];
 
 type NonEmptyArray<T> = [T, ...T[]];
@@ -505,3 +514,4 @@ export * from "./src/ApiKey.ts";
 export * from "./src/IBAN.ts";
 export * from "./src/MACAddress.ts";
 export * from "./src/JWT.ts";
+export * from "./src/CryptoAddress.ts";
