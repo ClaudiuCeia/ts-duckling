@@ -1,4 +1,5 @@
 import {
+  any,
   anyChar,
   eof,
   failure,
@@ -6,11 +7,10 @@ import {
   map,
   optional,
   type Parser,
+  recognizeAt,
   seq,
   skip1,
   space,
-  any,
-  recognizeAt,
   step,
 } from "@claudiu-ceia/combine";
 import { __, dot, word } from "./src/common.ts";

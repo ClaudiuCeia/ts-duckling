@@ -2,7 +2,7 @@ name: Deploy Docs (GitHub Pages)
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch: {}
 
 permissions:
@@ -22,30 +22,37 @@ jobs:
       # suite expects EET/EEST semantics (UTC+2/UTC+3).
       TZ: Europe/Bucharest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+    - name: Setup Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
 
-      - name: Test
-        run: deno task test
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
 
-      - name: Build docs bundle
-        run: deno task docs:bundle
+    - name: Test
+      run: deno task test
 
-      - name: Stamp build SHA (cache bust)
-        run: sed -i "s/__BUILD_SHA__/${GITHUB_SHA}/g" docs/index.html
+    - name: Install docs dependencies
+      run: npm ci
+      working-directory: docs
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+    - name: Build docs
+      run: npm run build
+      working-directory: docs
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
+    - name: Configure Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: docs/dist
 
   deploy:
     needs: build
@@ -54,6 +61,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

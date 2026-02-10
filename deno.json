@@ -28,8 +28,7 @@
     "lint": "deno lint",
     "check": "deno check mod.ts",
     "update:data": "deno run -A scripts/update_data.ts",
-    "test": "deno test",
-    "docs:bundle": "deno bundle --platform=browser mod.ts -o docs/vendor/ts-duckling.js",
-    "docs:serve": "deno task docs:bundle && deno run -A jsr:@std/http/file-server docs --host 127.0.0.1 --port 8000"
-  }
+    "test": "deno test"
+  },
+  "exclude": ["./docs"]
 }
