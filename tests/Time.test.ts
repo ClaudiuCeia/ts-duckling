@@ -462,3 +462,186 @@ Deno.test("FullDate: does not crash on nonsense date-like input", () => {
     }
   }
 });
+
+// ── ISODate (YYYY-MM-DD) ───────────────────────────────────────────
+
+Deno.test("ISODate: basic YYYY-MM-DD", () => {
+  const res = Duckling([Time.parser]).extract("Published 2024-05-18.");
+
+  assertEquals(res, [
+    {
+      end: 20,
+      kind: "time",
+      start: 10,
+      text: "2024-05-18",
+      value: {
+        era: "CE",
+        grain: "day",
+        when: "2024-05-18T00:00:00.000Z",
+      },
+    },
+  ]);
+});
+
+Deno.test("ISODate: multiple YYYY-MM-DD in sentence", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Born on 1990-03-15, died 2060-01-01.",
+  );
+
+  assertEquals(res.length, 2);
+  assertEquals(res[0].text, "1990-03-15");
+  assertEquals(res[0].value.when, "1990-03-15T00:00:00.000Z");
+  assertEquals(res[1].text, "2060-01-01");
+  assertEquals(res[1].value.when, "2060-01-01T00:00:00.000Z");
+});
+
+// ── ISODateTime (with offset / without Z) ──────────────────────────
+
+Deno.test("ISODateTime: with positive offset", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Logged at 2024-05-18T10:30:00+02:00.",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "2024-05-18T10:30:00+02:00");
+  assertEquals(res[0].value.when, "2024-05-18T08:30:00.000Z");
+  assertEquals(res[0].value.grain, "second");
+});
+
+Deno.test("ISODateTime: with negative offset", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Event: 2024-05-18T10:30:00-05:00.",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "2024-05-18T10:30:00-05:00");
+  assertEquals(res[0].value.when, "2024-05-18T15:30:00.000Z");
+});
+
+Deno.test("ISODateTime: without timezone (local time)", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Timestamp: 2024-05-18T10:30:00.",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "2024-05-18T10:30:00");
+  assertEquals(res[0].value.grain, "second");
+});
+
+Deno.test("ISODateTime: without seconds", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Meeting at 2024-05-18T10:30.",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "2024-05-18T10:30");
+  assertEquals(res[0].value.grain, "second");
+});
+
+// ── LiteralMonthDayYear ────────────────────────────────────────────
+
+Deno.test("LiteralMonthDayYear: with comma", () => {
+  const res = Duckling([Time.parser]).extract("On July 13, 2016 we met.");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "July 13, 2016");
+  assertEquals(res[0].value.grain, "day");
+});
+
+Deno.test("LiteralMonthDayYear: without comma", () => {
+  const res = Duckling([Time.parser]).extract("On March 3 1990 we met.");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "March 3 1990");
+  assertEquals(res[0].value.grain, "day");
+});
+
+Deno.test("LiteralMonthDayYear: various months", () => {
+  const inputs = [
+    "January 1, 2000",
+    "December 25, 2024",
+    "September 5, 2019",
+  ];
+  for (const input of inputs) {
+    const res = Duckling([Time.parser]).extract(`Published: ${input}.`);
+    assertEquals(
+      res.length >= 1,
+      true,
+      `Should extract at least one entity from "${input}", got ${res.length}`,
+    );
+    assertEquals(res[0].text, input);
+    assertEquals(res[0].value.grain, "day");
+  }
+});
+
+// ── ClockTime ──────────────────────────────────────────────────────
+
+Deno.test("ClockTime: HH:MM with timezone in parens", () => {
+  const res = Duckling([Time.parser]).extract("The call is at 23:28 (UTC).");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "23:28 (UTC)");
+  assertEquals(res[0].value.when, "23:28 (UTC)");
+  assertEquals(res[0].value.grain, "minute");
+});
+
+Deno.test("ClockTime: HH:MM:SS", () => {
+  const res = Duckling([Time.parser]).extract("Logged at 23:28:59.");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "23:28:59");
+  assertEquals(res[0].value.grain, "second");
+});
+
+Deno.test("ClockTime: 12-hour AM/PM", () => {
+  const cases = [
+    { input: "Meet at 3:45 PM.", expected: "3:45 PM" },
+    { input: "Wake up at 6:00 AM.", expected: "6:00 AM" },
+    { input: "Deadline 11:59 pm.", expected: "11:59 pm" },
+  ];
+  for (const { input, expected } of cases) {
+    const res = Duckling([Time.parser]).extract(input);
+    assertEquals(
+      res.length >= 1,
+      true,
+      `Should extract at least one entity from "${input}"`,
+    );
+    assertEquals(res[0].text, expected);
+    assertEquals(res[0].value.grain, "minute");
+  }
+});
+
+Deno.test("ClockTime: HH:MM with bare timezone", () => {
+  const cases = [
+    { input: "14:00 UTC", expected: "14:00 UTC" },
+    { input: "09:30 EST", expected: "09:30 EST" },
+    { input: "11:15 CET", expected: "11:15 CET" },
+  ];
+  for (const { input, expected } of cases) {
+    const res = Duckling([Time.parser]).extract(input);
+    assertEquals(
+      res.length >= 1,
+      true,
+      `Should extract at least one entity from "${input}"`,
+    );
+    assertEquals(res[0].text, expected);
+  }
+});
+
+// ── Noon / Midnight ────────────────────────────────────────────────
+
+Deno.test("Common: noon", () => {
+  const res = Duckling([Time.parser]).extract("We eat lunch at noon.");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "noon");
+  assertEquals(res[0].value.when, "12:00");
+  assertEquals(res[0].value.grain, "hour");
+});
+
+Deno.test("Common: midnight", () => {
+  const res = Duckling([Time.parser]).extract("Come back before midnight.");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "midnight");
+  assertEquals(res[0].value.when, "00:00");
+  assertEquals(res[0].value.grain, "hour");
+});

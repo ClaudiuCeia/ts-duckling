@@ -91,6 +91,7 @@ export const time = (
 
 type TimeLanguage = {
   ISODateTimeZ: Parser<TimeEntity>;
+  ISODateTime: Parser<TimeEntity>;
   Grain: Parser<string>;
   UnspecifiedGrainAmount: Parser<TimeEntity>;
   DayOfWeek: Parser<TimeEntity>;
@@ -107,6 +108,9 @@ type TimeLanguage = {
   QualifiedDay: Parser<number>;
   QualifiedGrain: Parser<TimeEntity>;
   PartialDateDayMonth: Parser<TimeEntity>;
+  ISODate: Parser<TimeEntity>;
+  LiteralMonthDayYear: Parser<TimeEntity>;
+  ClockTime: Parser<TimeEntity>;
   FullDate: Parser<TimeEntity>;
   PartialDateMonthYearEra: Parser<TimeEntity>;
   FullDateEra: Parser<TimeEntity>;
@@ -134,6 +138,26 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
         }
         return time({ when: d.toISOString(), grain: "second" }, b, a);
       },
+    );
+  },
+  ISODateTime(_s) {
+    // 2024-05-18T10:30:00, 2024-05-18T10:30:00+02:00, 2024-05-18T10:30:00-05:00
+    // Also handles optional seconds and milliseconds.
+    return safe(
+      map(
+        regex(
+          /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?(?:[+-]\d{2}:\d{2})?/,
+          "iso-datetime",
+        ),
+        (raw, b, a) => {
+          const d = new Date(raw);
+          if (Number.isNaN(d.getTime())) {
+            return time({ when: raw, grain: "second" }, b, a);
+          }
+          return time({ when: d.toISOString(), grain: "second" }, b, a);
+        },
+      ),
+      "valid date",
     );
   },
   Grain(_s) {
@@ -233,6 +257,12 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
       }),
       map(fuzzyCase("weekend"), (_res, b, a) => {
         return time({ when: "weekend", grain: "week" }, b, a);
+      }),
+      map(fuzzyCase("noon"), (_res, b, a) => {
+        return time({ when: "12:00", grain: "hour" }, b, a);
+      }),
+      map(fuzzyCase("midnight"), (_res, b, a) => {
+        return time({ when: "00:00", grain: "hour" }, b, a);
       }),
     );
   },
@@ -456,6 +486,100 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
       "valid date",
     );
   },
+  ISODate(s) {
+    // YYYY-MM-DD (and optional time HH:MM[:SS])
+    return safe(
+      map(
+        seq(
+          s.Year,
+          str("-"),
+          s.NumericMonth,
+          str("-"),
+          s.Day,
+        ),
+        ([year, , month, , day], b, a) => {
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const iso = `${year}-${pad(month)}-${pad(day)}T00:00:00.000Z`;
+          return time(
+            {
+              when: new Date(iso).toISOString(),
+              grain: "day",
+            },
+            b,
+            a,
+          );
+        },
+      ),
+      "valid date",
+    );
+  },
+  LiteralMonthDayYear(s) {
+    // "July 13, 2016" / "July 13 2016"
+    return safe(
+      map(
+        seq(
+          s.LiteralMonth,
+          skip1(space()),
+          s.Day,
+          optional(str(",")),
+          skip1(space()),
+          s.Year,
+        ),
+        ([month, , day, , , year], b, a) => {
+          return time(
+            {
+              when: new Date(`${day} ${month} ${year}`).toISOString(),
+              grain: "day",
+            },
+            b,
+            a,
+          );
+        },
+      ),
+      "valid date",
+    );
+  },
+  ClockTime(_s) {
+    // 23:28, 23:28:59, 14:00 UTC, 23:28 (UTC), 3:45 PM, 3:45:00 AM
+    return map(
+      seq(
+        regex(/(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?/, "clock-time"),
+        optional(
+          seq(
+            optional(space()),
+            any(
+              regex(/[AP]M/i, "am-pm"),
+              seq(
+                optional(str("(")),
+                regex(/[A-Z]{2,5}/, "timezone"),
+                optional(str(")")),
+              ),
+            ),
+          ),
+        ),
+      ),
+      ([clockStr, suffix], b, a) => {
+        let label = clockStr;
+        if (suffix) {
+          const [maybeSpace, tz] = suffix;
+          if (typeof tz === "string") {
+            label = `${clockStr}${maybeSpace ?? ""}${tz}`;
+          } else {
+            const [open, tzName, close] = tz;
+            label = `${clockStr}${maybeSpace ?? ""}${open ?? ""}${tzName}${close ?? ""}`;
+          }
+        }
+        return time(
+          {
+            when: label,
+            grain: clockStr.split(":").length > 2 ? "second" : "minute",
+          },
+          b,
+          a,
+        );
+      },
+    );
+  },
   FullDate(s) {
     return any(
       safe(
@@ -582,8 +706,12 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
     return dot(
       any(
         s.ISODateTimeZ,
+        s.ISODateTime,
+        s.ISODate,
         s.FullDateEra,
+        s.LiteralMonthDayYear,
         s.FullDate,
+        s.ClockTime,
         s.Relative,
         s.PartialDateMonthYearEra,
         s.PartialDateMonthYear,
