@@ -1,17 +1,24 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+import {
+  Duckling,
+  type RenderMapFn,
+} from "@claudiu-ceia/ts-duckling";
 import { Header } from "./components/Header";
 import { ParserSidebar } from "./components/ParserSidebar";
 import { AnnotatedText } from "./components/AnnotatedText";
 import { Hovercard } from "./components/Hovercard";
-import { extract, stopWorker, type EntityResult } from "./worker-client";
+import { extract, type ExtractResult } from "./extract-client";
+import type { EntityResult } from "./types";
 import { PARSER_PRIORITY, PRESETS, ALL_IDS } from "./registry";
-import { fmtDuration, loadSelection, saveSelection } from "./utils";
+import { fmtDuration, loadSelection, saveSelection, kindClasses } from "./utils";
 import { loadUrlText } from "./fetch-url";
+import { registry } from "./parsers";
 
 export function App() {
   const [selected, setSelected] = useState(() => loadSelection(ALL_IDS));
   const [input, setInput] = useState("");
   const [entities, setEntities] = useState<EntityResult[]>([]);
+  const [segments, setSegments] = useState<(string | ReactNode)[]>([]);
   const [timing, setTiming] = useState("");
   const [status, setStatus] = useState("");
   const [spinning, setSpinning] = useState(false);
@@ -22,46 +29,143 @@ export function App() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Hovercard state
   const [hovercardEntities, setHovercardEntities] = useState<EntityResult[]>([]);
   const [hovercardAnchor, setHovercardAnchor] = useState<HTMLElement | null>(null);
 
-  const reqIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const inputSnapshotRef = useRef("");
+  const elapsedRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const [elapsed, setElapsed] = useState("");
 
   const onSelectionChange = useCallback((next: Set<string>) => {
     setSelected(next);
     saveSelection(next);
   }, []);
 
-  const doExtract = useCallback(() => {
+  const cancelExtract = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
+  // Build renderMapAsync callback that produces highlighted React spans
+  const buildSegments = useCallback(
+    async (text: string, allEntities: EntityResult[], ids: string[]) => {
+      const parsers = ids.map((id) => registry[id]).filter(Boolean);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = parsers.length > 0 ? Duckling(parsers as any) : Duckling();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mapFn: RenderMapFn<any, ReactNode> = ({
+        entity,
+        children,
+      }: { entity: EntityResult; children: (string | ReactNode)[] }) => {
+        // Collect all entities whose range overlaps this entity's range
+        const overlapping = allEntities.filter(
+          (e) => e.start >= entity.start && e.end <= entity.end,
+        );
+        const hasChildren = overlapping.length > 1;
+
+        return (
+          <span
+            key={`${entity.start}-${entity.end}-${entity.kind}`}
+            className={`ent relative cursor-pointer rounded-md px-1 py-0.5 text-slate-900 outline-1 ${kindClasses(entity.kind)}${hasChildren ? " border-b-2 border-dashed border-slate-400/40" : ""}`}
+            onClick={(ev: React.MouseEvent<HTMLSpanElement>) => {
+              ev.stopPropagation();
+              // Show all entities contained within this span
+              const group = allEntities.filter(
+                (e) => e.start >= entity.start && e.end <= entity.end,
+              );
+              group.sort(
+                (a, b) => (b.end - b.start) - (a.end - a.start),
+              );
+              setHovercardEntities(group);
+              setHovercardAnchor(ev.currentTarget);
+            }}
+          >
+            {children}
+          </span>
+        );
+      };
+
+      return await d.renderMapAsync<ReactNode>(text, mapFn);
+    },
+    [],
+  );
+
+  const doExtract = useCallback(async () => {
     if (!input.trim()) {
       setEntities([]);
+      setSegments([]);
       setTiming("");
+      setElapsed("");
       setStatus("");
       setSpinning(false);
       return;
     }
 
-    const id = ++reqIdRef.current;
+    cancelExtract();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // Snapshot the input so stale results don't override later edits
+    inputSnapshotRef.current = input;
+
     const max = fullText ? 0 : Math.max(500, maxChars);
     const ids = PARSER_PRIORITY.filter((p) => selected.has(p));
 
-    stopWorker();
     setStatus("Parsing…");
     setSpinning(true);
     setHovercardEntities([]);
     setHovercardAnchor(null);
 
-    extract({ reqId: id, text: input, ids, maxChars: max }, (resp) => {
-      if (resp.reqId !== id) return;
-      setEntities(resp.entities);
-      const suffix = resp.truncated ? ` (prefix ${resp.length} chars)` : "";
-      setTiming(`${fmtDuration(resp.ms)}${suffix}`);
+    // Live elapsed timer
+    const t0 = performance.now();
+    clearInterval(elapsedRef.current);
+    setElapsed("0ms");
+    elapsedRef.current = setInterval(() => {
+      setElapsed(fmtDuration(performance.now() - t0));
+    }, 50);
+
+    try {
+      const result: ExtractResult = await extract({
+        text: input,
+        ids,
+        maxChars: max,
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
+
+      // If the user changed input while we were parsing, discard stale results
+      if (inputSnapshotRef.current !== input) return;
+
+      setEntities(result.entities);
+
+      const truncatedInput = max > 0 && input.length > max
+        ? input.slice(0, max)
+        : input;
+      const segs = await buildSegments(truncatedInput, result.entities, ids);
+      if (controller.signal.aborted) return;
+
+      setSegments(segs);
+      const suffix = result.truncated
+        ? ` (prefix ${result.length} chars)`
+        : "";
+      setTiming(`${fmtDuration(result.ms)}${suffix}`);
       setStatus("");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ts-duckling] extraction error:", err);
+      setStatus(`Error: ${msg.length > 120 ? msg.slice(0, 120) + "…" : msg}`);
+      setTimeout(() => setStatus(""), 5000);
+    } finally {
+      clearInterval(elapsedRef.current);
+      setElapsed("");
       setSpinning(false);
-    });
-  }, [input, selected, maxChars, fullText]);
+    }
+  }, [input, selected, maxChars, fullText, cancelExtract, buildSegments]);
 
   // Debounced auto-extract
   useEffect(() => {
@@ -80,7 +184,7 @@ export function App() {
     setLoading(true);
     setStatus("Fetching…");
     setSpinning(true);
-    stopWorker();
+    cancelExtract();
     try {
       const result = await loadUrlText(url);
       setInput(result.text);
@@ -89,32 +193,32 @@ export function App() {
       setTimeout(() => setStatus(""), 1500);
     } catch {
       setStatus("Load failed (likely CORS)");
+      setSpinning(false);
       setTimeout(() => setStatus(""), 2500);
     } finally {
       setLoading(false);
-      setSpinning(false);
+      // Don't reset spinning here — doExtract will be triggered by setInput
+      // and will manage spinning on its own
     }
   };
 
-  const handleEntityClick = (entity: EntityResult, el: HTMLElement) => {
-    const group = entities.filter((e) => e.start === entity.start);
-    group.sort((a, b) => (b.end - b.start) - (a.end - a.start));
-    setHovercardEntities(group);
-    setHovercardAnchor(el);
-  };
-
   const handleStop = () => {
-    stopWorker();
+    cancelExtract();
+    clearInterval(elapsedRef.current);
+    setElapsed("");
     setStatus("Stopped");
     setSpinning(false);
     setTimeout(() => setStatus(""), 900);
   };
 
   const handleClear = () => {
-    stopWorker();
+    cancelExtract();
+    clearInterval(elapsedRef.current);
+    setElapsed("");
     setInput("");
     setUrl("");
     setEntities([]);
+    setSegments([]);
     setTiming("");
     setStatus("");
     setSpinning(false);
@@ -233,8 +337,9 @@ export function App() {
                 <textarea
                   value={input}
                   onChange={(e) => { setInput(e.target.value); setPreset(""); }}
+                  disabled={spinning}
                   spellCheck={false}
-                  className="mt-4 h-56 w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 font-mono text-sm leading-relaxed text-slate-900 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40"
+                  className="mt-4 h-56 w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 font-mono text-sm leading-relaxed text-slate-900 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                   placeholder="Try: Email me at no-reply+foo@some.domain.dev, call +14155552671, visit https://duckling.deno.dev/, SSN 123-45-6789, CC 4242 4242 4242 4242"
                 />
               </div>
@@ -246,7 +351,13 @@ export function App() {
                 <h2 className="text-sm font-semibold tracking-wide text-slate-900">Preview</h2>
                 <div className="flex items-center gap-3 text-sm text-slate-500">
                   <span>{entities.length} matches</span>
-                  {timing && (
+                  {elapsed && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-mono text-teal-600 tabular-nums">{elapsed}</span>
+                    </>
+                  )}
+                  {timing && !elapsed && (
                     <>
                       <span className="text-slate-300">•</span>
                       <span className="font-mono text-slate-600">{timing}</span>
@@ -268,11 +379,7 @@ export function App() {
                   Annotated text
                 </div>
                 <div className="mt-2">
-                  <AnnotatedText
-                    text={input}
-                    entities={entities}
-                    onEntityClick={handleEntityClick}
-                  />
+                  <AnnotatedText segments={segments.length > 0 ? segments : [input]} />
                 </div>
 
                 {showJson && (
