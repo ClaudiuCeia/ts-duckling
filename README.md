@@ -391,7 +391,7 @@ Available via `PIIParsers` for targeted redaction with
 | **MAC address** | `mac_address`    | `00:1A:2B:3C:4D:5E`, `001A.2B3C.4D5E`                   |
 | **JWT**         | `jwt`            | `eyJhbGciOiJIUzI1NiIs…`                                 |
 | **Crypto**      | `crypto_address` | `0x742d35Cc…f2bD18`, `bc1qar0srrr…`, `1BvBMSEY…`        |
-| **BIC/SWIFT**   | `bic`            | `DEUTDEFF`, `BOFAUS3NXXX`, `COBADEFF100`                 |
+| **BIC/SWIFT**   | `bic`            | `DEUTDEFF`, `BOFAUS3NXXX`, `COBADEFF100`                |
 
 ## API reference
 

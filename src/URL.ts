@@ -119,9 +119,9 @@ export const URL: URLLanguage = createLanguage<URLLanguage>({
       ([domain, maybePort, maybeSuffix], b, a) =>
         url(
           {
-            url: `${domain}${
-              maybePort ? `:${maybePort[1]}` : ""
-            }${maybeSuffix ?? ""}`,
+            url: `${domain}${maybePort ? `:${maybePort[1]}` : ""}${
+              maybeSuffix ?? ""
+            }`,
           },
           b,
           a,
