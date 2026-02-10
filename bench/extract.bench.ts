@@ -50,3 +50,45 @@ Deno.bench("extract: default Duckling (mixed)", () => {
     throw new Error("expected at least one time entity");
   }
 });
+
+// ---------------------------------------------------------------------------
+// Async benchmarks
+// ---------------------------------------------------------------------------
+
+// Compare sync vs async overhead on PII-heavy text
+Deno.bench("extractAsync: PII-heavy (yieldEvery=512)", async () => {
+  const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 512 });
+  if (entities.length < 6) throw new Error("unexpected low match count");
+});
+
+Deno.bench("extractAsync: PII-heavy (yieldEvery=64)", async () => {
+  const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 64 });
+  if (entities.length < 6) throw new Error("unexpected low match count");
+});
+
+Deno.bench("extractAsync: PII-heavy (yieldEvery=8)", async () => {
+  const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 8 });
+  if (entities.length < 6) throw new Error("unexpected low match count");
+});
+
+// Large input: 5x repeated PII text (~1 KB)
+const textLarge = (textPII + " ").repeat(5);
+
+Deno.bench("extract: PII-heavy ×5 (sync)", () => {
+  const entities = piiDuckling.extract(textLarge);
+  if (entities.length < 30) throw new Error("unexpected low match count");
+});
+
+Deno.bench("extractAsync: PII-heavy ×5 (yieldEvery=512)", async () => {
+  const entities = await piiDuckling.extractAsync(textLarge, {
+    yieldEvery: 512,
+  });
+  if (entities.length < 30) throw new Error("unexpected low match count");
+});
+
+Deno.bench("extractAsync: PII-heavy ×5 (yieldEvery=64)", async () => {
+  const entities = await piiDuckling.extractAsync(textLarge, {
+    yieldEvery: 64,
+  });
+  if (entities.length < 30) throw new Error("unexpected low match count");
+});

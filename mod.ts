@@ -14,6 +14,7 @@ import {
   step,
 } from "@claudiu-ceia/combine";
 import { __, dot, word } from "./src/common.ts";
+import { asyncScan, type AsyncScanOptions } from "./src/async.ts";
 import { buildSpanTree, renderMapNode, renderNode } from "./src/render.ts";
 import type { RenderFn, RenderMapFn } from "./src/render.ts";
 import { Quantity, type QuantityEntity } from "./src/Quantity.ts";
@@ -141,6 +142,7 @@ export interface RedactOptions<K extends string = string> {
   kinds?: K[];
 }
 
+export type { AsyncScanOptions } from "./src/async.ts";
 export type {
   RenderEntity,
   RenderFn,
@@ -163,9 +165,26 @@ export type {
  */
 export function Duckling(): {
   extract: (text: string) => AnyEntity[];
+  /** @experimental */
+  extractAsync: (
+    text: string,
+    opts?: AsyncScanOptions,
+  ) => Promise<AnyEntity[]>;
   redact: (text: string, opts?: RedactOptions<AnyEntity["kind"]>) => string;
   render: (text: string, fn: RenderFn<AnyEntity>) => string;
+  /** @experimental */
+  renderAsync: (
+    text: string,
+    fn: RenderFn<AnyEntity>,
+    opts?: AsyncScanOptions,
+  ) => Promise<string>;
   renderMap: <R>(text: string, fn: RenderMapFn<AnyEntity, R>) => (string | R)[];
+  /** @experimental */
+  renderMapAsync: <R>(
+    text: string,
+    fn: RenderMapFn<AnyEntity, R>,
+    opts?: AsyncScanOptions,
+  ) => Promise<(string | R)[]>;
 };
 /**
  * Create an extractor with a specific set of parsers. The return type is
@@ -186,6 +205,11 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
   parsers: ParserTuple<T>,
 ): {
   extract: (text: string) => T[number][];
+  /** @experimental */
+  extractAsync: (
+    text: string,
+    opts?: AsyncScanOptions,
+  ) => Promise<T[number][]>;
   redact: (
     text: string,
     opts?: RedactOptions<
@@ -193,10 +217,22 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
     >,
   ) => string;
   render: (text: string, fn: RenderFn<T[number]>) => string;
+  /** @experimental */
+  renderAsync: (
+    text: string,
+    fn: RenderFn<T[number]>,
+    opts?: AsyncScanOptions,
+  ) => Promise<string>;
   renderMap: <R>(
     text: string,
     fn: RenderMapFn<T[number], R>,
   ) => (string | R)[];
+  /** @experimental */
+  renderMapAsync: <R>(
+    text: string,
+    fn: RenderMapFn<T[number], R>,
+    opts?: AsyncScanOptions,
+  ) => Promise<(string | R)[]>;
 };
 
 // deno-lint-ignore no-explicit-any
@@ -240,6 +276,34 @@ export function Duckling(parsers?: any): any {
   return {
     extract: parse,
     /**
+     * @experimental
+     *
+     * Async version of {@link extract} that yields to the event loop
+     * periodically, preventing main-thread blocking on large inputs.
+     *
+     * Uses `scheduler.yield()` when available (Chrome 129+, Edge 129+,
+     * Firefox 142+), falling back to `setTimeout(0)`.
+     *
+     * @example
+     * ```ts
+     * const controller = new AbortController();
+     * const entities = await Duckling().extractAsync(longText, {
+     *   signal: controller.signal,
+     *   yieldEvery: 256,
+     * });
+     * ```
+     */
+    extractAsync: (
+      input: string,
+      opts?: AsyncScanOptions,
+    ): Promise<unknown[]> => {
+      return asyncScan(
+        input,
+        p as NonEmptyArray<Parser<unknown>>,
+        opts,
+      );
+    },
+    /**
      * Replace entity spans using a callback function.
      *
      * Entities are arranged into a tree: wider spans become parents of
@@ -276,6 +340,31 @@ export function Duckling(parsers?: any): any {
       return renderNode(tree, input, fn);
     },
     /**
+     * @experimental
+     *
+     * Async version of {@link render} that yields to the event loop
+     * during entity extraction.
+     */
+    renderAsync: async (
+      input: string,
+      fn: RenderFn<unknown>,
+      opts?: AsyncScanOptions,
+    ): Promise<string> => {
+      const all = (await asyncScan(
+        input,
+        p as NonEmptyArray<Parser<unknown>>,
+        opts,
+      )) as {
+        kind: string;
+        start: number;
+        end: number;
+        text: string;
+      }[];
+      if (all.length === 0) return input;
+      const tree = buildSpanTree(all, input.length);
+      return renderNode(tree, input, fn);
+    },
+    /**
      * Map entity spans to arbitrary values, returning an array of segments.
      *
      * Like {@link render}, entities are arranged into a span tree. The
@@ -300,6 +389,32 @@ export function Duckling(parsers?: any): any {
       fn: RenderMapFn<any, R>,
     ): (string | R)[] => {
       const all = parse(input) as {
+        kind: string;
+        start: number;
+        end: number;
+        text: string;
+      }[];
+      if (all.length === 0) return [input];
+      const tree = buildSpanTree(all, input.length);
+      return renderMapNode<R>(tree, input, fn);
+    },
+    /**
+     * @experimental
+     *
+     * Async version of {@link renderMap} that yields to the event loop
+     * during entity extraction.
+     */
+    renderMapAsync: async <R>(
+      input: string,
+      // deno-lint-ignore no-explicit-any
+      fn: RenderMapFn<any, R>,
+      opts?: AsyncScanOptions,
+    ): Promise<(string | R)[]> => {
+      const all = (await asyncScan(
+        input,
+        p as NonEmptyArray<Parser<unknown>>,
+        opts,
+      )) as {
         kind: string;
         start: number;
         end: number;

@@ -63,6 +63,7 @@ TypeScript and running anywhere — Deno, Node, or the browser.
   - [Redact PII](#redact-pii)
   - [Render entities](#render-entities)
   - [Map entities to components](#map-entities-to-components)
+  - [Async extraction](#async-extraction)
   - [Custom entities](#custom-entities)
 - [Supported entities](#supported-entities)
 - [API reference](#api-reference)
@@ -71,6 +72,10 @@ TypeScript and running anywhere — Deno, Node, or the browser.
   - [`.render(text, fn)`](#rendertext-fn)
   - [`.renderMap(text, fn)`](#rendermaptext-fn)
   - [`.redact(text, opts?)`](#redacttext-opts)
+  - [`.extractAsync(text, opts?)`](#extractasynctext-opts)
+  - [`.renderAsync(text, fn, opts?)`](#renderasynctext-fn-opts)
+  - [`.renderMapAsync(text, fn, opts?)`](#rendermapasynctext-fn-opts)
+  - [`AsyncScanOptions`](#asyncscanoptions)
   - [`PIIParsers`](#piiparsers)
   - [`RedactOptions`](#redactoptions)
   - [`RenderFn`](#renderfn)
@@ -279,6 +284,43 @@ Like `.render()`, nested entities are handled automatically — child spans are
 mapped first, and the parent callback receives the already-mapped children as
 `(string | R)[]`.
 
+### Async extraction
+
+> **Experimental** — these methods are stable enough to use but the API may
+> change in a future minor release.
+
+Every method has an async counterpart (`extractAsync`, `renderAsync`,
+`renderMapAsync`) that periodically yields to the browser event loop during
+scanning. This prevents long inputs from blocking the main thread — no Web
+Worker needed:
+
+```ts
+import { Duckling } from "@claudiu-ceia/ts-duckling";
+
+const controller = new AbortController();
+
+const entities = await Duckling().extractAsync(longText, {
+  signal: controller.signal, // cancel early if needed
+  yieldEvery: 256, // yield every N scan positions (default 512)
+});
+```
+
+Uses
+[`scheduler.yield()`](https://developer.mozilla.org/en-US/docs/Web/API/Scheduler/yield)
+when available (Chrome 129+, Edge 129+, Firefox 142+), falling back to
+`setTimeout(0)`.
+
+`renderMapAsync` is especially useful in UI frameworks — extract and map
+entities to React elements without blocking paint:
+
+```tsx
+const segments = await Duckling().renderMapAsync<JSX.Element>(
+  text,
+  ({ entity, children }) => <mark data-kind={entity.kind}>{children}</mark>,
+);
+// → ["plain text", <mark>...</mark>, " more text"]
+```
+
 ### Custom entities
 
 Define a parser that returns an `Entity`, then pass it to `Duckling`:
@@ -343,11 +385,22 @@ const entities = Duckling([Email.parser, Hashtag.parser]).extract(
 ### `Duckling()`
 
 ```ts
-function Duckling(): { extract; render; renderMap; redact };
+function Duckling(): {
+  extract;
+  extractAsync;
+  render;
+  renderAsync;
+  renderMap;
+  renderMapAsync;
+  redact;
+};
 function Duckling<T>(parsers: ParserTuple<T>): {
   extract;
+  extractAsync;
   render;
+  renderAsync;
   renderMap;
+  renderMapAsync;
   redact;
 };
 ```
@@ -399,6 +452,49 @@ redact(text: string, opts?: RedactOptions): string
 Built on top of `.render()`. Extracts entities then replaces each matched span
 with `opts.mask` (default `"█"`). When `opts.kinds` is set, only those entity
 kinds are masked. Overlapping/nested spans are resolved via the span tree.
+
+### `.extractAsync(text, opts?)`
+
+> **Experimental** — this method is stable enough to use but may change in a
+> future minor release.
+
+```ts
+extractAsync(text: string, opts?: AsyncScanOptions): Promise<Entity[]>
+```
+
+Async version of `.extract()` that yields to the event loop periodically.
+Supports cancellation via `AbortSignal`.
+
+### `.renderAsync(text, fn, opts?)`
+
+> **Experimental** — this method is stable enough to use but may change in a
+> future minor release.
+
+```ts
+renderAsync(text: string, fn: RenderFn<Entity>, opts?: AsyncScanOptions): Promise<string>
+```
+
+Async version of `.render()`.
+
+### `.renderMapAsync(text, fn, opts?)`
+
+> **Experimental** — this method is stable enough to use but may change in a
+> future minor release.
+
+```ts
+renderMapAsync<R>(text: string, fn: RenderMapFn<Entity, R>, opts?: AsyncScanOptions): Promise<(string | R)[]>
+```
+
+Async version of `.renderMap()`.
+
+### `AsyncScanOptions`
+
+```ts
+interface AsyncScanOptions {
+  signal?: AbortSignal; // cancel the scan
+  yieldEvery?: number; // default: 512
+}
+```
 
 ### `PIIParsers`
 
