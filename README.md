@@ -161,7 +161,7 @@ Use `.redact()` to replace matched entity spans with a mask character:
 ```ts
 import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
 
-// Redact all PII (email, phone, IP, SSN, credit card, UUID, API key)
+// Redact all PII (email, phone, IP, SSN, credit card, UUID, API key, IBAN, MAC, JWT)
 Duckling(PIIParsers).redact(
   "Patient email: john.doe@clinic.org, SSN 078-05-1120, phone +14155552671",
 );
@@ -517,6 +517,9 @@ const PIIParsers: [
   CreditCardParser,
   UUIDParser,
   ApiKeyParser,
+  IBANParser,
+  MACAddressParser,
+  JWTParser,
 ];
 ```
 
@@ -565,8 +568,8 @@ Union of all 18 built-in entity types. This is the return element type of
 
 ### `PIIEntity`
 
-Union of the 7 PII entity types:
-`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity`.
+Union of the 10 PII entity types:
+`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity`.
 
 ## Caveats
 
