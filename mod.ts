@@ -39,6 +39,7 @@ import {
   CryptoAddress,
   type CryptoAddressEntity,
 } from "./src/CryptoAddress.ts";
+import { BIC, type BICEntity } from "./src/BIC.ts";
 
 /**
  * Union of all entity types produced by the built-in parsers.
@@ -66,7 +67,8 @@ export type AnyEntity =
   | IBANEntity
   | MACAddressEntity
   | JWTEntity
-  | CryptoAddressEntity;
+  | CryptoAddressEntity
+  | BICEntity;
 
 const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   Range.parser,
@@ -88,6 +90,7 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
   MACAddress.parser,
   JWT.parser,
   CryptoAddress.parser,
+  BIC.parser,
 ];
 
 /**
@@ -108,7 +111,8 @@ export type PIIEntity =
   | IBANEntity
   | MACAddressEntity
   | JWTEntity
-  | CryptoAddressEntity;
+  | CryptoAddressEntity
+  | BICEntity;
 
 /**
  * Pre-built parser tuple targeting PII entities.
@@ -136,6 +140,7 @@ export const PIIParsers: ParserTuple<
     MACAddressEntity,
     JWTEntity,
     CryptoAddressEntity,
+    BICEntity,
   ]
 > = [
   Email.parser,
@@ -149,6 +154,7 @@ export const PIIParsers: ParserTuple<
   MACAddress.parser,
   JWT.parser,
   CryptoAddress.parser,
+  BIC.parser,
 ];
 
 type NonEmptyArray<T> = [T, ...T[]];
@@ -515,3 +521,4 @@ export * from "./src/IBAN.ts";
 export * from "./src/MACAddress.ts";
 export * from "./src/JWT.ts";
 export * from "./src/CryptoAddress.ts";
+export * from "./src/BIC.ts";

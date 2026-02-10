@@ -110,7 +110,7 @@ npx jsr add @claudiu-ceia/ts-duckling
 
 ### Extract entities
 
-Call `Duckling()` with no arguments to use **all 19 built-in parsers**:
+Call `Duckling()` with no arguments to use **all 20 built-in parsers**:
 
 ```ts
 import { Duckling } from "@claudiu-ceia/ts-duckling";
@@ -161,7 +161,7 @@ Use `.redact()` to replace matched entity spans with a mask character:
 ```ts
 import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
 
-// Redact all PII (email, phone, IP, SSN, credit card, UUID, API key, IBAN, MAC, JWT)
+// Redact all PII (email, phone, IP, SSN, credit card, UUID, API key, IBAN, MAC, JWT, BIC)
 Duckling(PIIParsers).redact(
   "Patient email: john.doe@clinic.org, SSN 078-05-1120, phone +14155552671",
 );
@@ -391,6 +391,7 @@ Available via `PIIParsers` for targeted redaction with
 | **MAC address** | `mac_address`    | `00:1A:2B:3C:4D:5E`, `001A.2B3C.4D5E`                   |
 | **JWT**         | `jwt`            | `eyJhbGciOiJIUzI1NiIs…`                                 |
 | **Crypto**      | `crypto_address` | `0x742d35Cc…f2bD18`, `bc1qar0srrr…`, `1BvBMSEY…`        |
+| **BIC/SWIFT**   | `bic`            | `DEUTDEFF`, `BOFAUS3NXXX`, `COBADEFF100`                 |
 
 ## API reference
 
@@ -417,7 +418,7 @@ function Duckling<T>(parsers: ParserTuple<T>): {
 };
 ```
 
-Creates an extractor/renderer/redactor. Without arguments, uses all 19 built-in
+Creates an extractor/renderer/redactor. Without arguments, uses all 20 built-in
 parsers and returns `AnyEntity[]`. When given an explicit parser array, the
 return type narrows to the union of those entity types.
 
@@ -523,6 +524,7 @@ const PIIParsers: [
   MACAddressParser,
   JWTParser,
   CryptoAddressParser,
+  BICParser,
 ];
 ```
 
@@ -566,13 +568,13 @@ replace the span.
 
 ### `AnyEntity`
 
-Union of all 19 built-in entity types. This is the return element type of
+Union of all 20 built-in entity types. This is the return element type of
 `Duckling().extract(...)`.
 
 ### `PIIEntity`
 
-Union of the 11 PII entity types:
-`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity | CryptoAddressEntity`.
+Union of the 12 PII entity types:
+`EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity | CryptoAddressEntity | BICEntity`.
 
 ## Caveats
 
