@@ -13,7 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine@^0.2.8",
-    "@claudiu-ceia/ts-duckling": "npm:@jsr/claudiu-ceia__ts-duckling@^0.3.1",
+    "@claudiu-ceia/ts-duckling": "npm:@jsr/claudiu-ceia__ts-duckling@^0.3.2",
     "@mozilla/readability": "^0.6.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
