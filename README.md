@@ -369,7 +369,7 @@ const entities = Duckling([Email.parser, Hashtag.parser]).extract(
 | **Temperature** | `temperature` | `72°F`, `20 celsius`, `-5°C`                             |
 | **Quantity**    | `quantity`    | `5 kg`, `100 miles`, `3,500.00`                          |
 | **Location**    | `location`    | `United States`, `Germany`, `Japan`                      |
-| **URL**         | `url`         | `https://example.com/path?q=1`                           |
+| **URL**         | `url`         | `https://example.com/path?q=1`, `docs.example.org`       |
 | **Institution** | `institution` | `University of Oxford`, `New York City Hall`             |
 | **Language**    | `language`    | `English`, `Japanese`, `Portuguese`                      |
 

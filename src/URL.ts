@@ -46,6 +46,7 @@ type URLLanguage = {
   Suffix: Parser<string>;
   Domain: Parser<string>;
   Full: Parser<URLEntity>;
+  Bare: Parser<URLEntity>;
   parser: Parser<URLEntity>;
 };
 
@@ -108,7 +109,26 @@ export const URL: URLLanguage = createLanguage<URLLanguage>({
         ),
     );
   },
+  Bare: (s): Parser<URLEntity> => {
+    return map(
+      seq(
+        s.Domain,
+        optional(seq(str(":"), s.Port)),
+        optional(s.Suffix),
+      ),
+      ([domain, maybePort, maybeSuffix], b, a) =>
+        url(
+          {
+            url: `${domain}${
+              maybePort ? `:${maybePort[1]}` : ""
+            }${maybeSuffix ?? ""}`,
+          },
+          b,
+          a,
+        ),
+    );
+  },
   parser: (s): Parser<URLEntity> => {
-    return dot(any(s.Full));
+    return dot(any(s.Full, s.Bare));
   },
 });

@@ -86,3 +86,55 @@ Deno.test("URL with query params (Wikipedia create account)", () => {
     "https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Master+Juba",
   );
 });
+
+Deno.test("URL bare domain", () => {
+  const res = Duckling().extract("Visit google.com for more");
+
+  assertEquals(res, [
+    {
+      start: 6,
+      end: 16,
+      kind: "url",
+      text: "google.com",
+      value: { url: "google.com" },
+    },
+  ]);
+});
+
+Deno.test("URL bare domain with subdomain", () => {
+  const res = Duckling().extract("Check docs.example.org please");
+
+  assertEquals(res, [
+    {
+      start: 6,
+      end: 22,
+      kind: "url",
+      text: "docs.example.org",
+      value: { url: "docs.example.org" },
+    },
+  ]);
+});
+
+Deno.test("URL bare domain with path", () => {
+  const res = Duckling().extract("See example.com/about for info");
+
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "example.com/about");
+  assertEquals(res[0].value, { url: "example.com/about" });
+});
+
+Deno.test("URL bare domain with port", () => {
+  const res = Duckling().extract("Running at localhost.com:3000 now");
+
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "localhost.com:3000");
+  assertEquals(res[0].value, { url: "localhost.com:3000" });
+});
+
+Deno.test("URL prefers full URL over bare domain", () => {
+  const res = Duckling().extract("Go to https://example.com/path please");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "https://example.com/path");
+  assertEquals(res[0].value, { url: "https://example.com/path" });
+});
