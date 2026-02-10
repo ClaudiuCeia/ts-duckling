@@ -18,6 +18,7 @@ import {
 import type { Parser } from "@claudiu-ceia/combine";
 import { __, dot, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
+import { safe } from "./guard.ts";
 import type { Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
@@ -376,7 +377,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
     return any(str("/"), str(" "), str("-"), str("."));
   },
   PartialDateMonthYear(s) {
-    return map(
+    return safe(map(
       any(
         seq(s.NumericMonth, s.DateSeparator, s.Year),
         seq(s.LiteralMonth, s.DateSeparator, s.Year),
@@ -393,7 +394,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
           a,
         );
       },
-    );
+    ), "valid date");
   },
   QualifiedDay(s) {
     return map(
@@ -434,7 +435,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
     );
   },
   PartialDateDayMonth(s) {
-    return map(
+    return safe(map(
       seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth),
       ([day, _of, month], b, a) => {
         const year = new Date().getFullYear();
@@ -447,19 +448,19 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
           a,
         );
       },
-    );
+    ), "valid date");
   },
   FullDate(s) {
     return any(
-      map(
+      safe(map(
         seq(s.PartialDateDayMonth, space(), s.Year),
         ([partialDayMonth, _sp, year], b, a) => {
           const original = partialDayMonth.value.when;
           if (typeof original !== "string") {
             throw new Error(`
-                  Unexpected partial date match:
-                  ${JSON.stringify(partialDayMonth)}
-                `);
+              Unexpected partial date match:
+              ${JSON.stringify(partialDayMonth)}
+            `);
           }
 
           const date = new Date(original);
@@ -467,8 +468,8 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
 
           return time({ when: date.toISOString(), grain: "day" }, b, a);
         },
-      ),
-      map(
+      ), "valid date"),
+      safe(map(
         any(
           seq(
             s.Day,
@@ -509,7 +510,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
             a,
           );
         },
-      ),
+      ), "valid date"),
     );
   },
   PartialDateMonthYearEra(s) {
@@ -581,7 +582,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
         s.GrainQuantity,
         s.UnspecifiedGrainAmount,
         s.YearEra,
-        map(s.LiteralMonth, (month, b, a) => {
+        safe(map(s.LiteralMonth, (month, b, a) => {
           const year = new Date().getFullYear();
           return time(
             {
@@ -591,7 +592,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
             b,
             a,
           );
-        }),
+        }), "valid date"),
       ),
     );
   },
