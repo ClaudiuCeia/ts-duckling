@@ -65,6 +65,7 @@ await build({
   postBuild() {
     Deno.copyFileSync("README.md", "npm/README.md");
     Deno.copyFileSync("LICENSE", "npm/LICENSE");
+    Deno.copyFileSync("THIRD_PARTY_NOTICES.md", "npm/THIRD_PARTY_NOTICES.md");
     Deno.writeTextFileSync(
       "npm/.npmignore",
       [

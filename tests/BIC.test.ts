@@ -55,6 +55,11 @@ Deno.test("BIC invalid country rejected", () => {
   assertEquals(res.length, 0);
 });
 
+Deno.test("BIC rejects CLDR regions outside ISO 3166-1", () => {
+  const res = Duckling([BIC.parser]).extract("code AAAAEUBB ok");
+  assertEquals(res.length, 0);
+});
+
 Deno.test("BIC too short rejected (7 chars)", () => {
   const res = Duckling([BIC.parser]).extract("code DEUTDEF ok");
   assertEquals(res.length, 0);

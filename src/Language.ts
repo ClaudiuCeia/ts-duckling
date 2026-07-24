@@ -6,13 +6,9 @@ import languages from "@data/languages-en" with { type: "json" };
 import { fuzzyCase } from "./parsers.ts";
 
 type CldrLanguages = {
-  main: {
-    en: {
-      localeDisplayNames: {
-        languages: Record<string, string>;
-      };
-    };
-  };
+  names: Record<string, string>;
+  aliases: Record<string, string[]>;
+  compatibility: Record<string, string[]>;
 };
 
 const cldr = languages as CldrLanguages;
@@ -49,13 +45,18 @@ type LanguageLanguage = {
  */
 export const Language: LanguageLanguage = createLanguage<LanguageLanguage>({
   Language: () => {
-    const langs = cldr.main.en.localeDisplayNames.languages;
     const lang = (code: string, name: string) =>
       map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
+    const names = Object.entries(cldr.names).flatMap(([code, name]) => [
+      [code, name] as const,
+      ...(cldr.aliases[code] ?? []).map((alias) => [code, alias] as const),
+    ]).concat(
+      Object.entries(cldr.compatibility).flatMap(([code, aliases]) =>
+        aliases.map((alias) => [code, alias] as const)
+      ),
+    ).sort(([, a], [, b]) => b.length - a.length || a.localeCompare(b));
 
-    return any(
-      ...Object.entries(langs).map(([code, name]) => lang(code, name)),
-    );
+    return any(...names.map(([code, name]) => lang(code, name)));
   },
   parser: (s) => dot(any(s.Language)),
 });

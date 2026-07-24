@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling } from "../mod.ts";
+import { Duckling, Location } from "../mod.ts";
 
 Deno.test("Location", () => {
   const res = Duckling().extract(`
@@ -79,4 +79,26 @@ Deno.test("Location", () => {
       },
     },
   ]);
+});
+
+Deno.test("Location recognizes CLDR canonical and alternate territory names", () => {
+  const res = Duckling([Location.parser]).extract(
+    "Türkiye, Turkey, Ivory Coast, Czech Republic, and Falkland Islands (Islas Malvinas)",
+  );
+
+  assertEquals(res.map((entity) => entity.value.place), [
+    "Türkiye",
+    "Turkey",
+    "Ivory Coast",
+    "Czech Republic",
+    "Falkland Islands (Islas Malvinas)",
+  ]);
+});
+
+Deno.test("Location excludes CLDR regions and ambiguous short aliases", () => {
+  const res = Duckling([Location.parser]).extract(
+    "Contact us in the European Union or World region",
+  );
+
+  assertEquals(res, []);
 });

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling } from "../mod.ts";
+import { Duckling, Language } from "../mod.ts";
 
 Deno.test("Language", () => {
   const res = Duckling().extract(`
@@ -67,5 +67,33 @@ Deno.test("Language", () => {
         name: "English",
       },
     },
+  ]);
+});
+
+Deno.test("Language maps CLDR alternate names to canonical codes", () => {
+  const res = Duckling([Language.parser]).extract(
+    "Azeri, American English, Mandarin Chinese, and Arabic, Najdi",
+  );
+
+  assertEquals(res.map((entity) => entity.value), [
+    { code: "az", name: "Azeri" },
+    { code: "en-US", name: "American English" },
+    { code: "zh", name: "Mandarin Chinese" },
+    { code: "ars", name: "Arabic, Najdi" },
+  ]);
+});
+
+Deno.test("Language preserves names shipped by the previous CLDR dataset", () => {
+  const res = Duckling([Language.parser]).extract(
+    "Woods Cree, Goan Konkani, Northern Haida, Eastern Canadian Inuktitut, Eastern Ojibwa, and Tokelau",
+  );
+
+  assertEquals(res.map((entity) => entity.value), [
+    { code: "cwd", name: "Woods Cree" },
+    { code: "gom", name: "Goan Konkani" },
+    { code: "hdn", name: "Northern Haida" },
+    { code: "ike", name: "Eastern Canadian Inuktitut" },
+    { code: "ojg", name: "Eastern Ojibwa" },
+    { code: "tkl", name: "Tokelau" },
   ]);
 });

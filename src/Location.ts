@@ -5,7 +5,12 @@ import { ent, type Entity } from "./Entity.ts";
 import countries from "@data/countries-en-us" with { type: "json" };
 import { fuzzyCase } from "./parsers.ts";
 
-const countriesByCode = countries as Record<string, string>;
+type CldrCountries = {
+  names: Record<string, string>;
+  aliases: Record<string, string[]>;
+};
+
+const cldr = countries as CldrCountries;
 
 /**
  * Location entity (currently countries only, dataset-backed).
@@ -38,9 +43,17 @@ type LocationLanguage = {
  * Location parser language (countries list).
  */
 export const Location: LocationLanguage = createLanguage<LocationLanguage>({
-  Country: () =>
-    map(
-      any(...Object.values(countriesByCode).map(fuzzyCase)),
+  Country: () => {
+    const names = Object.entries(cldr.names).flatMap(([code, name]) => [
+      name,
+      ...(cldr.aliases[code] ?? []),
+    ]);
+    const longestFirst = [...new Set(names)].sort((a, b) =>
+      b.length - a.length || a.localeCompare(b)
+    );
+
+    return map(
+      any(...longestFirst.map(fuzzyCase)),
       (country, b, a) =>
         location(
           {
@@ -50,6 +63,7 @@ export const Location: LocationLanguage = createLanguage<LocationLanguage>({
           b,
           a,
         ),
-    ),
+    );
+  },
   parser: (s) => dot(any(s.Country)),
 });

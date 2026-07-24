@@ -12,7 +12,9 @@ import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 import countries from "@data/countries-en-us" with { type: "json" };
 
-const countryCodes = new Set(Object.keys(countries as Record<string, string>));
+const countryCodes = new Set(
+  Object.keys((countries as { names: Record<string, string> }).names),
+);
 
 /**
  * BIC/SWIFT entity (Business Identifier Code — ISO 9362).
