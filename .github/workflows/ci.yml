@@ -9,10 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      # Time parsing currently depends on local timezone (Date parsing). The test
-      # suite expects EET/EEST semantics (UTC+2/UTC+3).
-      TZ: Europe/Bucharest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

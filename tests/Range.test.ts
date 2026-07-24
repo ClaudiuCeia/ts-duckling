@@ -24,7 +24,7 @@ Deno.test("Time range", () => {
             value: {
               era: "CE",
               grain: "day",
-              when: "2022-06-04T21:00:00.000Z",
+              when: "2022-06-05T00:00:00.000Z",
             },
           },
           min: {
@@ -35,7 +35,7 @@ Deno.test("Time range", () => {
             value: {
               era: "CE",
               grain: "day",
-              when: "2022-05-31T21:00:00.000Z",
+              when: "2022-06-01T00:00:00.000Z",
             },
           },
         },

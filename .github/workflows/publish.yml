@@ -8,9 +8,6 @@ on:
 jobs:
   publish-jsr:
     runs-on: ubuntu-latest
-    env:
-      # Keep tests deterministic (see CI workflow).
-      TZ: Europe/Bucharest
 
     permissions:
       contents: read

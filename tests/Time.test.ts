@@ -215,8 +215,8 @@ Deno.test("PartialDateMonthYear numeric", () => {
       text: "12/2022",
       value: {
         era: "CE",
-        grain: "day",
-        when: "2022-01-11T22:00:00.000Z",
+        grain: "month",
+        when: "2022-12-01T00:00:00.000Z",
       },
     },
   ]);
@@ -246,8 +246,8 @@ Deno.test("PartialDateMonthYear literal", () => {
       text: "June 2022",
       value: {
         era: "CE",
-        grain: "day",
-        when: "2022-05-31T21:00:00.000Z",
+        grain: "month",
+        when: "2022-06-01T00:00:00.000Z",
       },
     },
   ]);
@@ -269,7 +269,7 @@ Deno.test("PartialDateDayMonth literal", () => {
         value: {
           era: "CE",
           grain: "day",
-          when: "2022-06-11T21:00:00.000Z",
+          when: "2022-06-12T00:00:00.000Z",
         },
       },
     ]);
@@ -292,7 +292,7 @@ Deno.test("FullDate", () => {
       value: {
         era: "CE",
         grain: "day",
-        when: "2023-05-31T21:00:00.000Z",
+        when: "2023-06-01T00:00:00.000Z",
       },
     },
   ]);
@@ -309,8 +309,8 @@ Deno.test("False positive time", () => {
       text: "6/2022",
       value: {
         era: "CE",
-        grain: "day",
-        when: "2022-01-05T22:00:00.000Z",
+        grain: "month",
+        when: "2022-06-01T00:00:00.000Z",
       },
     },
   ]);
@@ -454,7 +454,7 @@ Deno.test("Literal month", () => {
         value: {
           era: "CE",
           grain: "month",
-          when: "2022-06-30T21:00:00.000Z",
+          when: "2022-07-01T00:00:00.000Z",
         },
       },
       {
@@ -465,7 +465,7 @@ Deno.test("Literal month", () => {
         value: {
           era: "CE",
           grain: "month",
-          when: "2022-07-31T21:00:00.000Z",
+          when: "2022-08-01T00:00:00.000Z",
         },
       },
     ]);
@@ -492,31 +492,77 @@ Deno.test("Circa time", () => {
   ]);
 });
 Deno.test("FullDate: invalid date backtracks instead of throwing", () => {
-  // 31st of February is not a real date — should not throw
   const res = Duckling([Time.parser]).extract(
     "On 31/02/2024 something happened",
   );
-  // Should not contain an entity for this invalid date
-  for (const entity of res) {
-    if (entity.kind === "time" && typeof entity.value.when === "string") {
-      assertEquals(
-        entity.value.when !== "Invalid Date",
-        true,
-        `Should not produce Invalid Date, got entity: ${
-          JSON.stringify(entity)
-        }`,
-      );
-    }
-  }
+
+  assertEquals(res, []);
 });
 
 Deno.test("FullDate: valid date still parses correctly", () => {
   const res = Duckling([Time.parser]).extract("On 15/06/2024 we met.");
-  const dates = res.filter((e) => e.kind === "time");
-  assertEquals(dates.length >= 1, true, "Should find at least one time entity");
-  const date = dates[0];
-  assertEquals(typeof date.value.when, "string");
-  assertEquals((date.value.when as string).includes("Invalid"), false);
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "15/06/2024");
+  assertEquals(res[0].value.when, "2024-06-15T00:00:00.000Z");
+});
+
+Deno.test("calendar dates validate leap days", () => {
+  const valid = [
+    "29/02/2024",
+    "29 February 2024",
+    "February 29, 2024",
+    "2024-02-29",
+  ];
+  for (const input of valid) {
+    const res = Duckling([Time.parser]).extract(input);
+    assertEquals(res.length, 1, input);
+    assertEquals(res[0].value.when, "2024-02-29T00:00:00.000Z", input);
+  }
+
+  assertEquals(Time.FullDate({ text: "29/02/2023", index: 0 }).success, false);
+  assertEquals(
+    Time.FullDate({ text: "29 February 2023", index: 0 }).success,
+    false,
+  );
+  assertEquals(
+    Time.LiteralMonthDayYear({ text: "February 29, 2023", index: 0 })
+      .success,
+    false,
+  );
+  assertEquals(Time.ISODate({ text: "2023-02-29", index: 0 }).success, false);
+});
+
+Deno.test("calendar date productions reject rollover dates", () => {
+  assertEquals(Time.FullDate({ text: "31/04/2024", index: 0 }).success, false);
+  assertEquals(
+    Time.FullDate({ text: "31 April 2024", index: 0 }).success,
+    false,
+  );
+  assertEquals(
+    Time.LiteralMonthDayYear({ text: "April 31, 2024", index: 0 }).success,
+    false,
+  );
+  assertEquals(Time.ISODate({ text: "2024-04-31", index: 0 }).success, false);
+});
+
+Deno.test("FullDate preserves numeric ambiguity ordering", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Dates: 12/11/2024 and 12/31/2024.",
+  );
+
+  assertEquals(
+    res.map((entity) => entity.value.when),
+    ["2024-11-12T00:00:00.000Z", "2024-12-31T00:00:00.000Z"],
+  );
+});
+
+Deno.test("numeric dates can follow sentence punctuation", () => {
+  const res = Duckling([Time.parser]).extract("Published.12/2022");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "12/2022");
+  assertEquals(res[0].value.when, "2022-12-01T00:00:00.000Z");
 });
 
 Deno.test("FullDate: does not crash on nonsense date-like input", () => {
@@ -575,6 +621,15 @@ Deno.test("ISODate: multiple YYYY-MM-DD in sentence", () => {
   assertEquals(res[1].value.when, "2060-01-01T00:00:00.000Z");
 });
 
+Deno.test("ISODate: years below 100 retain their calendar year", () => {
+  const res = Duckling([Time.parser]).extract("0001-01-01 and 0099-12-31");
+
+  assertEquals(
+    res.map((entity) => entity.value.when),
+    ["0001-01-01T00:00:00.000Z", "0099-12-31T00:00:00.000Z"],
+  );
+});
+
 // ── ISODateTime (with offset / without Z) ──────────────────────────
 
 Deno.test("ISODateTime: with positive offset", () => {
@@ -598,13 +653,14 @@ Deno.test("ISODateTime: with negative offset", () => {
   assertEquals(res[0].value.when, "2024-05-18T15:30:00.000Z");
 });
 
-Deno.test("ISODateTime: without timezone (local time)", () => {
+Deno.test("ISODateTime: without timezone is UTC", () => {
   const res = Duckling([Time.parser]).extract(
     "Timestamp: 2024-05-18T10:30:00.",
   );
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30:00");
+  assertEquals(res[0].value.when, "2024-05-18T10:30:00.000Z");
   assertEquals(res[0].value.grain, "second");
 });
 
@@ -615,6 +671,7 @@ Deno.test("ISODateTime: without seconds", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30");
+  assertEquals(res[0].value.when, "2024-05-18T10:30:00.000Z");
   assertEquals(res[0].value.grain, "second");
 });
 
@@ -625,6 +682,7 @@ Deno.test("LiteralMonthDayYear: with comma", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "July 13, 2016");
+  assertEquals(res[0].value.when, "2016-07-13T00:00:00.000Z");
   assertEquals(res[0].value.grain, "day");
 });
 
@@ -633,6 +691,7 @@ Deno.test("LiteralMonthDayYear: without comma", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "March 3 1990");
+  assertEquals(res[0].value.when, "1990-03-03T00:00:00.000Z");
   assertEquals(res[0].value.grain, "day");
 });
 

@@ -5,9 +5,11 @@ import {
   digit,
   either,
   eof,
+  failure,
   map,
   minus,
   optional,
+  type Parser,
   peek,
   regex,
   repeat,
@@ -90,6 +92,73 @@ export const time = (
   );
 };
 
+const literalMonths: Record<string, number> = {
+  January: 1,
+  February: 2,
+  March: 3,
+  April: 4,
+  May: 5,
+  June: 6,
+  July: 7,
+  August: 8,
+  September: 9,
+  October: 10,
+  November: 11,
+  December: 12,
+};
+
+const monthNumber = (month: number | string): number => {
+  const number = typeof month === "number" ? month : literalMonths[month];
+  if (number === undefined) throw new RangeError("invalid month");
+  return number;
+};
+
+const utcCalendarDate = (
+  year: number,
+  month: number | string,
+  day: number,
+): string => {
+  const numericMonth = monthNumber(month);
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, numericMonth - 1, day);
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== numericMonth - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new RangeError("invalid calendar date");
+  }
+
+  return date.toISOString();
+};
+
+const isoDateTime = (raw: string): string => {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(raw);
+  if (!parts) throw new RangeError("invalid ISO datetime");
+  utcCalendarDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+
+  const date = new Date(
+    /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw) ? raw : `${raw}Z`,
+  );
+  if (Number.isNaN(date.getTime())) {
+    throw new RangeError("invalid ISO datetime");
+  }
+  return date.toISOString();
+};
+
+const numericDateStart = <T>(parser: Parser<T>): Parser<T> => (ctx) => {
+  const previous = ctx.text[ctx.index - 1];
+  const beforePrevious = ctx.text[ctx.index - 2];
+  const continuesDate = previous && (
+    /\d/.test(previous) ||
+    (/[\/.-]/.test(previous) && Boolean(beforePrevious) &&
+      /\d/.test(beforePrevious))
+  );
+  return continuesDate ? failure(ctx, "start of numeric date") : parser(ctx);
+};
+
 type TimeOutputs = {
   ISODateTimeZ: TimeEntity;
   ISODateTime: TimeEntity;
@@ -126,20 +195,15 @@ type TimeOutputs = {
 export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
   ISODateTimeZ(_s) {
     // Example: 2004-07-12T22:18:09Z
-    // Keep it strict and UTC-only for now.
-    return map(
-      regex(
-        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i,
-        "iso-datetime-z",
+    return safe(
+      map(
+        regex(
+          /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i,
+          "iso-datetime-z",
+        ),
+        (raw, b, a) => time({ when: isoDateTime(raw), grain: "second" }, b, a),
       ),
-      (raw, b, a) => {
-        const d = new Date(raw);
-        if (Number.isNaN(d.getTime())) {
-          // Should be unreachable given the regex, but keep it defensive.
-          return time({ when: raw, grain: "second" }, b, a);
-        }
-        return time({ when: d.toISOString(), grain: "second" }, b, a);
-      },
+      "valid date",
     );
   },
   ISODateTime(_s) {
@@ -151,13 +215,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?(?:[+-]\d{2}:\d{2})?/,
           "iso-datetime",
         ),
-        (raw, b, a) => {
-          const d = new Date(raw);
-          if (Number.isNaN(d.getTime())) {
-            return time({ when: raw, grain: "second" }, b, a);
-          }
-          return time({ when: d.toISOString(), grain: "second" }, b, a);
-        },
+        (raw, b, a) => time({ when: isoDateTime(raw), grain: "second" }, b, a),
       ),
       "valid date",
     );
@@ -414,16 +472,16 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     return safe(
       map(
         any(
-          seq(s.NumericMonth, s.DateSeparator, s.Year),
+          numericDateStart(
+            seq(s.NumericMonth, s.DateSeparator, s.Year),
+          ),
           seq(s.LiteralMonth, s.DateSeparator, s.Year),
         ),
-        ([month, separator, year], b, a) => {
+        ([month, , year], b, a) => {
           return time(
             {
-              when: new Date(
-                `01${separator}${month}${separator}${year}`,
-              ).toISOString(),
-              grain: "day",
+              when: utcCalendarDate(year, month, 1),
+              grain: "month",
             },
             b,
             a,
@@ -508,10 +566,10 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       map(
         seq(s.QualifiedDay, optional(__(str("of"))), s.LiteralMonth),
         ([day, _of, month], b, a) => {
-          const year = new Date().getFullYear();
+          const year = new Date().getUTCFullYear();
           return time(
             {
-              when: new Date(`${day} ${month} ${year}`).toISOString(),
+              when: utcCalendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -534,11 +592,9 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           s.Day,
         ),
         ([year, , month, , day], b, a) => {
-          const pad = (n: number) => String(n).padStart(2, "0");
-          const iso = `${year}-${pad(month)}-${pad(day)}T00:00:00.000Z`;
           return time(
             {
-              when: new Date(iso).toISOString(),
+              when: utcCalendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -564,7 +620,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         ([month, , day, , , year], b, a) => {
           return time(
             {
-              when: new Date(`${day} ${month} ${year}`).toISOString(),
+              when: utcCalendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -622,60 +678,74 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     return any(
       safe(
         map(
-          seq(s.PartialDateDayMonth, space(), s.Year),
-          ([partialDayMonth, _sp, year], b, a) => {
-            const original = partialDayMonth.value.when;
-            if (typeof original !== "string") {
-              throw new Error(`
-              Unexpected partial date match:
-              ${JSON.stringify(partialDayMonth)}
-            `);
-            }
-
-            const date = new Date(original);
-            date.setFullYear(year);
-
-            return time({ when: date.toISOString(), grain: "day" }, b, a);
-          },
+          seq(
+            s.QualifiedDay,
+            optional(__(str("of"))),
+            s.LiteralMonth,
+            space(),
+            s.Year,
+          ),
+          ([day, , month, , year], b, a) =>
+            time(
+              { when: utcCalendarDate(year, month, day), grain: "day" },
+              b,
+              a,
+            ),
         ),
         "valid date",
       ),
       safe(
         map(
           any(
-            seq(
-              s.Day,
-              s.DateSeparator,
-              s.NumericMonth,
-              s.DateSeparator,
-              s.Year,
+            numericDateStart(
+              map(
+                seq(
+                  s.Day,
+                  s.DateSeparator,
+                  s.NumericMonth,
+                  s.DateSeparator,
+                  s.Year,
+                ),
+                ([day, , month, , year]) => ({ day, month, year }),
+              ),
             ),
-            seq(
-              s.Day,
-              s.DateSeparator,
-              s.LiteralMonth,
-              s.DateSeparator,
-              s.Year,
+            map(
+              seq(
+                s.Day,
+                s.DateSeparator,
+                s.LiteralMonth,
+                s.DateSeparator,
+                s.Year,
+              ),
+              ([day, , month, , year]) => ({ day, month, year }),
             ),
-            seq(
-              s.NumericMonth,
-              s.DateSeparator,
-              s.Day,
-              s.DateSeparator,
-              s.Year,
+            numericDateStart(
+              map(
+                seq(
+                  s.NumericMonth,
+                  s.DateSeparator,
+                  s.Day,
+                  s.DateSeparator,
+                  s.Year,
+                ),
+                ([month, , day, , year]) => ({ day, month, year }),
+              ),
             ),
-            seq(
-              s.LiteralMonth,
-              s.DateSeparator,
-              s.Day,
-              s.DateSeparator,
-              s.Year,
+            map(
+              seq(
+                s.LiteralMonth,
+                s.DateSeparator,
+                s.Day,
+                s.DateSeparator,
+                s.Year,
+              ),
+              ([month, , day, , year]) => ({ day, month, year }),
             ),
           ),
-          ([first, s1, mid, s2, year], b, a) => {
+          ({ day, month, year }, b, a) => {
             return time(
               {
-                when: new Date(`${first}${s1}${mid}${s2}${year}`).toISOString(),
+                when: utcCalendarDate(year, month, day),
                 grain: "day",
               },
               b,
@@ -763,10 +833,10 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         s.YearEra,
         safe(
           map(s.LiteralMonth, (month, b, a) => {
-            const year = new Date().getFullYear();
+            const year = new Date().getUTCFullYear();
             return time(
               {
-                when: new Date(`01 ${month} ${year}`).toISOString(),
+                when: utcCalendarDate(year, month, 1),
                 grain: "month",
               },
               b,
