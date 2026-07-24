@@ -30,7 +30,7 @@
     "check": "deno fmt --check && deno lint && deno check mod.ts && deno test",
     "build:npm": "deno run -A scripts/build_npm.ts",
     "publish:npm": "deno task build:npm && npm publish ./npm --access public",
-    "update:data": "deno run --allow-net=cdn.jsdelivr.net --allow-write=data scripts/update_data.ts",
+    "update:data": "deno run --allow-net=cdn.jsdelivr.net,data.iana.org --allow-write=data scripts/update_data.ts",
     "test": "deno test",
     "hooks:install": "ln -sf ../../scripts/pre-commit .git/hooks/pre-commit && chmod +x scripts/pre-commit",
     "hooks:uninstall": "rm -f .git/hooks/pre-commit"

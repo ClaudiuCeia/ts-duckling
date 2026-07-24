@@ -1,6 +1,8 @@
 // Fetch and vendor external JSON datasets so the library doesn't depend on
 // network access at runtime.
 
+import { domainToUnicode } from "node:url";
+
 const DATA_DIR = new URL("../data/", import.meta.url);
 const CLDR_RELEASE = "48.2.0";
 const CLDR_BASE = `https://cdn.jsdelivr.net/npm`;
@@ -9,8 +11,7 @@ const CLDR_INPUTS = {
   territories: `cldr-localenames-full@${CLDR_RELEASE}/main/en/territories.json`,
   codeMappings: `cldr-core@${CLDR_RELEASE}/supplemental/codeMappings.json`,
 } as const;
-const TLD_SOURCE =
-  "https://cdn.jsdelivr.net/gh/incognico/list-of-top-level-domains@8cfd3dc8b8e605fc1cb2ba7d5bbf6abf19226c5f/formats/json/tld-list.json";
+const IANA_TLD_SOURCE = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt";
 const LANGUAGE_COMPATIBILITY: Record<string, string[]> = {
   cwd: ["Woods Cree"],
   gom: ["Goan Konkani"],
@@ -34,12 +35,28 @@ type CldrData = {
   aliases: Record<string, string[]>;
 };
 
+type TldData = {
+  _meta: {
+    source: typeof IANA_TLD_SOURCE;
+    version: string;
+  };
+  values: string[];
+};
+
 async function fetchJson(url: string): Promise<unknown> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`fetch ${url} failed: ${res.status} ${res.statusText}`);
   }
   return await res.json();
+}
+
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`fetch ${url} failed: ${res.status} ${res.statusText}`);
+  }
+  return await res.text();
 }
 
 async function writeJson(path: URL, value: unknown) {
@@ -97,6 +114,63 @@ function metadata(cldrVersion: string, inputs: string[]): CldrData["_meta"] {
     cldrVersion,
     locale: "en",
     inputs,
+  };
+}
+
+function parseIanaTlds(text: string): TldData {
+  const lines = text.split(/\r?\n/);
+  const header = lines.shift();
+  const headerMatch = /^# Version (\d{10}), Last Updated (.+ UTC)$/.exec(
+    header ?? "",
+  );
+  if (!headerMatch) {
+    throw new Error(`invalid IANA TLD header: ${String(header)}`);
+  }
+
+  const [, version, lastUpdated] = headerMatch;
+  const versionDate = version.slice(0, 8);
+  const updatedAt = new Date(lastUpdated);
+  const updatedDate = Number.isNaN(updatedAt.valueOf())
+    ? ""
+    : updatedAt.toISOString().slice(0, 10).replaceAll("-", "");
+  if (updatedDate !== versionDate) {
+    throw new Error(
+      `IANA TLD version ${version} does not match Last Updated ${lastUpdated}`,
+    );
+  }
+
+  if (lines.at(-1) === "") lines.pop();
+  const asciiTlds = new Set<string>();
+  for (const line of lines) {
+    if (!/^[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?$/.test(line)) {
+      throw new Error(`invalid IANA TLD label: ${JSON.stringify(line)}`);
+    }
+    const tld = line.toLowerCase();
+    if (asciiTlds.has(tld)) {
+      throw new Error(`duplicate IANA TLD label: ${line}`);
+    }
+    asciiTlds.add(tld);
+  }
+  if (asciiTlds.size < 1_000 || !asciiTlds.has("com")) {
+    throw new Error(`unexpected IANA TLD list with ${asciiTlds.size} labels`);
+  }
+
+  const values = new Set(asciiTlds);
+  for (const tld of asciiTlds) {
+    if (!tld.startsWith("xn--")) continue;
+    const unicode = domainToUnicode(tld).toLowerCase();
+    if (!unicode || unicode === tld || unicode.includes(".")) {
+      throw new Error(`invalid IANA internationalized TLD label: ${tld}`);
+    }
+    values.add(unicode);
+  }
+
+  return {
+    _meta: {
+      source: IANA_TLD_SOURCE,
+      version,
+    },
+    values: [...values].sort(),
   };
 }
 
@@ -225,9 +299,11 @@ if (cldrVersion !== "48") {
   );
 }
 
-// TLDs are not CLDR data. Keep their independent upstream source.
+// TLDs are IANA root-zone registry data, not CLDR data.
 {
-  const tlds = await fetchJson(TLD_SOURCE);
+  const tlds = parseIanaTlds(await fetchText(IANA_TLD_SOURCE));
   await writeJson(new URL("tlds.json", DATA_DIR), tlds);
-  console.log("updated data/tlds.json");
+  console.log(
+    `updated data/tlds.json (IANA ${tlds._meta.version}, ${tlds.values.length} parser labels)`,
+  );
 }

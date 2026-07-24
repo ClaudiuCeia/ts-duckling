@@ -3,6 +3,10 @@
 The generated country and language datasets under `data/` contain transformed
 data from Unicode CLDR 48.2.0.
 
+The generated TLD dataset under `data/` contains transformed public registry
+data from IANA's root-zone TLD list:
+https://data.iana.org/TLD/tlds-alpha-by-domain.txt.
+
 ## Unicode CLDR
 
 UNICODE LICENSE V3

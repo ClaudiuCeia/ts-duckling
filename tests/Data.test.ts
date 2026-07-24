@@ -1,6 +1,7 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import countries from "@data/countries-en-us" with { type: "json" };
 import languages from "@data/languages-en" with { type: "json" };
+import tlds from "@data/tlds" with { type: "json" };
 
 type CldrData = {
   _meta: {
@@ -14,8 +15,17 @@ type CldrData = {
   aliases: Record<string, string[]>;
 };
 
+type TldData = {
+  _meta: {
+    source: string;
+    version: string;
+  };
+  values: string[];
+};
+
 const countryData = countries as CldrData;
 const languageData = languages as CldrData;
+const tldData = tlds as TldData;
 
 Deno.test("CLDR data has pinned provenance and deterministic ordering", () => {
   for (const data of [countryData, languageData]) {
@@ -73,4 +83,21 @@ Deno.test("CLDR language aliases map to canonical codes", () => {
     ),
     true,
   );
+});
+
+Deno.test("IANA TLD data has provenance and deterministic parser values", () => {
+  assertEquals(
+    tldData._meta.source,
+    "https://data.iana.org/TLD/tlds-alpha-by-domain.txt",
+  );
+  assert(/^\d{10}$/.test(tldData._meta.version));
+  assertEquals(tldData.values, tldData.values.toSorted());
+  assertEquals(new Set(tldData.values).size, tldData.values.length);
+  assert(tldData.values.every((value) => value === value.toLowerCase()));
+
+  assert(tldData.values.includes("music"));
+  assert(tldData.values.includes("xn--p1ai"));
+  assert(tldData.values.includes("рф"));
+  assertEquals(tldData.values.includes("active"), false);
+  assertEquals(tldData.values.includes("an"), false);
 });

@@ -19,7 +19,7 @@ import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import tlds from "@data/tlds" with { type: "json" };
 
-const tldList = tlds as string[];
+const tldList = tlds.values;
 
 /**
  * URL entity.

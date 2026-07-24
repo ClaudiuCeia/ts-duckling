@@ -138,3 +138,25 @@ Deno.test("URL prefers full URL over bare domain", () => {
   assertEquals(res[0].text, "https://example.com/path");
   assertEquals(res[0].value, { url: "https://example.com/path" });
 });
+
+Deno.test("URL accepts active TLDs added since the old snapshot", () => {
+  const res = Duckling().extract("radio.music");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "radio.music");
+  assertEquals(res[0].value, { url: "radio.music" });
+});
+
+Deno.test("URL rejects retired and non-root TLDs as bare domains", () => {
+  assertEquals(Duckling().extract("example.active"), []);
+  assertEquals(Duckling().extract("example.an"), []);
+});
+
+Deno.test("URL accepts IDN TLDs in Punycode and Unicode", () => {
+  const res = Duckling().extract("Visit example.xn--p1ai or example.рф");
+
+  assertEquals(res.map(({ text }) => text), [
+    "example.xn--p1ai",
+    "example.рф",
+  ]);
+});
