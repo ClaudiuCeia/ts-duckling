@@ -16,6 +16,7 @@
 <p align="center">
   <a href="https://github.com/ClaudiuCeia/ts-duckling/actions/workflows/ci.yml"><img src="https://github.com/ClaudiuCeia/ts-duckling/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://jsr.io/@claudiu-ceia/ts-duckling"><img src="https://jsr.io/badges/@claudiu-ceia/ts-duckling" alt="JSR"></a>
+  <a href="https://www.npmjs.com/package/@claudiu-ceia/ts-duckling"><img src="https://img.shields.io/npm/v/@claudiu-ceia/ts-duckling" alt="npm"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/ClaudiuCeia/ts-duckling" alt="MIT license"></a>
   <a href="https://claudiuceia.github.io/ts-duckling/"><img src="https://img.shields.io/badge/playground-live%20demo-3b82f6" alt="Playground"></a>
 </p>
@@ -103,7 +104,7 @@ deno add jsr:@claudiu-ceia/ts-duckling
 ### npm
 
 ```sh
-npx jsr add @claudiu-ceia/ts-duckling
+npm install @claudiu-ceia/ts-duckling
 ```
 
 ## Getting started
