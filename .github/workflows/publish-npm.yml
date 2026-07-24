@@ -1,0 +1,53 @@
+name: Publish npm
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify tag matches deno.json version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          deno_version="$(node -p "require('./deno.json').version")"
+          if [[ "${deno_version}" != "${version}" ]]; then
+            echo "Tag '${tag}' does not match deno.json version '${deno_version}'."
+            exit 1
+          fi
+
+      - name: Validate package
+        run: deno task check
+
+      - name: Build npm package
+        run: deno task build:npm
+
+      - name: Publish to npm
+        run: npm publish ./npm --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
