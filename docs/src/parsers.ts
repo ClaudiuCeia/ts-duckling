@@ -1,12 +1,17 @@
 import type { Parser } from "@claudiu-ceia/combine";
 import {
   ApiKey,
+  BIC,
   CreditCard,
+  CryptoAddress,
   Email,
+  IBAN,
   Institution,
   IPAddress,
+  JWT,
   Language,
   Location,
+  MACAddress,
   Phone,
   Quantity,
   Range,
@@ -18,7 +23,7 @@ import {
 } from "@claudiu-ceia/ts-duckling";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const registry: Record<string, Parser<any>> = {
+export const registry = {
   Range: Range.parser,
   Time: Time.parser,
   Temperature: Temperature.parser,
@@ -34,4 +39,11 @@ export const registry: Record<string, Parser<any>> = {
   CreditCard: CreditCard.parser,
   UUID: UUID.parser,
   ApiKey: ApiKey.parser,
-};
+  IBAN: IBAN.parser,
+  MACAddress: MACAddress.parser,
+  JWT: JWT.parser,
+  CryptoAddress: CryptoAddress.parser,
+  BIC: BIC.parser,
+} satisfies Record<string, Parser<any>>;
+
+export type ParserId = keyof typeof registry;

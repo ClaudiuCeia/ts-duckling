@@ -20,7 +20,7 @@ import {
   saveSelection,
 } from "./utils";
 import { loadUrlText } from "./fetch-url";
-import { registry } from "./parsers";
+import { type ParserId, registry } from "./parsers";
 
 export function App() {
   const [selected, setSelected] = useState(() => loadSelection(ALL_IDS));
@@ -62,10 +62,12 @@ export function App() {
 
   // Build renderMapAsync callback that produces highlighted React spans
   const buildSegments = useCallback(
-    async (text: string, allEntities: EntityResult[], ids: string[]) => {
+    async (text: string, allEntities: EntityResult[], ids: ParserId[]) => {
       const parsers = ids.map((id) => registry[id]).filter(Boolean);
+      if (parsers.length === 0) return [text];
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = parsers.length > 0 ? Duckling(parsers as any) : Duckling();
+      const d = Duckling(parsers as any);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mapFn: RenderMapFn<any, ReactNode> = ({

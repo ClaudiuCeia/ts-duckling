@@ -43,11 +43,11 @@ jobs:
             exit 1
           fi
 
-      - name: Test
-        run: deno test
+      - name: Validate release
+        run: deno task check
 
       - name: Publish to JSR
-        run: npx jsr publish
+        run: deno publish
 
   github-release:
     runs-on: ubuntu-latest

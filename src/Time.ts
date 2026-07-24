@@ -235,9 +235,10 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
       ),
       map(fuzzyCase("yesterday"), (_res, b, a) => {
         const now = new Date();
+        now.setDate(now.getDate() - 1);
         return time(
           {
-            when: new Date(now.getDate() - 1).toISOString(),
+            when: now.toISOString(),
             grain: "day",
           },
           b,
@@ -246,9 +247,10 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
       }),
       map(fuzzyCase("tomorrow"), (_res, b, a) => {
         const now = new Date();
+        now.setDate(now.getDate() + 1);
         return time(
           {
-            when: new Date(now.getDate() + 1).toISOString(),
+            when: now.toISOString(),
             grain: "day",
           },
           b,

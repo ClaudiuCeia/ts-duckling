@@ -30,6 +30,16 @@ export function kindClasses(kind: string): string {
       return "bg-green-100 outline-green-200 hover:bg-green-200";
     case "api_key":
       return "bg-pink-100 outline-pink-200 hover:bg-pink-200";
+    case "iban":
+      return "bg-purple-100 outline-purple-200 hover:bg-purple-200";
+    case "mac_address":
+      return "bg-slate-100 outline-slate-200 hover:bg-slate-200";
+    case "jwt":
+      return "bg-yellow-100 outline-yellow-200 hover:bg-yellow-200";
+    case "crypto_address":
+      return "bg-amber-100 outline-amber-200 hover:bg-amber-200";
+    case "bic":
+      return "bg-cyan-100 outline-cyan-200 hover:bg-cyan-200";
     default:
       return "bg-teal-100 outline-teal-200 hover:bg-teal-200";
   }
@@ -47,7 +57,7 @@ export function fmtDuration(ms: number): string {
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
-const STORAGE_KEY = "ts-duckling:docs:selected-parsers:v4";
+const STORAGE_KEY = "ts-duckling:docs:selected-parsers:v5";
 
 export function loadSelection(defaultIds: string[]): Set<string> {
   try {
@@ -55,8 +65,9 @@ export function loadSelection(defaultIds: string[]): Set<string> {
     if (!raw) return new Set(defaultIds);
     const ids = JSON.parse(raw);
     if (!Array.isArray(ids)) return new Set(defaultIds);
-    const s = new Set(ids.filter((x: unknown) => typeof x === "string"));
-    return s.size ? (s as Set<string>) : new Set(defaultIds);
+    return new Set(
+      ids.filter((x: unknown): x is string => typeof x === "string"),
+    );
   } catch {
     return new Set(defaultIds);
   }

@@ -53,12 +53,19 @@ Deno.test("DayOfWeek", () => {
   ]);
 });
 
-Deno.test("Common", () => {
-  const res = Duckling([Time.parser]).extract(
-    "I'm not sure if the event is tomorrow. Or was it yesterday?",
-  );
+Deno.test("Common relative days", () => {
+  const time = new FakeTime(new Date("2024-03-01T12:00:00.000Z"));
+  try {
+    const res = Duckling([Time.parser]).extract("today, yesterday, tomorrow");
 
-  assertEquals(res.length, 2);
+    assertEquals(res.map((entity) => entity.value.when), [
+      "2024-03-01T12:00:00.000Z",
+      "2024-02-29T12:00:00.000Z",
+      "2024-03-02T12:00:00.000Z",
+    ]);
+  } finally {
+    time.restore();
+  }
 });
 
 Deno.test("ISODateTimeZ", () => {

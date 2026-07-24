@@ -1,10 +1,10 @@
 import { type AsyncScanOptions, Duckling } from "@claudiu-ceia/ts-duckling";
 import type { EntityResult } from "./types";
-import { registry } from "./parsers";
+import { type ParserId, registry } from "./parsers";
 
 export interface ExtractRequest {
   text: string;
-  ids: string[];
+  ids: ParserId[];
   maxChars: number;
   signal?: AbortSignal;
 }
@@ -35,7 +35,7 @@ export async function extract(req: ExtractRequest): Promise<ExtractResult> {
   const entities = (
     parsers.length > 0
       ? await Duckling(parsers as any).extractAsync(input, opts)
-      : await Duckling().extractAsync(input, opts)
+      : []
   ) as EntityResult[];
   const ms = performance.now() - t0;
 
