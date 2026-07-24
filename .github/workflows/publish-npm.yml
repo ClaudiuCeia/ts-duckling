@@ -13,6 +13,8 @@ permissions:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Bucharest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
