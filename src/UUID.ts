@@ -1,10 +1,13 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
@@ -29,15 +32,15 @@ export const uuid = (
   return ent(value, "uuid", before, after);
 };
 
-type UUIDLanguage = {
-  Full: Parser<UUIDEntity>;
-  parser: Parser<UUIDEntity>;
+type UUIDOutputs = {
+  Full: UUIDEntity;
+  parser: UUIDEntity;
 };
 
 /**
  * UUID parser language.
  */
-export const UUID: UUIDLanguage = createLanguage<UUIDLanguage>({
+export const UUID: DefinedLanguage<UUIDOutputs> = defineLanguage<UUIDOutputs>({
   Full: (): Parser<UUIDEntity> => {
     return map(
       regex(

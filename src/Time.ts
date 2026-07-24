@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   digit,
   either,
   eof,
@@ -16,7 +16,7 @@ import {
   space,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { __, dot, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { safe } from "./guard.ts";
@@ -90,40 +90,40 @@ export const time = (
   );
 };
 
-type TimeLanguage = {
-  ISODateTimeZ: Parser<TimeEntity>;
-  ISODateTime: Parser<TimeEntity>;
-  Grain: Parser<string>;
-  UnspecifiedGrainAmount: Parser<TimeEntity>;
-  DayOfWeek: Parser<TimeEntity>;
-  Era: Parser<string>;
-  Common: Parser<TimeEntity>;
-  GrainQuantity: Parser<TimeEntity>;
-  Relative: Parser<TimeEntity>;
-  NumericMonth: Parser<number>;
-  LiteralMonth: Parser<string>;
-  Day: Parser<number>;
-  Year: Parser<number>;
-  DateSeparator: Parser<string>;
-  PartialDateMonthYear: Parser<TimeEntity>;
-  QualifiedDay: Parser<number>;
-  QualifiedGrain: Parser<TimeEntity>;
-  ImplicitQualifiedGrain: Parser<TimeEntity>;
-  PartialDateDayMonth: Parser<TimeEntity>;
-  ISODate: Parser<TimeEntity>;
-  LiteralMonthDayYear: Parser<TimeEntity>;
-  ClockTime: Parser<TimeEntity>;
-  FullDate: Parser<TimeEntity>;
-  PartialDateMonthYearEra: Parser<TimeEntity>;
-  FullDateEra: Parser<TimeEntity>;
-  YearEra: Parser<TimeEntity>;
-  parser: Parser<TimeEntity>;
+type TimeOutputs = {
+  ISODateTimeZ: TimeEntity;
+  ISODateTime: TimeEntity;
+  Grain: string;
+  UnspecifiedGrainAmount: TimeEntity;
+  DayOfWeek: TimeEntity;
+  Era: string;
+  Common: TimeEntity;
+  GrainQuantity: TimeEntity;
+  Relative: TimeEntity;
+  NumericMonth: number;
+  LiteralMonth: string;
+  Day: number;
+  Year: number;
+  DateSeparator: string;
+  PartialDateMonthYear: TimeEntity;
+  QualifiedDay: number;
+  QualifiedGrain: TimeEntity;
+  ImplicitQualifiedGrain: TimeEntity;
+  PartialDateDayMonth: TimeEntity;
+  ISODate: TimeEntity;
+  LiteralMonthDayYear: TimeEntity;
+  ClockTime: TimeEntity;
+  FullDate: TimeEntity;
+  PartialDateMonthYearEra: TimeEntity;
+  FullDateEra: TimeEntity;
+  YearEra: TimeEntity;
+  parser: TimeEntity;
 };
 
 /**
  * Time parser language (relative times, dates, day-of-week, ISO `...Z` timestamps).
  */
-export const Time: TimeLanguage = createLanguage<TimeLanguage>({
+export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
   ISODateTimeZ(_s) {
     // Example: 2004-07-12T22:18:09Z
     // Keep it strict and UTC-only for now.

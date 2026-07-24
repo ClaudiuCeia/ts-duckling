@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   digit,
   letter,
   manyTill,
@@ -9,7 +9,7 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { URL } from "./URL.ts";
@@ -35,15 +35,17 @@ export const email = (
   return ent(value, "email", before, after);
 };
 
-type EmailLanguage = {
-  Full: Parser<EmailEntity>;
-  parser: Parser<EmailEntity>;
+type EmailOutputs = {
+  Full: EmailEntity;
+  parser: EmailEntity;
 };
 
 /**
  * Email address parser language.
  */
-export const Email: EmailLanguage = createLanguage<EmailLanguage>({
+export const Email: DefinedLanguage<EmailOutputs> = defineLanguage<
+  EmailOutputs
+>({
   Full: () =>
     map(
       seq(

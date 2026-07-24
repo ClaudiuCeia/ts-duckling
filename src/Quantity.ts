@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   digit,
   either,
   eof,
@@ -22,6 +22,7 @@ import {
   space,
   str,
 } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { __, dot, nonWord } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
@@ -75,28 +76,30 @@ const quantity = (
   );
 };
 
-type QuantityLanguage = {
-  Literal: Parser<number>;
-  ShortLiteral: Parser<number>;
-  Under: Parser<string>;
-  LeadDigit: Parser<number>;
-  TwoLeadDigit: Parser<number>;
-  ThreeLeadDigit: Parser<number>;
-  ThreeDigitGroup: Parser<string>;
-  CommaSeparated: Parser<number>;
-  Fractional: Parser<string>;
-  FractionalComma: Parser<number>;
-  Signed: Parser<number>;
-  NonFractional: Parser<QuantityEntity>;
-  Numbers: Parser<number>;
-  innerParser: Parser<QuantityEntity>;
-  parser: Parser<QuantityEntity>;
+type QuantityOutputs = {
+  Literal: number;
+  ShortLiteral: number;
+  Under: string;
+  LeadDigit: number;
+  TwoLeadDigit: number;
+  ThreeLeadDigit: number;
+  ThreeDigitGroup: string;
+  CommaSeparated: number;
+  Fractional: string;
+  FractionalComma: number;
+  Signed: number;
+  NonFractional: QuantityEntity;
+  Numbers: number;
+  innerParser: QuantityEntity;
+  parser: QuantityEntity;
 };
 
 /**
  * Quantity parser language.
  */
-export const Quantity: QuantityLanguage = createLanguage<QuantityLanguage>({
+export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
+  QuantityOutputs
+>({
   Literal: (): Parser<number> => {
     return any(
       map(regex(/hundreds?/i, "hundred"), () => 100),

@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   either,
   letter,
   many,
@@ -16,7 +16,10 @@ import {
   space,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
@@ -43,20 +46,20 @@ export const institution = (
   return ent(value, "institution", before, after);
 };
 
-type InstitutionLanguage = {
-  Capitalized: Parser<string>;
-  Educational: Parser<string>;
-  Administrative: Parser<string>;
-  EducationalFull: Parser<InstitutionEntity>;
-  AdministrativeFull: Parser<InstitutionEntity>;
-  parser: Parser<InstitutionEntity>;
+type InstitutionOutputs = {
+  Capitalized: string;
+  Educational: string;
+  Administrative: string;
+  EducationalFull: InstitutionEntity;
+  AdministrativeFull: InstitutionEntity;
+  parser: InstitutionEntity;
 };
 
 /**
  * Institution parser language.
  */
-export const Institution: InstitutionLanguage = createLanguage<
-  InstitutionLanguage
+export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
+  InstitutionOutputs
 >({
   Capitalized: (): Parser<string> => {
     return map(

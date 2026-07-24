@@ -15,8 +15,8 @@
     ]
   },
   "imports": {
-    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.3.0",
-    "@deno/dnt": "jsr:@deno/dnt@^0.41.3",
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.4.0",
+    "@deno/dnt": "jsr:@deno/dnt@^0.42.3",
     "@std/assert": "jsr:@std/assert@1.0.18",
     "@std/testing/time": "jsr:@std/testing@1.0.17/time",
 

@@ -1,6 +1,6 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   many1,
   map,
   optional,
@@ -9,7 +9,7 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -159,17 +159,17 @@ const upperLetter = regex(/[A-Z]/, "uppercase letter");
 const ibanDigit = regex(/\d/, "digit");
 const alphanumGroup = regex(/[A-Z0-9]{1,4}/, "BBAN group");
 
-type IBANLanguage = {
+type IBANOutputs = {
   /** Country code: 2 uppercase letters */
-  Country: Parser<string>;
+  Country: string;
   /** Check digits: exactly 2 digits */
-  CheckDigits: Parser<string>;
+  CheckDigits: string;
   /** BBAN body: groups of 1-4 alphanumeric chars, optionally space-separated */
-  BBAN: Parser<string>;
+  BBAN: string;
   /** Full IBAN: country + check + BBAN, validated */
-  Raw: Parser<string>;
-  Full: Parser<IBANEntity>;
-  parser: Parser<IBANEntity>;
+  Raw: string;
+  Full: IBANEntity;
+  parser: IBANEntity;
 };
 
 /**
@@ -180,7 +180,7 @@ type IBANLanguage = {
  * space-separated). Validated with ISO 7064 Mod 97-10 checksum and per-country
  * length checks.
  */
-export const IBAN: IBANLanguage = createLanguage<IBANLanguage>({
+export const IBAN: DefinedLanguage<IBANOutputs> = defineLanguage<IBANOutputs>({
   // Two uppercase letters
   Country: () => map(repeat(2, upperLetter), (letters) => letters.join("")),
 

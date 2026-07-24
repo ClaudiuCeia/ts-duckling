@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   either,
   map,
   optional,
@@ -11,7 +11,10 @@ import {
   space,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
@@ -50,23 +53,23 @@ export const temp = (
   );
 };
 
-type TemperatureLanguage = {
-  Degrees: Parser<string>;
-  UnitCelsius: Parser<"Celsius">;
-  UnitFahrenheit: Parser<"Fahrenheit">;
-  Celsius: Parser<TemperatureEntity>;
-  Fahrenheit: Parser<TemperatureEntity>;
-  Unspecified: Parser<TemperatureEntity>;
-  BelowZero: Parser<TemperatureEntity>;
-  Implicit: Parser<TemperatureEntity>;
-  parser: Parser<TemperatureEntity>;
+type TemperatureOutputs = {
+  Degrees: string;
+  UnitCelsius: "Celsius";
+  UnitFahrenheit: "Fahrenheit";
+  Celsius: TemperatureEntity;
+  Fahrenheit: TemperatureEntity;
+  Unspecified: TemperatureEntity;
+  BelowZero: TemperatureEntity;
+  Implicit: TemperatureEntity;
+  parser: TemperatureEntity;
 };
 
 /**
  * Temperature parser language.
  */
-export const Temperature: TemperatureLanguage = createLanguage<
-  TemperatureLanguage
+export const Temperature: DefinedLanguage<TemperatureOutputs> = defineLanguage<
+  TemperatureOutputs
 >({
   Degrees: (): Parser<string> => {
     return either(str("°"), str("degrees"));

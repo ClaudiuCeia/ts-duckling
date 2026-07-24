@@ -1,12 +1,15 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
   seq,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
@@ -23,11 +26,11 @@ export type ApiKeyEntity = Entity<
   }
 >;
 
-type ApiKeyLanguage = {
-  Prefix: Parser<string>;
-  PrefixKey: Parser<ApiKeyEntity["value"]>;
-  Full: Parser<ApiKeyEntity>;
-  parser: Parser<ApiKeyEntity>;
+type ApiKeyOutputs = {
+  Prefix: string;
+  PrefixKey: ApiKeyEntity["value"];
+  Full: ApiKeyEntity;
+  parser: ApiKeyEntity;
 };
 
 const ProviderPrefixes: Record<string, string> = {
@@ -114,7 +117,9 @@ export const apiKey = (
 /**
  * API key parser language.
  */
-export const ApiKey: ApiKeyLanguage = createLanguage<ApiKeyLanguage>({
+export const ApiKey: DefinedLanguage<ApiKeyOutputs> = defineLanguage<
+  ApiKeyOutputs
+>({
   /**
    * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
    * This is optional since not all API keys have a prefix.

@@ -1,13 +1,13 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -78,17 +78,17 @@ const isValidBech32 = (body: string, prefix: string): boolean => {
   return false;
 };
 
-type CryptoAddressLanguage = {
+type CryptoAddressOutputs = {
   /** BTC P2PKH: `1` + 25-33 base58 chars */
-  BtcP2PKH: Parser<CryptoAddressEntity>;
+  BtcP2PKH: CryptoAddressEntity;
   /** BTC P2SH: `3` + 25-33 base58 chars */
-  BtcP2SH: Parser<CryptoAddressEntity>;
+  BtcP2SH: CryptoAddressEntity;
   /** BTC Bech32/Bech32m: `bc1q...` or `bc1p...` */
-  BtcBech32: Parser<CryptoAddressEntity>;
+  BtcBech32: CryptoAddressEntity;
   /** ETH: `0x` + 40 hex chars */
-  Eth: Parser<CryptoAddressEntity>;
-  Full: Parser<CryptoAddressEntity>;
-  parser: Parser<CryptoAddressEntity>;
+  Eth: CryptoAddressEntity;
+  Full: CryptoAddressEntity;
+  parser: CryptoAddressEntity;
 };
 
 /**
@@ -101,8 +101,8 @@ type CryptoAddressLanguage = {
  * - **BTC Taproot**: `bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3s7a`
  * - **ETH (ERC-20)**: `0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18`
  */
-export const CryptoAddress: CryptoAddressLanguage = createLanguage<
-  CryptoAddressLanguage
+export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
+  CryptoAddressOutputs
 >({
   // BTC Legacy (P2PKH): starts with "1", followed by base58 chars
   BtcP2PKH: () =>

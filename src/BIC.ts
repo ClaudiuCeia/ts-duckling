@@ -1,12 +1,12 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   optional,
   regex,
   seq,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -53,10 +53,10 @@ const countryChars = regex(/[A-Z]{2}/, "country code");
 const locationCode = regex(/[A-Z0-9]{2}/, "location code");
 const branchCode = regex(/[A-Z0-9]{3}/, "branch code");
 
-type BICLanguage = {
+type BICOutputs = {
   /** Full BIC: bank + country + location + optional branch, validated */
-  Full: Parser<BICEntity>;
-  parser: Parser<BICEntity>;
+  Full: BICEntity;
+  parser: BICEntity;
 };
 
 /**
@@ -66,7 +66,7 @@ type BICLanguage = {
  * code at positions 5–6. Uses combinators for structure; regex only for leaf
  * character classes.
  */
-export const BIC: BICLanguage = createLanguage<BICLanguage>({
+export const BIC: DefinedLanguage<BICOutputs> = defineLanguage<BICOutputs>({
   Full: () =>
     guard(
       map(

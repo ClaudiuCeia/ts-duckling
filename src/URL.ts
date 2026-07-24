@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   furthest,
   many1,
   map,
@@ -11,7 +11,10 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import tlds from "@data/tlds" with { type: "json" };
@@ -39,21 +42,21 @@ export const url = (
   return ent(value, "url", before, after);
 };
 
-type URLLanguage = {
-  Protocol: Parser<string>;
-  TLD: Parser<string>;
-  Port: Parser<number>;
-  Suffix: Parser<string>;
-  Domain: Parser<string>;
-  Full: Parser<URLEntity>;
-  Bare: Parser<URLEntity>;
-  parser: Parser<URLEntity>;
+type URLOutputs = {
+  Protocol: string;
+  TLD: string;
+  Port: number;
+  Suffix: string;
+  Domain: string;
+  Full: URLEntity;
+  Bare: URLEntity;
+  parser: URLEntity;
 };
 
 /**
  * URL parser language (http/https/ftp with optional port, path, query, fragment).
  */
-export const URL: URLLanguage = createLanguage<URLLanguage>({
+export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
   Protocol: (): Parser<string> => {
     return any(regex(/https?/i, "http"), regex(/ftps?/i, "ftp"));
   },

@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   many,
   map,
   optional,
@@ -9,7 +9,10 @@ import {
   seq,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -57,19 +60,19 @@ const digits = (min: number, max: number): Parser<string> =>
 
 const digitsSep = any(str("-"), str("."), str(" "));
 
-type PhoneLanguage = {
+type PhoneOutputs = {
   /** Strict E.164: +NNN...N (8-15 digits, no separators) */
-  E164: Parser<string>;
+  E164: string;
   /** International with separators: +1 (415) 555-2671, +1-415-555-2671 */
-  IntlFormatted: Parser<string>;
+  IntlFormatted: string;
   /** US/NANP formatted: (NNN) NNN-NNNN or NNN-NNN-NNNN or NNN.NNN.NNNN */
-  USFormatted: Parser<string>;
+  USFormatted: string;
   /** (NNN) — parenthesized area code */
-  ParenArea: Parser<string>;
+  ParenArea: string;
   /** NNN[-.]NNN — area code with separator */
-  SepArea: Parser<string>;
-  Full: Parser<PhoneEntity>;
-  parser: Parser<PhoneEntity>;
+  SepArea: string;
+  Full: PhoneEntity;
+  parser: PhoneEntity;
 };
 
 const mkPhone = (b: Context, a: Context): PhoneEntity => {
@@ -85,7 +88,9 @@ const mkPhone = (b: Context, a: Context): PhoneEntity => {
  * - International formatted: `+1 (415) 555-2671`, `+1-415-555-2671`, `+44 20 7123 4567`
  * - US/NANP local: `(415) 555-2671`, `415-555-2671`, `415.555.2671`
  */
-export const Phone: PhoneLanguage = createLanguage<PhoneLanguage>({
+export const Phone: DefinedLanguage<PhoneOutputs> = defineLanguage<
+  PhoneOutputs
+>({
   // +<8-15 digits> — strict E.164, no separators
   E164: () =>
     map(

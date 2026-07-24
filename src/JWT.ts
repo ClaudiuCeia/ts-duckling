@@ -1,13 +1,13 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
   seq,
   skip1,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -58,15 +58,15 @@ const decodeHeader = (segment: string): Record<string, unknown> | undefined => {
 // Leaf token: a run of base64url characters (A-Z, a-z, 0-9, -, _)
 const b64urlChars = regex(/[A-Za-z0-9_-]+/, "base64url-chars");
 
-type JWTLanguage = {
+type JWTOutputs = {
   /** JWT header segment — must start with "eyJ" (base64url for '{"') */
-  Header: Parser<string>;
+  Header: string;
   /** Generic base64url segment (payload or signature) */
-  Segment: Parser<string>;
+  Segment: string;
   /** Three dot-separated segments, header-validated */
-  Raw: Parser<[string, string, string]>;
-  Full: Parser<JWTEntity>;
-  parser: Parser<JWTEntity>;
+  Raw: [string, string, string];
+  Full: JWTEntity;
+  parser: JWTEntity;
 };
 
 /**
@@ -78,7 +78,7 @@ type JWTLanguage = {
  * @example
  * `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U`
  */
-export const JWT: JWTLanguage = createLanguage<JWTLanguage>({
+export const JWT: DefinedLanguage<JWTOutputs> = defineLanguage<JWTOutputs>({
   // Header: must begin with "eyJ" (base64url for '{"'), followed by more base64url chars
   Header: () =>
     map(

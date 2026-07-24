@@ -1,5 +1,5 @@
-import { any, type Context, createLanguage, map } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import { any, type Context, defineLanguage, map } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import languages from "@data/languages-en" with { type: "json" };
@@ -35,15 +35,17 @@ export const language = (
   return ent(value, "language", before, after);
 };
 
-type LanguageLanguage = {
-  Language: Parser<LanguageEntity>;
-  parser: Parser<LanguageEntity>;
+type LanguageOutputs = {
+  Language: LanguageEntity;
+  parser: LanguageEntity;
 };
 
 /**
  * Language name parser language (English language names from CLDR).
  */
-export const Language: LanguageLanguage = createLanguage<LanguageLanguage>({
+export const Language: DefinedLanguage<LanguageOutputs> = defineLanguage<
+  LanguageOutputs
+>({
   Language: () => {
     const lang = (code: string, name: string) =>
       map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));

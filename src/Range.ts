@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   either,
   map,
   optional,
@@ -9,7 +9,10 @@ import {
   space,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { __ } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { Quantity } from "./Quantity.ts";
@@ -40,17 +43,19 @@ const range = <E extends Entity<unknown, unknown>>(
 
 type AnyRangeEntity = RangeEntity<TemperatureEntity> | RangeEntity<TimeEntity>;
 
-type RangeLanguage = {
-  TemperatureRange: Parser<RangeEntity<TemperatureEntity>>;
-  TimeRange: Parser<RangeEntity<TimeEntity>>;
-  YearRange: Parser<RangeEntity<TimeEntity>>;
-  parser: Parser<AnyRangeEntity>;
+type RangeOutputs = {
+  TemperatureRange: RangeEntity<TemperatureEntity>;
+  TimeRange: RangeEntity<TimeEntity>;
+  YearRange: RangeEntity<TimeEntity>;
+  parser: AnyRangeEntity;
 };
 
 /**
  * Range parser language (time ranges, year ranges, temperature ranges).
  */
-export const Range: RangeLanguage = createLanguage<RangeLanguage>({
+export const Range: DefinedLanguage<RangeOutputs> = defineLanguage<
+  RangeOutputs
+>({
   TemperatureRange: (): Parser<RangeEntity<TemperatureEntity>> => {
     return map(
       seq(

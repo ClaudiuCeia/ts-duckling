@@ -327,17 +327,17 @@ const segments = await Duckling().renderMapAsync<JSX.Element>(
 Define a parser that returns an `Entity`, then pass it to `Duckling`:
 
 ```ts
-import { createLanguage, map, type Parser, regex } from "@claudiu-ceia/combine";
+import { defineLanguage, map, regex } from "@claudiu-ceia/combine";
 import { Duckling, ent, type Entity } from "@claudiu-ceia/ts-duckling";
 
 type HashtagEntity = Entity<"hashtag", { tag: string }>;
 
-type HashtagLanguage = {
-  Full: Parser<HashtagEntity>;
-  parser: Parser<HashtagEntity>;
+type HashtagOutputs = {
+  Full: HashtagEntity;
+  parser: HashtagEntity;
 };
 
-const Hashtag = createLanguage<HashtagLanguage>({
+const Hashtag = defineLanguage<HashtagOutputs>({
   Full: () =>
     map(
       regex(/#[A-Za-z0-9_]{2,64}/, "hashtag"),

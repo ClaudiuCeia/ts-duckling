@@ -1,14 +1,17 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
   seq,
   skip1,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
@@ -72,14 +75,14 @@ const mkMac = (b: Context, a: Context): MACAddressEntity => {
   return macAddress({ mac: raw, normalized: normalizeMac(raw) }, b, a);
 };
 
-type MACAddressLanguage = {
+type MACAddressOutputs = {
   /** Colon-separated: AA:BB:CC:DD:EE:FF */
-  Colon: Parser<MACAddressEntity>;
+  Colon: MACAddressEntity;
   /** Hyphen-separated: AA-BB-CC-DD-EE-FF */
-  Hyphen: Parser<MACAddressEntity>;
+  Hyphen: MACAddressEntity;
   /** Dot-separated Cisco style: AABB.CCDD.EEFF */
-  Dot: Parser<MACAddressEntity>;
-  parser: Parser<MACAddressEntity>;
+  Dot: MACAddressEntity;
+  parser: MACAddressEntity;
 };
 
 /**
@@ -88,8 +91,8 @@ type MACAddressLanguage = {
  * Structure: six hex-pair octets joined by a delimiter (`:`, `-`, or Cisco `.`
  * notation with three quad groups). Case-insensitive.
  */
-export const MACAddress: MACAddressLanguage = createLanguage<
-  MACAddressLanguage
+export const MACAddress: DefinedLanguage<MACAddressOutputs> = defineLanguage<
+  MACAddressOutputs
 >({
   Colon: () => map(sixPairs(str(":")), (_, b, a) => mkMac(b, a)),
   Hyphen: () => map(sixPairs(str("-")), (_, b, a) => mkMac(b, a)),

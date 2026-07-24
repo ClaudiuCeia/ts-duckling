@@ -1,5 +1,5 @@
-import { any, type Context, createLanguage, map } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import { any, type Context, defineLanguage, map } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import countries from "@data/countries-en-us" with { type: "json" };
@@ -34,15 +34,17 @@ export const location = (
   return ent(value, "location", before, after);
 };
 
-type LocationLanguage = {
-  Country: Parser<LocationEntity>;
-  parser: Parser<LocationEntity>;
+type LocationOutputs = {
+  Country: LocationEntity;
+  parser: LocationEntity;
 };
 
 /**
  * Location parser language (countries list).
  */
-export const Location: LocationLanguage = createLanguage<LocationLanguage>({
+export const Location: DefinedLanguage<LocationOutputs> = defineLanguage<
+  LocationOutputs
+>({
   Country: () => {
     const names = Object.entries(cldr.names).flatMap(([code, name]) => [
       name,

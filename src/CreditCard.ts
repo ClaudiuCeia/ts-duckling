@@ -1,10 +1,10 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   regex,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -54,17 +54,17 @@ const isValidCard = (raw: string): boolean => {
   return luhnOk(digits);
 };
 
-type CreditCardLanguage = {
-  Raw: Parser<string>;
-  Full: Parser<CreditCardEntity>;
-  parser: Parser<CreditCardEntity>;
+type CreditCardOutputs = {
+  Raw: string;
+  Full: CreditCardEntity;
+  parser: CreditCardEntity;
 };
 
 /**
  * Credit card parser language (13-19 digits with separators) validated via Luhn.
  */
-export const CreditCard: CreditCardLanguage = createLanguage<
-  CreditCardLanguage
+export const CreditCard: DefinedLanguage<CreditCardOutputs> = defineLanguage<
+  CreditCardOutputs
 >({
   // 13-19 digits with optional single separators (space or '-').
   Raw: () => guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard),

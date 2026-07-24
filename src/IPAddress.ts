@@ -1,7 +1,7 @@
 import {
   any,
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   optional,
   regex,
@@ -10,7 +10,10 @@ import {
   skip1,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type {
+  Language as DefinedLanguage,
+  Parser,
+} from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -55,17 +58,17 @@ const octet: Parser<number> = guard(
 // the quantifier requires hex digits — a second ":" causes backtracking.
 const hexChain = regex(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*/, "hex-chain");
 
-type IPAddressLanguage = {
+type IPAddressOutputs = {
   /** Dotted-decimal IPv4: four octets 0-255 separated by dots */
-  IPv4: Parser<string>;
+  IPv4: string;
   /** Full IPv6: eight colon-separated hex groups */
-  IPv6Full: Parser<string>;
+  IPv6Full: string;
   /** Compressed IPv6 with :: */
-  IPv6Compressed: Parser<string>;
-  Full4: Parser<IPAddressEntity>;
-  Full6: Parser<IPAddressEntity>;
-  Full6c: Parser<IPAddressEntity>;
-  parser: Parser<IPAddressEntity>;
+  IPv6Compressed: string;
+  Full4: IPAddressEntity;
+  Full6: IPAddressEntity;
+  Full6c: IPAddressEntity;
+  parser: IPAddressEntity;
 };
 
 const mkIP = (version: 4 | 6, b: Context, a: Context): IPAddressEntity => {
@@ -81,7 +84,9 @@ const mkIP = (version: 4 | 6, b: Context, a: Context): IPAddressEntity => {
  * - IPv6 full form: `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
  * - IPv6 compressed: `::1`, `2001:db8::1`, `fe80::1`, `::`
  */
-export const IPAddress: IPAddressLanguage = createLanguage<IPAddressLanguage>({
+export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
+  IPAddressOutputs
+>({
   // Four octets separated by dots
   IPv4: () =>
     map(

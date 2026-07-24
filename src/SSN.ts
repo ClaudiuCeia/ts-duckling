@@ -1,12 +1,12 @@
 import {
   type Context,
-  createLanguage,
+  defineLanguage,
   map,
   seq,
   skip1,
   str,
 } from "@claudiu-ceia/combine";
-import type { Parser } from "@claudiu-ceia/combine";
+import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -36,20 +36,20 @@ export const ssn = (
   return ent(value, "ssn", before, after);
 };
 
-type SSNLanguage = {
-  Parts: Parser<{
+type SSNOutputs = {
+  Parts: {
     area: QuantityEntity;
     group: QuantityEntity;
     serial: QuantityEntity;
-  }>;
-  Full: Parser<SSNEntity>;
-  parser: Parser<SSNEntity>;
+  };
+  Full: SSNEntity;
+  parser: SSNEntity;
 };
 
 /**
  * SSN parser language with basic SSA constraints to avoid false positives.
  */
-export const SSN: SSNLanguage = createLanguage<SSNLanguage>({
+export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
   Parts: () =>
     guard(
       map(
