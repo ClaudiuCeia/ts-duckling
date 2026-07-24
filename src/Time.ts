@@ -4,6 +4,7 @@ import {
   createLanguage,
   digit,
   either,
+  eof,
   map,
   minus,
   optional,
@@ -20,7 +21,7 @@ import { __, dot, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { safe } from "./guard.ts";
 import type { Entity } from "./Entity.ts";
-import { fuzzyCase } from "./parsers.ts";
+import { enumerationTail, fuzzyCase, peekValue } from "./parsers.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
 
 type TimeGranularity =
@@ -107,6 +108,7 @@ type TimeLanguage = {
   PartialDateMonthYear: Parser<TimeEntity>;
   QualifiedDay: Parser<number>;
   QualifiedGrain: Parser<TimeEntity>;
+  ImplicitQualifiedGrain: Parser<TimeEntity>;
   PartialDateDayMonth: Parser<TimeEntity>;
   ISODate: Parser<TimeEntity>;
   LiteralMonthDayYear: Parser<TimeEntity>;
@@ -453,6 +455,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
           map(seq(skip1(space()), s.Era), ([, era]) => era),
           peek(nonWord),
           peek(space()),
+          peek(eof()),
         ),
       ),
       ([quantity, qualifier, , grain, maybeEra], b, a) =>
@@ -467,6 +470,37 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
           b,
           a,
         ),
+    );
+  },
+  ImplicitQualifiedGrain(s) {
+    const ordinal = map(
+      seq(
+        Quantity.NonFractional,
+        any(str("st"), str("nd"), str("rd"), str("th")),
+      ),
+      ([quantity, qualifier]) => ({ quantity, qualifier }),
+    );
+
+    return map(
+      seq(
+        ordinal,
+        peekValue(enumerationTail(ordinal, dot(s.QualifiedGrain))),
+      ),
+      ([current, final], b, a) => {
+        const finalWhen = final.value.when as string;
+        const suffix = finalWhen.slice(finalWhen.indexOf(" ") + 1);
+
+        return time(
+          {
+            when:
+              `${current.quantity.value.amount}${current.qualifier} ${suffix}`,
+            grain: final.value.grain,
+            era: final.value.era,
+          },
+          b,
+          a,
+        );
+      },
     );
   },
   PartialDateDayMonth(s) {
@@ -722,6 +756,7 @@ export const Time: TimeLanguage = createLanguage<TimeLanguage>({
         s.PartialDateDayMonth,
         s.DayOfWeek,
         s.Common,
+        s.ImplicitQualifiedGrain,
         s.QualifiedGrain,
         s.GrainQuantity,
         s.UnspecifiedGrainAmount,

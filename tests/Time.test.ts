@@ -356,6 +356,79 @@ Deno.test("QualifiedGrain", () => {
   ]);
 });
 
+Deno.test("qualified grain enumeration inherits the final grain", () => {
+  const res = Duckling([Time.parser]).extract(
+    "16th, 17th and 18th century",
+  );
+
+  assertEquals(res, [
+    {
+      end: 4,
+      kind: "time",
+      start: 0,
+      text: "16th",
+      value: {
+        era: "CE",
+        grain: "century",
+        when: "16th century ",
+      },
+    },
+    {
+      end: 10,
+      kind: "time",
+      start: 6,
+      text: "17th",
+      value: {
+        era: "CE",
+        grain: "century",
+        when: "17th century ",
+      },
+    },
+    {
+      end: 27,
+      kind: "time",
+      start: 15,
+      text: "18th century",
+      value: {
+        era: "CE",
+        grain: "century",
+        when: "18th century ",
+      },
+    },
+  ]);
+});
+
+Deno.test("qualified grain enumerations propagate eras and Oxford commas", () => {
+  const res = Duckling([Time.parser]).extract(
+    "16th, 17th, and 18th century BC",
+  );
+
+  assertEquals(
+    res.map((entity) => [entity.value.when, entity.value.era]),
+    [
+      ["16th century BC", "BCE"],
+      ["17th century BC", "BCE"],
+      ["18th century BC", "BCE"],
+    ],
+  );
+});
+
+Deno.test("qualified grain accepts end of input", () => {
+  const res = Duckling([Time.parser]).extract("18th century");
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "18th century");
+  assertEquals(res[0].value.grain, "century");
+});
+
+Deno.test("qualified grain enumeration requires an explicit final grain", () => {
+  const res = Duckling([Time.parser]).extract(
+    "The 16th, 17th and 18th amendments",
+  );
+
+  assertEquals(res, []);
+});
+
 Deno.test("No grain quantity false positive", () => {
   const res = Time.GrainQuantity({
     text: `Less than 10 Hertz`,

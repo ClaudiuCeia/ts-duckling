@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling } from "../mod.ts";
+import { Duckling, Temperature } from "../mod.ts";
 
 Deno.test("fahrneheit", () => {
   const res = Duckling().extract("It's hot! Over 90F outside...");
@@ -82,4 +82,92 @@ Deno.test("No false positive for temperature", () => {
       },
     },
   ]);
+});
+
+Deno.test("enumeration inherits Celsius from the final item", () => {
+  const res = Duckling([Temperature.parser]).extract(
+    "temperatures of 20, 25 and 30 Celsius",
+  );
+
+  assertEquals(res, [
+    {
+      end: 18,
+      kind: "temperature",
+      start: 16,
+      text: "20",
+      value: {
+        amount: {
+          end: 18,
+          kind: "quantity",
+          start: 16,
+          text: "20",
+          value: { amount: 20 },
+        },
+        unit: "Celsius",
+      },
+    },
+    {
+      end: 22,
+      kind: "temperature",
+      start: 20,
+      text: "25",
+      value: {
+        amount: {
+          end: 22,
+          kind: "quantity",
+          start: 20,
+          text: "25",
+          value: { amount: 25 },
+        },
+        unit: "Celsius",
+      },
+    },
+    {
+      end: 37,
+      kind: "temperature",
+      start: 27,
+      text: "30 Celsius",
+      value: {
+        amount: {
+          end: 29,
+          kind: "quantity",
+          start: 27,
+          text: "30",
+          value: { amount: 30 },
+        },
+        unit: "Celsius",
+      },
+    },
+  ]);
+});
+
+Deno.test("temperature enumerations support conjunctions and numeric forms", () => {
+  const fahrenheit = Duckling([Temperature.parser]).extract("20 or 30 F");
+  assertEquals(
+    fahrenheit.map((
+      entity,
+    ) => [entity.value.amount.value.amount, entity.value.unit]),
+    [[20, "Fahrenheit"], [30, "Fahrenheit"]],
+  );
+
+  const celsius = Duckling([Temperature.parser]).extract(
+    "-5.5, 0, and 2.5 °C",
+  );
+  assertEquals(
+    celsius.map((
+      entity,
+    ) => [entity.value.amount.value.amount, entity.value.unit]),
+    [[-5.5, "Celsius"], [0, "Celsius"], [2.5, "Celsius"]],
+  );
+});
+
+Deno.test("temperature enumerations require a bounded explicit unit", () => {
+  assertEquals(
+    Duckling([Temperature.parser]).extract("scores of 20, 25 and 30 points"),
+    [],
+  );
+  assertEquals(
+    Duckling([Temperature.parser]).extract("20, 25 and 30 Celsiusian"),
+    [],
+  );
 });

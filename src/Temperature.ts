@@ -15,6 +15,7 @@ import type { Parser } from "@claudiu-ceia/combine";
 import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
+import { enumerationTail, peekValue } from "./parsers.ts";
 
 /**
  * Temperature entity with a numeric amount (as a `quantity`) and a unit.
@@ -57,6 +58,7 @@ type TemperatureLanguage = {
   Fahrenheit: Parser<TemperatureEntity>;
   Unspecified: Parser<TemperatureEntity>;
   BelowZero: Parser<TemperatureEntity>;
+  Implicit: Parser<TemperatureEntity>;
   parser: Parser<TemperatureEntity>;
 };
 
@@ -139,9 +141,23 @@ export const Temperature: TemperatureLanguage = createLanguage<
         ),
     );
   },
+  Implicit: (s): Parser<TemperatureEntity> => {
+    return map(
+      seq(
+        Quantity.innerParser,
+        peekValue(
+          enumerationTail(
+            Quantity.innerParser,
+            dot(any(s.Celsius, s.Fahrenheit, s.Unspecified)),
+          ),
+        ),
+      ),
+      ([amount, final], b, a) => temp({ amount, unit: final.value.unit }, b, a),
+    );
+  },
   parser: (s): Parser<TemperatureEntity> => {
     return dot(
-      any(s.BelowZero, s.Celsius, s.Fahrenheit, s.Unspecified),
+      any(s.BelowZero, s.Implicit, s.Celsius, s.Fahrenheit, s.Unspecified),
     );
   },
 });
