@@ -19,12 +19,54 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
+import parserData from "@data/parser-en" with { type: "json" };
 import { __, dot, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { safe } from "./guard.ts";
 import type { Entity } from "./Entity.ts";
 import { enumerationTail, fuzzyCase, peekValue } from "./parsers.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
+
+type EnglishTimeData = {
+  time: {
+    months: Record<string, number>;
+    weekdays: string[];
+    eras: string[];
+    relativeDays: Record<string, number>;
+    dayPeriods: Record<string, string>;
+    grains: Record<string, string[]>;
+  };
+  compatibility: {
+    time: {
+      common: string[];
+      eras: string[];
+      grainAbbreviations: Record<string, string[]>;
+      relative: {
+        ago: string[];
+        future: string[];
+        past: string[];
+      };
+    };
+  };
+};
+
+const english = parserData as EnglishTimeData;
+const longestFirst = (tokens: string[]) =>
+  [...new Set(tokens)].sort((a, b) =>
+    b.length - a.length || a.localeCompare(b)
+  );
+const escapeRegex = (token: string) =>
+  token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const caseInsensitiveTokens = (tokens: string[]): Parser<string> =>
+  any(
+    ...longestFirst(tokens).map((token) =>
+      regex(new RegExp(escapeRegex(token), "i"), token)
+    ),
+  );
+const grainNames = Object.values(english.time.grains).flat();
+const grainAbbreviations = Object.values(
+  english.compatibility.time.grainAbbreviations,
+).flat();
 
 type TimeGranularity =
   | "second"
@@ -92,20 +134,7 @@ export const time = (
   );
 };
 
-const literalMonths: Record<string, number> = {
-  January: 1,
-  February: 2,
-  March: 3,
-  April: 4,
-  May: 5,
-  June: 6,
-  July: 7,
-  August: 8,
-  September: 9,
-  October: 10,
-  November: 11,
-  December: 12,
-};
+const literalMonths = english.time.months;
 
 const monthNumber = (month: number | string): number => {
   const number = typeof month === "number" ? month : literalMonths[month];
@@ -221,33 +250,11 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     );
   },
   Grain(_s) {
-    return any(
-      regex(/sec(ond)?s?/i, "second"),
-      regex(/m(in(ute)?s?)?/i, "minute"),
-      regex(/h(((ou)?rs?)|r)?/i, "hour"),
-      regex(/days?/i, "day"),
-      regex(/weeks?/i, "week"),
-      regex(/months?/i, "month"),
-      regex(/quarters?/i, "quarter"),
-      regex(/years?/i, "year"),
-      regex(/decades?/i, "decade"),
-      regex(/century|centuries/i, "century"),
-    );
+    return caseInsensitiveTokens([...grainNames, ...grainAbbreviations]);
   },
   UnspecifiedGrainAmount(_s) {
     return map(
-      any(
-        regex(/seconds?/i, "second"),
-        regex(/minutes?/i, "minute"),
-        regex(/hours?/i, "hour"),
-        regex(/days?/i, "day"),
-        regex(/weeks?/i, "week"),
-        regex(/months?/i, "month"),
-        regex(/quarters?/i, "quarter"),
-        regex(/years?/i, "year"),
-        regex(/decades?/i, "decade"),
-        regex(/century|centuries/i, "century"),
-      ),
+      caseInsensitiveTokens(grainNames),
       (grain, b, a) => {
         return time(
           {
@@ -262,15 +269,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
   },
   DayOfWeek(_s) {
     return map(
-      any(
-        fuzzyCase("Monday"),
-        fuzzyCase("Tuesday"),
-        fuzzyCase("Wednesday"),
-        fuzzyCase("Thursday"),
-        fuzzyCase("Friday"),
-        fuzzyCase("Saturday"),
-        fuzzyCase("Sunday"),
-      ),
+      any(...longestFirst(english.time.weekdays).map(fuzzyCase)),
       (day, b, a) => {
         return time(
           {
@@ -284,48 +283,39 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     );
   },
   Era(_s) {
-    return any(str("BCE"), str("BC"), str("AD"), str("CE"));
+    return any(
+      ...longestFirst([
+        ...english.time.eras,
+        ...english.compatibility.time.eras,
+      ]).map(str),
+    );
   },
   Common(_s) {
-    return any(
+    const relativeDays = Object.entries(english.time.relativeDays).map(
+      ([name, offset]) =>
+        map(fuzzyCase(name), (_res, b, a) => {
+          const now = new Date();
+          if (offset !== 0) now.setDate(now.getDate() + offset);
+          return time({ when: now.toISOString(), grain: "day" }, b, a);
+        }),
+    );
+    const common = english.compatibility.time.common.map((name) =>
       map(
-        fuzzyCase("today"),
-        (_res, b, a) =>
-          time({ when: new Date().toISOString(), grain: "day" }, b, a),
-      ),
-      map(fuzzyCase("yesterday"), (_res, b, a) => {
-        const now = new Date();
-        now.setDate(now.getDate() - 1);
-        return time(
-          {
-            when: now.toISOString(),
-            grain: "day",
-          },
-          b,
-          a,
-        );
-      }),
-      map(fuzzyCase("tomorrow"), (_res, b, a) => {
-        const now = new Date();
-        now.setDate(now.getDate() + 1);
-        return time(
-          {
-            when: now.toISOString(),
-            grain: "day",
-          },
-          b,
-          a,
-        );
-      }),
-      map(fuzzyCase("weekend"), (_res, b, a) => {
-        return time({ when: "weekend", grain: "week" }, b, a);
-      }),
-      map(fuzzyCase("noon"), (_res, b, a) => {
-        return time({ when: "12:00", grain: "hour" }, b, a);
-      }),
-      map(fuzzyCase("midnight"), (_res, b, a) => {
-        return time({ when: "00:00", grain: "hour" }, b, a);
-      }),
+        fuzzyCase(name),
+        (_res, b, a) => time({ when: name, grain: "week" }, b, a),
+      )
+    );
+    const dayPeriods = Object.entries(english.time.dayPeriods).map(
+      ([name, when]) =>
+        map(
+          fuzzyCase(name),
+          (_res, b, a) => time({ when, grain: "hour" }, b, a),
+        ),
+    );
+    return any(
+      ...relativeDays,
+      ...common,
+      ...dayPeriods,
     );
   },
   GrainQuantity(s) {
@@ -348,7 +338,11 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       map(
         seq(
           __(
-            any(fuzzyCase("last"), fuzzyCase("past"), fuzzyCase("previous")),
+            any(
+              ...longestFirst(english.compatibility.time.relative.past).map(
+                fuzzyCase,
+              ),
+            ),
           ),
           optional(Quantity.parser),
           any(s.Grain, s.LiteralMonth, s.DayOfWeek),
@@ -368,7 +362,13 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       ),
       map(
         seq(
-          __(either(fuzzyCase("next"), fuzzyCase("following"))),
+          __(
+            any(
+              ...longestFirst(english.compatibility.time.relative.future).map(
+                fuzzyCase,
+              ),
+            ),
+          ),
           optional(Quantity.parser),
           any(s.Grain, s.LiteralMonth, s.DayOfWeek),
         ),
@@ -391,7 +391,9 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         seq(
           optional(Quantity.parser),
           __(any(s.Grain, s.DayOfWeek)),
-          str("ago"),
+          any(
+            ...longestFirst(english.compatibility.time.relative.ago).map(str),
+          ),
         ),
         ([quantity, grain], b, a) => {
           const amount = quantity ? quantity.value.amount * -1 : -1;
@@ -421,20 +423,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     );
   },
   LiteralMonth(_s) {
-    return any(
-      fuzzyCase("January"),
-      fuzzyCase("February"),
-      fuzzyCase("March"),
-      fuzzyCase("April"),
-      fuzzyCase("May"),
-      fuzzyCase("June"),
-      fuzzyCase("July"),
-      fuzzyCase("August"),
-      fuzzyCase("September"),
-      fuzzyCase("October"),
-      fuzzyCase("November"),
-      fuzzyCase("December"),
-    );
+    return any(...longestFirst(Object.keys(literalMonths)).map(fuzzyCase));
   },
   Day(_s) {
     return any(

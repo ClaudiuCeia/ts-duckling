@@ -171,3 +171,47 @@ Deno.test("temperature enumerations require a bounded explicit unit", () => {
     [],
   );
 });
+
+Deno.test("CLDR temperature names support singular degree forms", () => {
+  const cases: [string, string][] = [
+    ["1 degree Celsius", "Celsius"],
+    ["1 degree Fahrenheit", "Fahrenheit"],
+    ["2 degrees Celsius", "Celsius"],
+    ["2 degrees Fahrenheit", "Fahrenheit"],
+  ];
+  for (const [text, unit] of cases) {
+    const result = Duckling([Temperature.parser]).extract(text);
+    assertEquals(result.length, 1, text);
+    assertEquals(result[0].text, text);
+    assertEquals(result[0].value.unit, unit);
+  }
+});
+
+Deno.test("bare singular degree is not an unspecified temperature", () => {
+  for (
+    const text of [
+      "The angle is 1 degree",
+      "She earned a 1 degree qualification",
+    ]
+  ) {
+    assertEquals(Duckling([Temperature.parser]).extract(text), [], text);
+  }
+});
+
+Deno.test("CLDR degree symbol and compatibility unit aliases remain accepted", () => {
+  const cases: [string, string][] = [
+    ["10°C", "Celsius"],
+    ["10°F", "Fahrenheit"],
+    ["10 C", "Celsius"],
+    ["10 F", "Fahrenheit"],
+    ["10 celsius", "Celsius"],
+    ["10 fahrenheit", "Fahrenheit"],
+    ["10 degrees", "N/A"],
+  ];
+  for (const [text, unit] of cases) {
+    const result = Duckling([Temperature.parser]).extract(text);
+    assertEquals(result.length, 1, text);
+    assertEquals(result[0].text, text);
+    assertEquals(result[0].value.unit, unit);
+  }
+});

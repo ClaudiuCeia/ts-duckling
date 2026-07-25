@@ -784,3 +784,90 @@ Deno.test("Common: midnight", () => {
   assertEquals(res[0].value.when, "00:00");
   assertEquals(res[0].value.grain, "hour");
 });
+
+Deno.test("CLDR wide month and weekday names preserve Time behavior", () => {
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  for (const month of months) {
+    const result = Time.LiteralMonth({ text: month, index: 0 });
+    assertEquals(result.success, true, month);
+    if (result.success) assertEquals(result.value, month);
+  }
+
+  const weekdays = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+  for (const weekday of weekdays) {
+    const result = Time.DayOfWeek({ text: weekday, index: 0 });
+    assertEquals(result.success, true, weekday);
+    if (result.success) assertEquals(result.value.value.when, weekday);
+  }
+});
+
+Deno.test("CLDR duration grains preserve singular and plural Time behavior", () => {
+  const grains = [
+    ["second", "seconds"],
+    ["minute", "minutes"],
+    ["hour", "hours"],
+    ["day", "days"],
+    ["week", "weeks"],
+    ["month", "months"],
+    ["quarter", "quarters"],
+    ["year", "years"],
+    ["decade", "decades"],
+    ["century", "centuries"],
+  ];
+  for (const names of grains) {
+    for (const name of names) {
+      const result = Time.UnspecifiedGrainAmount({ text: name, index: 0 });
+      assertEquals(result.success, true, name);
+      if (result.success) {
+        assertEquals(result.ctx.index, name.length, name);
+        assertEquals(result.value.value.when, name);
+        assertEquals(result.value.value.grain, name);
+      }
+    }
+  }
+});
+
+Deno.test("CLDR and compatibility Time eras remain accepted", () => {
+  for (const era of ["BC", "AD", "BCE", "CE"]) {
+    const result = Time.Era({ text: era, index: 0 });
+    assertEquals(result.success, true, era);
+    if (result.success) assertEquals(result.value, era);
+  }
+});
+
+Deno.test("Time compatibility aliases remain accepted", () => {
+  for (const grain of ["sec", "secs", "m", "min", "mins", "h", "hr", "hrs"]) {
+    const result = Time.Grain({ text: grain, index: 0 });
+    assertEquals(result.success, true, grain);
+    if (result.success) assertEquals(result.value, grain);
+  }
+
+  const relative = Duckling([Time.parser]).extract(
+    "previous month, following week, and weekend",
+  );
+  assertEquals(
+    relative.map(({ value }) => [value.when, value.grain]),
+    [["-1 month", "month"], ["1 week", "week"], ["weekend", "week"]],
+  );
+});

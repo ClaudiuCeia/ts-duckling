@@ -1,0 +1,241 @@
+{
+  "_meta": {
+    "source": "unicode-org/cldr-json",
+    "release": "48.2.0",
+    "cldrVersion": "48",
+    "locale": "en",
+    "inputs": [
+      "cldr-dates-full@48.2.0/main/en/ca-gregorian.json",
+      "cldr-dates-full@48.2.0/main/en/dateFields.json",
+      "cldr-units-full@48.2.0/main/en/units.json",
+      "cldr-numbers-full@48.2.0/main/en/numbers.json"
+    ]
+  },
+  "time": {
+    "months": {
+      "April": 4,
+      "August": 8,
+      "December": 12,
+      "February": 2,
+      "January": 1,
+      "July": 7,
+      "June": 6,
+      "March": 3,
+      "May": 5,
+      "November": 11,
+      "October": 10,
+      "September": 9
+    },
+    "weekdays": [
+      "Friday",
+      "Monday",
+      "Saturday",
+      "Sunday",
+      "Thursday",
+      "Tuesday",
+      "Wednesday"
+    ],
+    "eras": [
+      "AD",
+      "BC"
+    ],
+    "relativeDays": {
+      "today": 0,
+      "tomorrow": 1,
+      "yesterday": -1
+    },
+    "dayPeriods": {
+      "midnight": "00:00",
+      "noon": "12:00"
+    },
+    "grains": {
+      "century": [
+        "centuries",
+        "century"
+      ],
+      "day": [
+        "day",
+        "days"
+      ],
+      "decade": [
+        "decade",
+        "decades"
+      ],
+      "hour": [
+        "hour",
+        "hours"
+      ],
+      "minute": [
+        "minute",
+        "minutes"
+      ],
+      "month": [
+        "month",
+        "months"
+      ],
+      "quarter": [
+        "quarter",
+        "quarters"
+      ],
+      "second": [
+        "second",
+        "seconds"
+      ],
+      "week": [
+        "week",
+        "weeks"
+      ],
+      "year": [
+        "year",
+        "years"
+      ]
+    }
+  },
+  "quantity": {
+    "symbols": {
+      "decimal": ".",
+      "group": ",",
+      "minus": "-",
+      "plus": "+"
+    },
+    "compactMultipliers": [
+      {
+        "value": 1000,
+        "long": "thousand",
+        "short": "K"
+      },
+      {
+        "value": 1000000,
+        "long": "million",
+        "short": "M"
+      },
+      {
+        "value": 1000000000,
+        "long": "billion",
+        "short": "B"
+      },
+      {
+        "value": 1000000000000,
+        "long": "trillion",
+        "short": "T"
+      }
+    ]
+  },
+  "temperature": {
+    "degree": {
+      "one": "degree",
+      "other": "degrees",
+      "symbol": "°"
+    },
+    "units": {
+      "Celsius": {
+        "name": "Celsius",
+        "symbol": "°C"
+      },
+      "Fahrenheit": {
+        "name": "Fahrenheit",
+        "symbol": "°F"
+      }
+    }
+  },
+  "compatibility": {
+    "time": {
+      "common": [
+        "weekend"
+      ],
+      "eras": [
+        "BCE",
+        "CE"
+      ],
+      "grainAbbreviations": {
+        "hour": [
+          "h",
+          "hr",
+          "hrs"
+        ],
+        "minute": [
+          "m",
+          "min",
+          "mins"
+        ],
+        "second": [
+          "sec",
+          "secs"
+        ]
+      },
+      "relative": {
+        "ago": [
+          "ago"
+        ],
+        "future": [
+          "following",
+          "next"
+        ],
+        "past": [
+          "last",
+          "past",
+          "previous"
+        ]
+      }
+    },
+    "quantity": {
+      "multiplierNames": [
+        {
+          "value": 100,
+          "names": [
+            "hundred",
+            "hundreds"
+          ]
+        },
+        {
+          "value": 1000,
+          "names": [
+            "k",
+            "thousands"
+          ]
+        },
+        {
+          "value": 1000000,
+          "names": [
+            "millions"
+          ]
+        },
+        {
+          "value": 1000000000,
+          "names": [
+            "billions"
+          ]
+        },
+        {
+          "value": 1000000000000,
+          "names": [
+            "trillions"
+          ]
+        }
+      ],
+      "plusMinus": "±",
+      "under": [
+        "less than",
+        "lower than",
+        "under"
+      ]
+    },
+    "temperature": {
+      "below": [
+        "below"
+      ],
+      "units": {
+        "Celsius": [
+          "C"
+        ],
+        "Fahrenheit": [
+          "F"
+        ]
+      },
+      "zero": [
+        "0",
+        "zero"
+      ]
+    }
+  }
+}

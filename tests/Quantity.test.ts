@@ -123,3 +123,61 @@ Deno.test("Short literal", () => {
     },
   ]);
 });
+
+Deno.test("CLDR compact multipliers cover every long and short tier", () => {
+  const cases: [string, number][] = [
+    ["1 thousand", 1e3],
+    ["2 million", 2e6],
+    ["3 billion", 3e9],
+    ["4 trillion", 4e12],
+    ["1K", 1e3],
+    ["2M", 2e6],
+    ["3B", 3e9],
+    ["4T", 4e12],
+  ];
+  for (const [text, amount] of cases) {
+    const result = Quantity.innerParser({ text, index: 0 });
+    assertEquals(result.success, true, text);
+    if (result.success) assertEquals(result.value.value.amount, amount, text);
+  }
+});
+
+Deno.test("CLDR numeric symbols and plus-minus compatibility are preserved", () => {
+  const cases: [string, number][] = [
+    ["1,234.5", 1234.5],
+    ["+12", 12],
+    ["-12", -12],
+    ["±12", 12],
+  ];
+  for (const [text, amount] of cases) {
+    const result = Quantity.innerParser({ text, index: 0 });
+    assertEquals(result.success, true, text);
+    if (result.success) assertEquals(result.value.value.amount, amount, text);
+  }
+});
+
+Deno.test("legacy quantity multiplier spellings remain compatible", () => {
+  const cases: [string, number][] = [
+    ["hundred", 1e2],
+    ["hundreds", 1e2],
+    ["thousands", 1e3],
+    ["millions", 1e6],
+    ["billions", 1e9],
+    ["trillions", 1e12],
+    ["1k", 1e3],
+  ];
+  for (const [text, amount] of cases) {
+    const result = Quantity.innerParser({ text, index: 0 });
+    assertEquals(result.success, true, text);
+    if (result.success) assertEquals(result.value.value.amount, amount, text);
+  }
+
+  for (const text of ["1m", "1b", "1t"]) {
+    const lowercase = Quantity.innerParser({ text, index: 0 });
+    assertEquals(lowercase.success, true, text);
+    if (lowercase.success) {
+      assertEquals(lowercase.value.value.amount, 1, text);
+      assertEquals(lowercase.ctx.index, 1, text);
+    }
+  }
+});

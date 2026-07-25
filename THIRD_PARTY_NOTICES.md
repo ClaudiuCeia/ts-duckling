@@ -1,7 +1,7 @@
 # Third-Party Notices
 
-The generated country and language datasets under `data/` contain transformed
-data from Unicode CLDR 48.2.0.
+The generated country, language, and English parser datasets under `data/`
+contain transformed data from Unicode CLDR 48.2.0.
 
 The generated TLD dataset under `data/` contains transformed public registry
 data from IANA's root-zone TLD list:

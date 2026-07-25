@@ -13,19 +13,47 @@ import {
   optional,
   type Parser,
   peek,
-  regex,
   repeat,
   sepBy1,
   seq,
-  signed,
   skip1,
   space,
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
+import parserData from "@data/parser-en" with { type: "json" };
 import { __, dot, nonWord } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
+
+type EnglishQuantityData = {
+  quantity: {
+    symbols: {
+      decimal: string;
+      group: string;
+      minus: string;
+      plus: string;
+    };
+    compactMultipliers: {
+      value: number;
+      long: string;
+      short: string;
+    }[];
+  };
+  compatibility: {
+    quantity: {
+      multiplierNames: { value: number; names: string[] }[];
+      plusMinus: string;
+      under: string[];
+    };
+  };
+};
+
+const english = parserData as EnglishQuantityData;
+const longestFirst = <T extends { token: string }>(entries: T[]) =>
+  [...entries].sort((a, b) =>
+    b.token.length - a.token.length || a.token.localeCompare(b.token)
+  );
 
 /**
  * Numeric quantity entity.
@@ -101,28 +129,37 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
   QuantityOutputs
 >({
   Literal: (): Parser<number> => {
+    const entries = [
+      ...english.quantity.compactMultipliers.map(({ value, long }) => ({
+        value,
+        token: long,
+      })),
+      ...english.compatibility.quantity.multiplierNames.flatMap(
+        ({ value, names }) => names.map((token) => ({ value, token })),
+      ),
+    ];
     return any(
-      map(regex(/hundreds?/i, "hundred"), () => 100),
-      map(regex(/thousands?|k/i, "thousand"), () => 1000),
-      map(regex(/millions?/i, "million"), () => 1000000),
-      map(regex(/billions?/i, "billion"), () => 1000000000),
-      map(regex(/trillions?/i, "trillion"), () => 1000000000000),
+      ...longestFirst(entries).map(({ value, token }) =>
+        map(fuzzyCase(token), () => value)
+      ),
     );
   },
   ShortLiteral: (): Parser<number> => {
     return any(
-      map(str("K"), () => 1000),
-      map(str("M"), () => 1000000),
-      map(str("B"), () => 1000000000),
-      map(str("T"), () => 1000000000000),
+      ...longestFirst(
+        english.quantity.compactMultipliers.map(({ value, short }) => ({
+          value,
+          token: short,
+        })),
+      ).map(({ value, token }) => map(str(token), () => value)),
     );
   },
   Under: (): Parser<string> => {
     return __(
       any(
-        fuzzyCase("under"),
-        fuzzyCase("less than"),
-        fuzzyCase("lower than"),
+        ...longestFirst(
+          english.compatibility.quantity.under.map((token) => ({ token })),
+        ).map(({ token }) => fuzzyCase(token)),
       ),
     );
   },
@@ -151,8 +188,13 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
     return map(
       seq(
         any(s.ThreeLeadDigit, s.TwoLeadDigit, s.LeadDigit),
-        str(","),
-        keepNonNull(sepBy1(s.ThreeDigitGroup, skip1(str(",")))),
+        str(english.quantity.symbols.group),
+        keepNonNull(
+          sepBy1(
+            s.ThreeDigitGroup,
+            skip1(str(english.quantity.symbols.group)),
+          ),
+        ),
       ),
       ([first, _dot, rest]) => {
         const restJoin = rest.reduce((acc, d) => `${acc}${d}`, "");
@@ -163,7 +205,7 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
   Fractional: (): Parser<string> => {
     return map(
       seq(
-        str("."),
+        str(english.quantity.symbols.decimal),
         map(
           many1(digit()),
           (digs) => digs.reduce((acc, d) => `${acc}${d}`, ""),
@@ -181,10 +223,14 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
   Signed: (s): Parser<number> => {
     return map(
       seq(
-        any(str("+"), str("-"), str("±")),
+        any(
+          str(english.quantity.symbols.plus),
+          str(english.quantity.symbols.minus),
+          str(english.compatibility.quantity.plusMinus),
+        ),
         any(number(), s.FractionalComma),
       ),
-      ([sign, num]) => (sign === "-" ? num * -1 : num),
+      ([sign, num]) => sign === english.quantity.symbols.minus ? num * -1 : num,
     );
   },
   NonFractional: (s): Parser<QuantityEntity> => {
@@ -195,7 +241,17 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
           seq(s.Under, any(s.CommaSeparated, number())),
           ([, n]) => -n,
         ),
-        signed(),
+        map(
+          seq(
+            any(
+              str(english.quantity.symbols.plus),
+              str(english.quantity.symbols.minus),
+            ),
+            number(),
+          ),
+          ([sign, num]) =>
+            sign === english.quantity.symbols.minus ? num * -1 : num,
+        ),
         number(),
       ),
       (n, b, a) => quantity({ amount: n }, b, a),

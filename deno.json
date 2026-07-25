@@ -22,6 +22,7 @@
 
     "@data/countries-en-us": "./data/countries-en-us.json",
     "@data/languages-en": "./data/languages-en.json",
+    "@data/parser-en": "./data/parser-en.json",
     "@data/tlds": "./data/tlds.json"
   },
   "tasks": {
