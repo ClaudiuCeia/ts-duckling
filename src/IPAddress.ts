@@ -59,13 +59,14 @@ const octet: Parser<number> = guard(
 // the quantifier requires hex digits — a second ":" causes backtracking.
 const hexChain = regex(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*/, "hex-chain");
 
-// Regex for zero or more hex groups each with a trailing colon, e.g. "ffff:a:".
+// Regex for one or more hex groups each with a trailing colon, e.g. "ffff:a:".
 // Used in IPv4-mapped IPv6 to match middle groups before the IPv4 suffix.
 // Unlike hexChain this stops as soon as the next group would not be followed
 // by ":" — so for "ffff:192.0.2.128" it matches only "ffff:" because "192."
-// has no trailing colon.
+// has no trailing colon. Wrapped with optional() in seq() to handle the
+// zero-group case (e.g. "::192.0.2.128").
 const hexGroupsPrefix = regex(
-  /(?:[0-9a-fA-F]{1,4}:)*/,
+  /(?:[0-9a-fA-F]{1,4}:)+/,
   "hex-groups-prefix",
 );
 
@@ -213,17 +214,18 @@ export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
   //        ::192.0.2.128       (IPv4-compatible, deprecated but parseable)
   //        2001:db8::ffff:192.0.2.128
   //
-  // The `hexGroupsPrefix` regex matches zero-or-more "hex:" tokens and stops
+  // The `hexGroupsPrefix` regex matches one-or-more "hex:" tokens and stops
   // before the IPv4 octet because IPv4 octets are not followed by ":".
   // This prevents `hexChain` from greedily consuming "ffff:192" as two hex
-  // groups and then failing on the trailing ".".
+  // groups and then failing on the trailing ".". Wrapped with optional() to
+  // handle the zero-group case (e.g. "::192.0.2.128").
   IPv6v4Mapped: (s) =>
     guard(
       map(
         seq(
           optional(hexChain), // optional leading hex groups before "::"
           str("::"),
-          hexGroupsPrefix, // zero or more "hex:" groups before IPv4
+          optional(hexGroupsPrefix), // zero or more "hex:" groups before IPv4
           s.IPv4, // IPv4 address occupying the last 32 bits
         ),
         (_, b, a) => b.text.substring(b.index, a.index),
