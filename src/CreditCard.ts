@@ -51,6 +51,7 @@ const normalizeDigits = (s: string): string => s.replaceAll(/[ -]/g, "");
 const isValidCard = (raw: string): boolean => {
   const digits = normalizeDigits(raw);
   if (!/^\d{13,19}$/.test(digits)) return false;
+  if (/^(\d)\1+$/.test(digits)) return false;
   return luhnOk(digits);
 };
 

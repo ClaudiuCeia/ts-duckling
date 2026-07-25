@@ -27,6 +27,17 @@ Deno.test("Credit card invalid does not parse", () => {
   assertEquals(res, []);
 });
 
+Deno.test("Credit card rejects repeated-digit placeholders", () => {
+  for (
+    const input of [
+      "0000 0000 0000 0000",
+      "0000000000000",
+    ]
+  ) {
+    assertEquals(Duckling([CreditCard.parser]).extract(input), [], input);
+  }
+});
+
 Deno.test("Duckling extracts CC + 4-digit groups (step shortest)", () => {
   const text = "CC 4242 4242 4242 4242";
   const res = Duckling().extract(text);
