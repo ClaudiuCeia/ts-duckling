@@ -5,8 +5,12 @@ import {
   Email,
   IPAddress,
   Phone,
+  type PIIEntity,
+  type SensitiveEntity,
+  SensitiveParsers,
   SSN,
   URL,
+  type URLEntity,
   UUID,
 } from "../mod.ts";
 
@@ -172,4 +176,49 @@ Deno.test("redact: result length matches input length with single-char mask", ()
   const input = "My SSN is 123-45-6789.";
   const result = Duckling([SSN.parser]).redact(input);
   assertEquals(result.length, input.length);
+});
+
+// ---------------------------------------------------------------------------
+// SensitiveParsers preset
+// ---------------------------------------------------------------------------
+
+Deno.test("SensitiveParsers: redacts protocol-qualified URLs", () => {
+  const url = "https://example.com/reset?token=abc123";
+  const prefix = "Reset your password: ";
+  const result = Duckling(SensitiveParsers).redact(prefix + url);
+  assertEquals(result, prefix + "█".repeat(url.length));
+});
+
+Deno.test("SensitiveParsers: does not redact bare domains", () => {
+  const result = Duckling(SensitiveParsers).redact(
+    "Visit example.com for help",
+  );
+  assertEquals(result, "Visit example.com for help");
+});
+
+Deno.test("SensitiveParsers: redacts PII alongside full URLs", () => {
+  const input = "Email a@b.com, see https://example.com/reset?token=xyz";
+  const result = Duckling(SensitiveParsers).redact(input);
+  // Email should be redacted (no @ remaining)
+  assertEquals(result.includes("@"), false);
+  // Full URL should be redacted (no :// remaining)
+  assertEquals(result.includes("://"), false);
+});
+
+Deno.test("SensitiveParsers: bare domain is not redacted when full URL is also present", () => {
+  const input = "Docs at docs.example.com or https://example.com/docs";
+  const result = Duckling(SensitiveParsers).redact(input);
+  // bare domain should not be redacted
+  assertEquals(result.startsWith("Docs at docs.example.com"), true);
+  // full URL should be redacted (no protocol prefix remaining)
+  assertEquals(result.includes("://"), false);
+});
+
+// Type-level checks: confirm preset membership at compile time.
+// These are intentionally no-op at runtime; they fail to compile if wrong.
+Deno.test("SensitiveParsers: type membership — URLEntity extends SensitiveEntity", () => {
+  const _assertURLEntity: SensitiveEntity = null as unknown as URLEntity;
+  // PIIEntity is a subset of SensitiveEntity
+  const _assertPIIEntity: SensitiveEntity = null as unknown as PIIEntity;
+  assertEquals(true, true);
 });
