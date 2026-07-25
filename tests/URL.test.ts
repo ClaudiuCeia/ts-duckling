@@ -167,9 +167,70 @@ Deno.test("URL prefers the longest overlapping TLD", () => {
   assertEquals(res.map(({ text }) => text), ["service.community"]);
 });
 
-Deno.test("URL keeps TLD matching lowercase-only", () => {
-  assertEquals(
-    Duckling([URL.parser]).extract("service.COM service.COMMUNITY"),
-    [],
-  );
+Deno.test("URL matches case-insensitive TLDs in bare domains", () => {
+  const res = Duckling([URL.parser]).extract("service.COM service.COMMUNITY");
+  assertEquals(res.map(({ text }) => text), ["service.COM", "service.COMMUNITY"]);
+});
+
+Deno.test("URL full URL with localhost", () => {
+  const res = Duckling().extract("http://localhost:3000/ is ready");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "http://localhost:3000");
+  assertEquals(res[0].value, { url: "http://localhost:3000" });
+});
+
+Deno.test("URL full URL with IPv4 literal", () => {
+  const res = Duckling().extract("Connect to https://127.0.0.1:8443/a for API");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://127.0.0.1:8443/a");
+  assertEquals(res[0].value, { url: "https://127.0.0.1:8443/a" });
+});
+
+Deno.test("URL full URL with bracketed IPv6", () => {
+  const res = Duckling().extract("Try https://[2001:db8::1]/x endpoint");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://[2001:db8::1]/x");
+  assertEquals(res[0].value, { url: "https://[2001:db8::1]/x" });
+});
+
+Deno.test("URL accepts uppercase TLD and hyphens in full URL", () => {
+  const res = Duckling().extract("Visit https://my-site.EXAMPLE.COM/ now");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://my-site.EXAMPLE.COM");
+  assertEquals(res[0].value, { url: "https://my-site.EXAMPLE.COM" });
+});
+
+Deno.test("URL accepts Unicode label in full URL", () => {
+  const res = Duckling().extract("See https://münchen.de/ page");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://münchen.de");
+  assertEquals(res[0].value, { url: "https://münchen.de" });
+});
+
+Deno.test("URL accepts Punycode label in full URL", () => {
+  const res = Duckling().extract("See https://xn--mnchen-3ya.de/ info");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://xn--mnchen-3ya.de");
+  assertEquals(res[0].value, { url: "https://xn--mnchen-3ya.de" });
+});
+
+Deno.test("URL trims trailing unmatched closing punctuation from suffix", () => {
+  const res = Duckling().extract("See https://example.com/a).");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "https://example.com/a");
+  assertEquals(res[0].value, { url: "https://example.com/a" });
+});
+
+Deno.test("URL rejects decimal port :1.5", () => {
+  const res = Duckling().extract("http://example.com:1.5");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "http://example.com");
+  assertEquals(res[0].value, { url: "http://example.com" });
+});
+
+Deno.test("URL rejects out-of-range port :65536", () => {
+  const res = Duckling().extract("http://example.com:65536 end");
+  assertEquals(res[0].kind, "url");
+  assertEquals(res[0].text, "http://example.com");
+  assertEquals(res[0].value, { url: "http://example.com" });
 });
