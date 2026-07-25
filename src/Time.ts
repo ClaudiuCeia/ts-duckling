@@ -88,21 +88,28 @@ type TimeGranularity =
   | "decade"
   | "decades"
   | "century"
-  | "centuries"
-  | "era";
+  | "centuries";
+
+/** Structured temporal value produced by a time parser. */
+export type TimeWhen =
+  | { type: "date"; year: number; month: number; day?: number }
+  | { type: "datetime"; iso: string }
+  | { type: "relative"; offset: number }
+  | { type: "label"; value: string }
+  | { type: "clock"; time: string }
+  | { type: "ordinal"; value: number }
+  | { type: "year"; year: number };
 
 /**
  * Time entity.
  *
- * `value.when` is either:
- * - an ISO timestamp (UTC) for absolute times, or
- * - a relative expression string (e.g. `"-2 days"`), or
- * - a tuple for ranges.
+ * `value.when` is a discriminated object describing how the parsed value
+ * should be interpreted. The entity's `grain` supplies its precision or unit.
  */
 export type TimeEntity = Entity<
   "time",
   {
-    when: string | [string, string];
+    when: TimeWhen;
     grain: TimeGranularity;
     era: "BCE" | "CE";
   }
@@ -142,31 +149,34 @@ const monthNumber = (month: number | string): number => {
   return number;
 };
 
-const utcCalendarDate = (
+const calendarDate = (
   year: number,
   month: number | string,
-  day: number,
-): string => {
+  day?: number,
+): Extract<TimeWhen, { type: "date" }> => {
   const numericMonth = monthNumber(month);
+  const numericDay = day ?? 1;
   const date = new Date(0);
   date.setUTCHours(0, 0, 0, 0);
-  date.setUTCFullYear(year, numericMonth - 1, day);
+  date.setUTCFullYear(year, numericMonth - 1, numericDay);
 
   if (
     date.getUTCFullYear() !== year ||
     date.getUTCMonth() !== numericMonth - 1 ||
-    date.getUTCDate() !== day
+    date.getUTCDate() !== numericDay
   ) {
     throw new RangeError("invalid calendar date");
   }
 
-  return date.toISOString();
+  return day === undefined
+    ? { type: "date", year, month: numericMonth }
+    : { type: "date", year, month: numericMonth, day };
 };
 
 const isoDateTime = (raw: string): string => {
   const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(raw);
   if (!parts) throw new RangeError("invalid ISO datetime");
-  utcCalendarDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+  calendarDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
 
   const date = new Date(
     /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw) ? raw : `${raw}Z`,
@@ -230,7 +240,15 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i,
           "iso-datetime-z",
         ),
-        (raw, b, a) => time({ when: isoDateTime(raw), grain: "second" }, b, a),
+        (raw, b, a) =>
+          time(
+            {
+              when: { type: "datetime", iso: isoDateTime(raw) },
+              grain: "second",
+            },
+            b,
+            a,
+          ),
       ),
       "valid date",
     );
@@ -244,7 +262,15 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?(?:[+-]\d{2}:\d{2})?/,
           "iso-datetime",
         ),
-        (raw, b, a) => time({ when: isoDateTime(raw), grain: "second" }, b, a),
+        (raw, b, a) =>
+          time(
+            {
+              when: { type: "datetime", iso: isoDateTime(raw) },
+              grain: "second",
+            },
+            b,
+            a,
+          ),
       ),
       "valid date",
     );
@@ -258,7 +284,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       (grain, b, a) => {
         return time(
           {
-            when: grain,
+            when: { type: "label", value: grain },
             grain: grain as TimeGranularity,
           },
           b,
@@ -273,7 +299,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       (day, b, a) => {
         return time(
           {
-            when: day,
+            when: { type: "label", value: day },
             grain: "day",
           },
           b,
@@ -295,21 +321,34 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       ([name, offset]) =>
         map(fuzzyCase(name), (_res, b, a) => {
           const now = new Date();
-          if (offset !== 0) now.setDate(now.getDate() + offset);
-          return time({ when: now.toISOString(), grain: "day" }, b, a);
+          if (offset !== 0) now.setUTCDate(now.getUTCDate() + offset);
+          return time(
+            {
+              when: calendarDate(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+              ),
+              grain: "day",
+            },
+            b,
+            a,
+          );
         }),
     );
     const common = english.compatibility.time.common.map((name) =>
       map(
         fuzzyCase(name),
-        (_res, b, a) => time({ when: name, grain: "week" }, b, a),
+        (_res, b, a) =>
+          time({ when: { type: "label", value: name }, grain: "week" }, b, a),
       )
     );
     const dayPeriods = Object.entries(english.time.dayPeriods).map(
       ([name, when]) =>
         map(
           fuzzyCase(name),
-          (_res, b, a) => time({ when, grain: "hour" }, b, a),
+          (_res, b, a) =>
+            time({ when: { type: "clock", time: when }, grain: "hour" }, b, a),
         ),
     );
     return any(
@@ -324,7 +363,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       ([quantity, , grain], b, a) => {
         return time(
           {
-            when: `${quantity.value.amount} ${grain}`,
+            when: { type: "relative", offset: quantity.value.amount },
             grain: grain as TimeGranularity,
           },
           b,
@@ -352,7 +391,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
 
           return time(
             {
-              when: `${amount} ${grain}`,
+              when: { type: "relative", offset: amount },
               grain: grain as TimeGranularity,
             },
             b,
@@ -379,7 +418,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
 
           return time(
             {
-              when: `${amount} ${grain}`,
+              when: { type: "relative", offset: amount },
               grain: grain as TimeGranularity,
             },
             b,
@@ -400,7 +439,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
 
           return time(
             {
-              when: `${amount} ${grain}`,
+              when: { type: "relative", offset: amount },
               grain: grain as TimeGranularity,
             },
             b,
@@ -469,7 +508,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         ([month, , year], b, a) => {
           return time(
             {
-              when: utcCalendarDate(year, month, 1),
+              when: calendarDate(year, month),
               grain: "month",
             },
             b,
@@ -505,12 +544,10 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           peek(eof()),
         ),
       ),
-      ([quantity, qualifier, , grain, maybeEra], b, a) =>
+      ([quantity, , , grain, maybeEra], b, a) =>
         time(
           {
-            when: `${quantity.value.amount}${qualifier} ${grain} ${
-              maybeEra || ""
-            }`,
+            when: { type: "ordinal", value: quantity.value.amount },
             grain: grain as TimeGranularity,
             era: maybeEra === "BCE" || maybeEra === "BC" ? "BCE" : "CE",
           },
@@ -533,21 +570,16 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         ordinal,
         peekValue(enumerationTail(ordinal, dot(s.QualifiedGrain))),
       ),
-      ([current, final], b, a) => {
-        const finalWhen = final.value.when as string;
-        const suffix = finalWhen.slice(finalWhen.indexOf(" ") + 1);
-
-        return time(
+      ([current, final], b, a) =>
+        time(
           {
-            when:
-              `${current.quantity.value.amount}${current.qualifier} ${suffix}`,
+            when: { type: "ordinal", value: current.quantity.value.amount },
             grain: final.value.grain,
             era: final.value.era,
           },
           b,
           a,
-        );
-      },
+        ),
     );
   },
   PartialDateDayMonth(s) {
@@ -558,7 +590,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           const year = new Date().getUTCFullYear();
           return time(
             {
-              when: utcCalendarDate(year, month, day),
+              when: calendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -583,7 +615,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         ([year, , month, , day], b, a) => {
           return time(
             {
-              when: utcCalendarDate(year, month, day),
+              when: calendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -609,7 +641,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         ([month, , day, , , year], b, a) => {
           return time(
             {
-              when: utcCalendarDate(year, month, day),
+              when: calendarDate(year, month, day),
               grain: "day",
             },
             b,
@@ -654,7 +686,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         }
         return time(
           {
-            when: label,
+            when: { type: "clock", time: label },
             grain: clockStr.split(":").length > 2 ? "second" : "minute",
           },
           b,
@@ -676,7 +708,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           ),
           ([day, , month, , year], b, a) =>
             time(
-              { when: utcCalendarDate(year, month, day), grain: "day" },
+              { when: calendarDate(year, month, day), grain: "day" },
               b,
               a,
             ),
@@ -734,7 +766,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
           ({ day, month, year }, b, a) => {
             return time(
               {
-                when: utcCalendarDate(year, month, day),
+                when: calendarDate(year, month, day),
                 grain: "day",
               },
               b,
@@ -747,37 +779,33 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     );
   },
   PartialDateMonthYearEra(s) {
-    return __(
-      map(
-        seq(s.PartialDateMonthYear, s.Era),
-        ([partial, era], b, a) => {
-          return time(
-            {
-              when: `${partial} ${era}`,
-              grain: "era",
-              era: era === "BCE" || era === "BC" ? "BCE" : "CE",
-            },
-            b,
-            a,
-          );
-        },
-      ),
-    );
-  },
-  FullDateEra(s) {
-    return __(
-      map(seq(s.FullDate, s.Era), ([full, era], b, a) => {
+    return map(
+      seq(__(s.PartialDateMonthYear), s.Era),
+      ([partial, era], b, a) => {
         return time(
           {
-            when: `${full} ${era}`,
-            grain: "era",
+            when: partial.value.when,
+            grain: partial.value.grain,
             era: era === "BCE" || era === "BC" ? "BCE" : "CE",
           },
           b,
           a,
         );
-      }),
+      },
     );
+  },
+  FullDateEra(s) {
+    return map(seq(__(s.FullDate), s.Era), ([full, era], b, a) => {
+      return time(
+        {
+          when: full.value.when,
+          grain: full.value.grain,
+          era: era === "BCE" || era === "BC" ? "BCE" : "CE",
+        },
+        b,
+        a,
+      );
+    });
   },
   YearEra(s) {
     return map(
@@ -789,8 +817,8 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
       ([, year, era], b, a) => {
         return time(
           {
-            when: `${year.value.amount} ${era}`,
-            grain: "era",
+            when: { type: "year", year: year.value.amount },
+            grain: "year",
             era: era === "BCE" || era === "BC" ? "BCE" : "CE",
           },
           b,
@@ -825,7 +853,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
             const year = new Date().getUTCFullYear();
             return time(
               {
-                when: utcCalendarDate(year, month, 1),
+                when: calendarDate(year, month),
                 grain: "month",
               },
               b,

@@ -167,8 +167,8 @@ export const Range: DefinedLanguage<RangeOutputs> = defineLanguage<
             {
               min: time(
                 {
-                  when: `${low.value.amount} ${high.value.era}`,
-                  grain: "era",
+                  when: { type: "year", year: low.value.amount },
+                  grain: "year",
                   era: high.value.era,
                 },
                 {
@@ -200,8 +200,8 @@ export const Range: DefinedLanguage<RangeOutputs> = defineLanguage<
             {
               min: time(
                 {
-                  when: `${low.value.amount} ${high.value.era}`,
-                  grain: "era",
+                  when: { type: "year", year: low.value.amount },
+                  grain: "year",
                   era: high.value.era,
                 },
                 {

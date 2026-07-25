@@ -16,7 +16,7 @@ Deno.test("UnspecifiedGrainAmount", () => {
       value: {
         era: "CE",
         grain: "centuries",
-        when: "centuries",
+        when: { type: "label", value: "centuries" },
       },
     },
   ]);
@@ -36,7 +36,7 @@ Deno.test("DayOfWeek", () => {
       value: {
         era: "CE",
         grain: "day",
-        when: "Monday",
+        when: { type: "label", value: "Monday" },
       },
     },
     {
@@ -47,7 +47,7 @@ Deno.test("DayOfWeek", () => {
       value: {
         era: "CE",
         grain: "day",
-        when: "Friday",
+        when: { type: "label", value: "Friday" },
       },
     },
   ]);
@@ -59,9 +59,9 @@ Deno.test("Common relative days", () => {
     const res = Duckling([Time.parser]).extract("today, yesterday, tomorrow");
 
     assertEquals(res.map((entity) => entity.value.when), [
-      "2024-03-01T12:00:00.000Z",
-      "2024-02-29T12:00:00.000Z",
-      "2024-03-02T12:00:00.000Z",
+      { type: "date", year: 2024, month: 3, day: 1 },
+      { type: "date", year: 2024, month: 2, day: 29 },
+      { type: "date", year: 2024, month: 3, day: 2 },
     ]);
   } finally {
     time.restore();
@@ -82,7 +82,7 @@ Deno.test("ISODateTimeZ", () => {
       value: {
         era: "CE",
         grain: "second",
-        when: "2004-07-12T22:18:09.000Z",
+        when: { type: "datetime", iso: "2004-07-12T22:18:09.000Z" },
       },
     },
   ]);
@@ -102,7 +102,7 @@ Deno.test("GrainQuantity", () => {
       value: {
         era: "CE",
         grain: "days",
-        when: "5 days",
+        when: { type: "relative", offset: 5 },
       },
     },
     {
@@ -113,7 +113,7 @@ Deno.test("GrainQuantity", () => {
       value: {
         era: "CE",
         grain: "seconds",
-        when: "51615 seconds",
+        when: { type: "relative", offset: 51615 },
       },
     },
   ]);
@@ -135,7 +135,7 @@ Deno.test("Relative", () => {
       value: {
         era: "CE",
         grain: "days",
-        when: "-4 days",
+        when: { type: "relative", offset: -4 },
       },
     },
     {
@@ -146,7 +146,7 @@ Deno.test("Relative", () => {
       value: {
         era: "CE",
         grain: "week",
-        when: "-1 week",
+        when: { type: "relative", offset: -1 },
       },
     },
     {
@@ -157,7 +157,7 @@ Deno.test("Relative", () => {
       value: {
         era: "CE",
         grain: "year",
-        when: "-1 year",
+        when: { type: "relative", offset: -1 },
       },
     },
     {
@@ -168,7 +168,7 @@ Deno.test("Relative", () => {
       value: {
         era: "CE",
         grain: "years",
-        when: "2 years",
+        when: { type: "relative", offset: 2 },
       },
     },
   ]);
@@ -182,7 +182,7 @@ Deno.test("Relative defaults and optional quantities", () => {
   });
   assertEquals(nextWeek.success, true);
   if (nextWeek.success) {
-    assertEquals(nextWeek.value.value.when, "1 week");
+    assertEquals(nextWeek.value.value.when, { type: "relative", offset: 1 });
   }
 
   const lastTwoWeeks = Time.Relative({
@@ -191,7 +191,10 @@ Deno.test("Relative defaults and optional quantities", () => {
   });
   assertEquals(lastTwoWeeks.success, true);
   if (lastTwoWeeks.success) {
-    assertEquals(lastTwoWeeks.value.value.when, "-2 weeks");
+    assertEquals(lastTwoWeeks.value.value.when, {
+      type: "relative",
+      offset: -2,
+    });
   }
 
   const weekAgo = Time.Relative({
@@ -200,7 +203,7 @@ Deno.test("Relative defaults and optional quantities", () => {
   });
   assertEquals(weekAgo.success, true);
   if (weekAgo.success) {
-    assertEquals(weekAgo.value.value.when, "-1 week");
+    assertEquals(weekAgo.value.value.when, { type: "relative", offset: -1 });
   }
 });
 
@@ -216,7 +219,7 @@ Deno.test("PartialDateMonthYear numeric", () => {
       value: {
         era: "CE",
         grain: "month",
-        when: "2022-12-01T00:00:00.000Z",
+        when: { type: "date", year: 2022, month: 12 },
       },
     },
   ]);
@@ -247,7 +250,7 @@ Deno.test("PartialDateMonthYear literal", () => {
       value: {
         era: "CE",
         grain: "month",
-        when: "2022-06-01T00:00:00.000Z",
+        when: { type: "date", year: 2022, month: 6 },
       },
     },
   ]);
@@ -269,7 +272,7 @@ Deno.test("PartialDateDayMonth literal", () => {
         value: {
           era: "CE",
           grain: "day",
-          when: "2022-06-12T00:00:00.000Z",
+          when: { type: "date", year: 2022, month: 6, day: 12 },
         },
       },
     ]);
@@ -292,7 +295,7 @@ Deno.test("FullDate", () => {
       value: {
         era: "CE",
         grain: "day",
-        when: "2023-06-01T00:00:00.000Z",
+        when: { type: "date", year: 2023, month: 6, day: 1 },
       },
     },
   ]);
@@ -310,7 +313,7 @@ Deno.test("False positive time", () => {
       value: {
         era: "CE",
         grain: "month",
-        when: "2022-06-01T00:00:00.000Z",
+        when: { type: "date", year: 2022, month: 6 },
       },
     },
   ]);
@@ -329,8 +332,8 @@ Deno.test("Era", () => {
       text: "100 BC",
       value: {
         era: "BCE",
-        grain: "era",
-        when: "100 BC",
+        grain: "year",
+        when: { type: "year", year: 100 },
       },
     },
   ]);
@@ -350,7 +353,7 @@ Deno.test("QualifiedGrain", () => {
       value: {
         era: "BCE",
         grain: "century",
-        when: "5th century BC",
+        when: { type: "ordinal", value: 5 },
       },
     },
   ]);
@@ -370,7 +373,7 @@ Deno.test("qualified grain enumeration inherits the final grain", () => {
       value: {
         era: "CE",
         grain: "century",
-        when: "16th century ",
+        when: { type: "ordinal", value: 16 },
       },
     },
     {
@@ -381,7 +384,7 @@ Deno.test("qualified grain enumeration inherits the final grain", () => {
       value: {
         era: "CE",
         grain: "century",
-        when: "17th century ",
+        when: { type: "ordinal", value: 17 },
       },
     },
     {
@@ -392,7 +395,7 @@ Deno.test("qualified grain enumeration inherits the final grain", () => {
       value: {
         era: "CE",
         grain: "century",
-        when: "18th century ",
+        when: { type: "ordinal", value: 18 },
       },
     },
   ]);
@@ -406,9 +409,9 @@ Deno.test("qualified grain enumerations propagate eras and Oxford commas", () =>
   assertEquals(
     res.map((entity) => [entity.value.when, entity.value.era]),
     [
-      ["16th century BC", "BCE"],
-      ["17th century BC", "BCE"],
-      ["18th century BC", "BCE"],
+      [{ type: "ordinal", value: 16 }, "BCE"],
+      [{ type: "ordinal", value: 17 }, "BCE"],
+      [{ type: "ordinal", value: 18 }, "BCE"],
     ],
   );
 });
@@ -454,7 +457,7 @@ Deno.test("Literal month", () => {
         value: {
           era: "CE",
           grain: "month",
-          when: "2022-07-01T00:00:00.000Z",
+          when: { type: "date", year: 2022, month: 7 },
         },
       },
       {
@@ -465,7 +468,7 @@ Deno.test("Literal month", () => {
         value: {
           era: "CE",
           grain: "month",
-          when: "2022-08-01T00:00:00.000Z",
+          when: { type: "date", year: 2022, month: 8 },
         },
       },
     ]);
@@ -485,8 +488,8 @@ Deno.test("Circa time", () => {
       text: "c. 425 BC",
       value: {
         era: "BCE",
-        grain: "era",
-        when: "425 BC",
+        grain: "year",
+        when: { type: "year", year: 425 },
       },
     },
   ]);
@@ -504,7 +507,12 @@ Deno.test("FullDate: valid date still parses correctly", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "15/06/2024");
-  assertEquals(res[0].value.when, "2024-06-15T00:00:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "date",
+    year: 2024,
+    month: 6,
+    day: 15,
+  });
 });
 
 Deno.test("calendar dates validate leap days", () => {
@@ -517,7 +525,11 @@ Deno.test("calendar dates validate leap days", () => {
   for (const input of valid) {
     const res = Duckling([Time.parser]).extract(input);
     assertEquals(res.length, 1, input);
-    assertEquals(res[0].value.when, "2024-02-29T00:00:00.000Z", input);
+    assertEquals(
+      res[0].value.when,
+      { type: "date", year: 2024, month: 2, day: 29 },
+      input,
+    );
   }
 
   assertEquals(Time.FullDate({ text: "29/02/2023", index: 0 }).success, false);
@@ -553,7 +565,10 @@ Deno.test("FullDate preserves numeric ambiguity ordering", () => {
 
   assertEquals(
     res.map((entity) => entity.value.when),
-    ["2024-11-12T00:00:00.000Z", "2024-12-31T00:00:00.000Z"],
+    [
+      { type: "date", year: 2024, month: 11, day: 12 },
+      { type: "date", year: 2024, month: 12, day: 31 },
+    ],
   );
 });
 
@@ -562,7 +577,7 @@ Deno.test("numeric dates can follow sentence punctuation", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "12/2022");
-  assertEquals(res[0].value.when, "2022-12-01T00:00:00.000Z");
+  assertEquals(res[0].value.when, { type: "date", year: 2022, month: 12 });
 });
 
 Deno.test("FullDate: does not crash on nonsense date-like input", () => {
@@ -576,14 +591,8 @@ Deno.test("FullDate: does not crash on nonsense date-like input", () => {
     const res = Duckling([Time.parser]).extract(input);
     // Just verify it doesn't throw and doesn't produce "Invalid Date"
     for (const entity of res) {
-      if (entity.kind === "time" && typeof entity.value.when === "string") {
-        assertEquals(
-          entity.value.when !== "Invalid Date",
-          true,
-          `Should not produce Invalid Date for "${input}", got: ${
-            JSON.stringify(entity)
-          }`,
-        );
+      if (entity.kind === "time" && entity.value.when.type === "datetime") {
+        assertEquals(entity.value.when.iso.includes("Invalid Date"), false);
       }
     }
   }
@@ -603,7 +612,7 @@ Deno.test("ISODate: basic YYYY-MM-DD", () => {
       value: {
         era: "CE",
         grain: "day",
-        when: "2024-05-18T00:00:00.000Z",
+        when: { type: "date", year: 2024, month: 5, day: 18 },
       },
     },
   ]);
@@ -616,9 +625,19 @@ Deno.test("ISODate: multiple YYYY-MM-DD in sentence", () => {
 
   assertEquals(res.length, 2);
   assertEquals(res[0].text, "1990-03-15");
-  assertEquals(res[0].value.when, "1990-03-15T00:00:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "date",
+    year: 1990,
+    month: 3,
+    day: 15,
+  });
   assertEquals(res[1].text, "2060-01-01");
-  assertEquals(res[1].value.when, "2060-01-01T00:00:00.000Z");
+  assertEquals(res[1].value.when, {
+    type: "date",
+    year: 2060,
+    month: 1,
+    day: 1,
+  });
 });
 
 Deno.test("ISODate: years below 100 retain their calendar year", () => {
@@ -626,7 +645,10 @@ Deno.test("ISODate: years below 100 retain their calendar year", () => {
 
   assertEquals(
     res.map((entity) => entity.value.when),
-    ["0001-01-01T00:00:00.000Z", "0099-12-31T00:00:00.000Z"],
+    [
+      { type: "date", year: 1, month: 1, day: 1 },
+      { type: "date", year: 99, month: 12, day: 31 },
+    ],
   );
 });
 
@@ -639,7 +661,10 @@ Deno.test("ISODateTime: with positive offset", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30:00+02:00");
-  assertEquals(res[0].value.when, "2024-05-18T08:30:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "datetime",
+    iso: "2024-05-18T08:30:00.000Z",
+  });
   assertEquals(res[0].value.grain, "second");
 });
 
@@ -650,7 +675,10 @@ Deno.test("ISODateTime: with negative offset", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30:00-05:00");
-  assertEquals(res[0].value.when, "2024-05-18T15:30:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "datetime",
+    iso: "2024-05-18T15:30:00.000Z",
+  });
 });
 
 Deno.test("ISODateTime: without timezone is UTC", () => {
@@ -660,7 +688,10 @@ Deno.test("ISODateTime: without timezone is UTC", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30:00");
-  assertEquals(res[0].value.when, "2024-05-18T10:30:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "datetime",
+    iso: "2024-05-18T10:30:00.000Z",
+  });
   assertEquals(res[0].value.grain, "second");
 });
 
@@ -671,7 +702,10 @@ Deno.test("ISODateTime: without seconds", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30");
-  assertEquals(res[0].value.when, "2024-05-18T10:30:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "datetime",
+    iso: "2024-05-18T10:30:00.000Z",
+  });
   assertEquals(res[0].value.grain, "second");
 });
 
@@ -682,7 +716,12 @@ Deno.test("LiteralMonthDayYear: with comma", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "July 13, 2016");
-  assertEquals(res[0].value.when, "2016-07-13T00:00:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "date",
+    year: 2016,
+    month: 7,
+    day: 13,
+  });
   assertEquals(res[0].value.grain, "day");
 });
 
@@ -691,7 +730,12 @@ Deno.test("LiteralMonthDayYear: without comma", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "March 3 1990");
-  assertEquals(res[0].value.when, "1990-03-03T00:00:00.000Z");
+  assertEquals(res[0].value.when, {
+    type: "date",
+    year: 1990,
+    month: 3,
+    day: 3,
+  });
   assertEquals(res[0].value.grain, "day");
 });
 
@@ -720,7 +764,7 @@ Deno.test("ClockTime: HH:MM with timezone in parens", () => {
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "23:28 (UTC)");
-  assertEquals(res[0].value.when, "23:28 (UTC)");
+  assertEquals(res[0].value.when, { type: "clock", time: "23:28 (UTC)" });
   assertEquals(res[0].value.grain, "minute");
 });
 
@@ -773,7 +817,7 @@ Deno.test("Common: noon", () => {
   const res = Duckling([Time.parser]).extract("We eat lunch at noon.");
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "noon");
-  assertEquals(res[0].value.when, "12:00");
+  assertEquals(res[0].value.when, { type: "clock", time: "12:00" });
   assertEquals(res[0].value.grain, "hour");
 });
 
@@ -781,7 +825,7 @@ Deno.test("Common: midnight", () => {
   const res = Duckling([Time.parser]).extract("Come back before midnight.");
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "midnight");
-  assertEquals(res[0].value.when, "00:00");
+  assertEquals(res[0].value.when, { type: "clock", time: "00:00" });
   assertEquals(res[0].value.grain, "hour");
 });
 
@@ -818,7 +862,9 @@ Deno.test("CLDR wide month and weekday names preserve Time behavior", () => {
   for (const weekday of weekdays) {
     const result = Time.DayOfWeek({ text: weekday, index: 0 });
     assertEquals(result.success, true, weekday);
-    if (result.success) assertEquals(result.value.value.when, weekday);
+    if (result.success) {
+      assertEquals(result.value.value.when, { type: "label", value: weekday });
+    }
   }
 });
 
@@ -841,7 +887,7 @@ Deno.test("CLDR duration grains preserve singular and plural Time behavior", () 
       assertEquals(result.success, true, name);
       if (result.success) {
         assertEquals(result.ctx.index, name.length, name);
-        assertEquals(result.value.value.when, name);
+        assertEquals(result.value.value.when, { type: "label", value: name });
         assertEquals(result.value.value.grain, name);
       }
     }
@@ -868,6 +914,32 @@ Deno.test("Time compatibility aliases remain accepted", () => {
   );
   assertEquals(
     relative.map(({ value }) => [value.when, value.grain]),
-    [["-1 month", "month"], ["1 week", "week"], ["weekend", "week"]],
+    [
+      [{ type: "relative", offset: -1 }, "month"],
+      [{ type: "relative", offset: 1 }, "week"],
+      [{ type: "label", value: "weekend" }, "week"],
+    ],
+  );
+});
+
+Deno.test("era-qualified dates preserve structured calendar values", () => {
+  const res = Duckling([Time.parser]).extract(
+    "Records mention June 2022 BC and 12 June 2022 BC.",
+  );
+
+  assertEquals(
+    res.map(({ value }) => value),
+    [
+      {
+        era: "BCE",
+        grain: "month",
+        when: { type: "date", year: 2022, month: 6 },
+      },
+      {
+        era: "BCE",
+        grain: "day",
+        when: { type: "date", year: 2022, month: 6, day: 12 },
+      },
+    ],
   );
 });

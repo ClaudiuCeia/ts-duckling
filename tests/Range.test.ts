@@ -24,7 +24,7 @@ Deno.test("Time range", () => {
             value: {
               era: "CE",
               grain: "day",
-              when: "2022-06-05T00:00:00.000Z",
+              when: { type: "date", year: 2022, month: 6, day: 5 },
             },
           },
           min: {
@@ -35,7 +35,7 @@ Deno.test("Time range", () => {
             value: {
               era: "CE",
               grain: "day",
-              when: "2022-06-01T00:00:00.000Z",
+              when: { type: "date", year: 2022, month: 6, day: 1 },
             },
           },
         },
@@ -130,8 +130,8 @@ Deno.test("Year range", () => {
           text: "2300 BCE",
           value: {
             era: "BCE",
-            grain: "era",
-            when: "2300 BCE",
+            grain: "year",
+            when: { type: "year", year: 2300 },
           },
         },
         min: {
@@ -141,8 +141,8 @@ Deno.test("Year range", () => {
           text: "2700",
           value: {
             era: "BCE",
-            grain: "era",
-            when: "2700 BCE",
+            grain: "year",
+            when: { type: "year", year: 2700 },
           },
         },
       },

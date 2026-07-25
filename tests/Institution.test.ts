@@ -91,7 +91,7 @@ Deno.test("Fordwich Town Hall", () => {
       value: {
         era: "CE",
         grain: "century",
-        when: "16th century ",
+        when: { type: "ordinal", value: 16 },
       },
     },
     {
