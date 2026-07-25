@@ -1,6 +1,7 @@
 import {
   any,
   eof,
+  failure,
   map,
   type Parser,
   regex,
@@ -17,6 +18,50 @@ export const dot = <T>(p: Parser<T>): Parser<T> =>
 
 export const __ = <T>(p: Parser<T>): Parser<T> =>
   map(seqNonNull(p, skip1(space())), ([m]) => m);
+
+/**
+ * Zero-width word boundary.
+ *
+ * Like `dot()` but does NOT consume the trailing delimiter. Succeeds if the
+ * character immediately after the match is a non-word character or EOF.
+ * Use this for parsers that must not swallow structural punctuation that
+ * could belong to an adjacent entity.
+ */
+export const boundary = <T>(p: Parser<T>): Parser<T> =>
+  (ctx) => {
+    const result = p(ctx);
+    if (!result.success) return result;
+    const after = result.ctx;
+    if (after.index < after.text.length && /\w/.test(after.text[after.index])) {
+      return failure(ctx, "word-boundary");
+    }
+    return result;
+  };
+
+/**
+ * Zero-width boundary with format-specific continuation rejection.
+ *
+ * Same as `boundary()`, but also rejects when the character immediately after
+ * the match tests positive against `extraPattern`. Use this for parsers where
+ * certain non-word characters are structural (e.g. `-` in UUID, `:` in IPv6,
+ * `.` in JWT) and must not appear as the first character following a match.
+ */
+export const strictBoundary = <T>(
+  p: Parser<T>,
+  extraPattern: RegExp,
+): Parser<T> =>
+  (ctx) => {
+    const result = p(ctx);
+    if (!result.success) return result;
+    const after = result.ctx;
+    if (after.index < after.text.length) {
+      const c = after.text[after.index];
+      if (/\w/.test(c) || extraPattern.test(c)) {
+        return failure(ctx, "format-boundary");
+      }
+    }
+    return result;
+  };
 
 export const nonWord = regex(/\W-?/, "non-word");
 export const separator = __(nonWord);

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling, Language } from "../mod.ts";
+import { Duckling, Language, Phone } from "../mod.ts";
 
 Deno.test("Language", () => {
   const res = Duckling().extract(`
@@ -107,4 +107,28 @@ Deno.test("Language prefers the longest overlapping name and preserves canonical
     { code: "ars", name: "Arabic, Najdi" },
     { code: "en", name: "English" },
   ]);
+});
+
+Deno.test("Language adjacent to phone number (+E.164) yields both entities", () => {
+  // Language boundary must not consume the '+' that starts the phone number.
+  const res = Duckling([Language.parser, Phone.parser]).extract(
+    "English+14155552671",
+  );
+
+  const langEntity = res.find((e) => e.kind === "language");
+  const phoneEntity = res.find((e) => e.kind === "phone");
+
+  assertEquals(langEntity?.value.code, "en");
+  assertEquals(phoneEntity?.value.normalized, "+14155552671");
+});
+
+Deno.test("Language adjacent to phone (async scanner) yields both entities", async () => {
+  const d = Duckling([Language.parser, Phone.parser]);
+  const sync = d.extract("English+14155552671");
+  const async_ = await d.extractAsync("English+14155552671", { yieldEvery: 2 });
+
+  assertEquals(
+    async_.map((e) => ({ kind: e.kind, text: e.text })),
+    sync.map((e) => ({ kind: e.kind, text: e.text })),
+  );
 });

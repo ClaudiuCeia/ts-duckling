@@ -1,6 +1,6 @@
 import { any, type Context, defineLanguage, map } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { boundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import languages from "@data/languages-en" with { type: "json" };
 import { longestLiteral } from "./parsers.ts";
@@ -67,5 +67,5 @@ export const Language: DefinedLanguage<LanguageOutputs> = defineLanguage<
   LanguageOutputs
 >({
   Language: () => languageNameParser,
-  parser: (s) => dot(any(s.Language)),
+  parser: (s) => boundary(any(s.Language)),
 });

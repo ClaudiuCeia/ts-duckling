@@ -1,5 +1,15 @@
 import { assertEquals } from "@std/assert";
-import { Duckling, Email, PIIParsers, Quantity, SSN, URL } from "../mod.ts";
+import {
+  Duckling,
+  Email,
+  IPAddress,
+  MACAddress,
+  PIIParsers,
+  Quantity,
+  SSN,
+  URL,
+  UUID,
+} from "../mod.ts";
 
 const inputs = [
   "Email me at a@b.com",
@@ -177,4 +187,42 @@ Deno.test("extractAsync: empty input returns empty array", async () => {
   const d = Duckling();
   const result = await d.extractAsync("");
   assertEquals(result, []);
+});
+
+Deno.test("extractAsync: format-specific boundaries match sync (prefix cases)", async () => {
+  // These inputs previously returned a wrong prefix match; both sync and async
+  // must now return zero results.
+  const cases = [
+    { parsers: [IPAddress.parser] as [typeof IPAddress.parser], input: "1:2:3:4:5:6:7:8:9" },
+    { parsers: [MACAddress.parser] as [typeof MACAddress.parser], input: "00:1A:2B:3C:4D:5E:6F" },
+    { parsers: [UUID.parser] as [typeof UUID.parser], input: "550e8400-e29b-41d4-a716-446655440000-dead" },
+    { parsers: [SSN.parser] as [typeof SSN.parser], input: "123-45-6789-00" },
+  ];
+
+  for (const { parsers, input } of cases) {
+    const d = Duckling(parsers);
+    const sync = d.extract(input);
+    const async_ = await d.extractAsync(input, { yieldEvery: 2 });
+
+    assertEquals(
+      async_.map((e) => ({ kind: e.kind, text: e.text })),
+      sync.map((e) => ({ kind: e.kind, text: e.text })),
+      `sync/async mismatch for: ${input}`,
+    );
+    assertEquals(sync.length, 0, `expected no match for: ${input}`);
+  }
+});
+
+Deno.test("extractAsync: IPv4-mapped IPv6 matches sync", async () => {
+  const d = Duckling([IPAddress.parser]);
+  const input = "addr ::ffff:192.0.2.128 ok";
+  const sync = d.extract(input);
+  const async_ = await d.extractAsync(input, { yieldEvery: 2 });
+
+  assertEquals(
+    async_.map((e) => ({ kind: e.kind, text: e.text })),
+    sync.map((e) => ({ kind: e.kind, text: e.text })),
+  );
+  assertEquals(sync.length, 1);
+  assertEquals(sync[0].text, "::ffff:192.0.2.128");
 });
