@@ -40,6 +40,20 @@ Deno.test("MAC not enough octets rejected", () => {
   assertEquals(res.length, 0);
 });
 
+Deno.test("MAC with extra octet is rejected", () => {
+  // Seven colon-separated pairs — parser must not yield the first six as a prefix
+  const res = Duckling([MACAddress.parser]).extract("00:1A:2B:3C:4D:5E:6F");
+  assertEquals(res.length, 0);
+});
+
+Deno.test("MAC at end of sentence (trailing period) still matches", () => {
+  const res = Duckling([MACAddress.parser]).extract(
+    "The MAC is 00:1A:2B:3C:4D:5E.",
+  );
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.normalized, "00:1a:2b:3c:4d:5e");
+});
+
 Deno.test("MAC in Duckling default parsers", () => {
   const res = Duckling().extract("MAC is 00:1A:2B:3C:4D:5E here");
   assertEquals(

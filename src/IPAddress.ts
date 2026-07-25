@@ -2,6 +2,7 @@ import {
   any,
   type Context,
   defineLanguage,
+  failure,
   map,
   optional,
   regex,
@@ -14,7 +15,7 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 
@@ -58,6 +59,69 @@ const octet: Parser<number> = guard(
 // the quantifier requires hex digits — a second ":" causes backtracking.
 const hexChain = regex(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*/, "hex-chain");
 
+// Matches one or more hex groups each with a trailing colon, e.g. "ffff:a:".
+// Unlike hexChain, each group must be immediately followed by ":" so the
+// regex stops before an IPv4 octet (which ends with "."). Wrap with
+// optional() at the call site to handle the zero-group case.
+const hexGroupsPrefix = regex(
+  /(?:[0-9a-fA-F]{1,4}:)+/,
+  "hex-groups-prefix",
+);
+
+/**
+ * Zero-width IPv4 boundary.
+ *
+ * Rejects word characters (via the base `boundary` check) and also rejects
+ * "." immediately followed by a digit, which indicates a fifth octet rather
+ * than a sentence-ending period (e.g. "192.168.0.1.5" → no match, but
+ * "192.168.0.1." → match).
+ */
+const ipv4Boundary = <T>(p: Parser<T>): Parser<T> =>
+  (ctx) => {
+    const res = p(ctx);
+    if (!res.success) return res;
+    const after = res.ctx;
+    if (after.index < after.text.length) {
+      const c = after.text[after.index];
+      if (/\w/.test(c)) return failure(ctx, "ipv4-boundary");
+      if (
+        c === "." &&
+        after.index + 1 < after.text.length &&
+        /\d/.test(after.text[after.index + 1])
+      ) {
+        return failure(ctx, "ipv4-boundary");
+      }
+    }
+    return res;
+  };
+
+/**
+ * Zero-width IPv6-compressed boundary.
+ *
+ * Rejects ":" (more groups) and also rejects "." immediately followed by a
+ * digit. The dot+digit lookahead lets "::1." (sentence period) succeed while
+ * preventing "::ffff:192" from being accepted as a prefix of "::ffff:192.0.2.128"
+ * (the full IPv4-mapped form is handled by `Full6v4` instead).
+ */
+const ipv6CompBoundary = <T>(p: Parser<T>): Parser<T> =>
+  (ctx) => {
+    const res = p(ctx);
+    if (!res.success) return res;
+    const after = res.ctx;
+    if (after.index < after.text.length) {
+      const c = after.text[after.index];
+      if (/\w/.test(c) || c === ":") return failure(ctx, "ipv6-boundary");
+      if (
+        c === "." &&
+        after.index + 1 < after.text.length &&
+        /\d/.test(after.text[after.index + 1])
+      ) {
+        return failure(ctx, "ipv6-boundary");
+      }
+    }
+    return res;
+  };
+
 type IPAddressOutputs = {
   /** Dotted-decimal IPv4: four octets 0-255 separated by dots */
   IPv4: string;
@@ -65,9 +129,12 @@ type IPAddressOutputs = {
   IPv6Full: string;
   /** Compressed IPv6 with :: */
   IPv6Compressed: string;
+  /** IPv4-mapped/IPv4-compatible IPv6: `::ffff:a.b.c.d`, `::a.b.c.d`, etc. */
+  IPv6v4Mapped: string;
   Full4: IPAddressEntity;
   Full6: IPAddressEntity;
   Full6c: IPAddressEntity;
+  Full6v4: IPAddressEntity;
   parser: IPAddressEntity;
 };
 
@@ -83,6 +150,7 @@ const mkIP = (version: 4 | 6, b: Context, a: Context): IPAddressEntity => {
  * - IPv4: `192.168.1.1` with 0-255 octet validation via `guard`
  * - IPv6 full form: `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
  * - IPv6 compressed: `::1`, `2001:db8::1`, `fe80::1`, `::`
+ * - IPv4-mapped/-compatible IPv6: `::ffff:192.0.2.128`, `::192.0.2.128`
  */
 export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
   IPAddressOutputs
@@ -137,8 +205,62 @@ export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
       },
     ),
 
+  // IPv4-mapped and IPv4-compatible IPv6 addresses (RFC 4291 §2.2).
+  //
+  // General form: [leftHexGroups]::([middleHexGroups:]IPv4address)
+  //   e.g. ::ffff:192.0.2.128  (IPv4-mapped)
+  //        ::192.0.2.128       (IPv4-compatible, deprecated but parseable)
+  //        2001:db8::ffff:192.0.2.128
+  //
+  // The `hexGroupsPrefix` regex matches one-or-more "hex:" tokens and stops
+  // before the IPv4 octet because IPv4 octets are not followed by ":".
+  // This prevents `hexChain` from greedily consuming "ffff:192" as two hex
+  // groups and then failing on the trailing ".". Wrapped with optional() to
+  // handle the zero-group case (e.g. "::192.0.2.128").
+  IPv6v4Mapped: (s) =>
+    guard(
+      map(
+        seq(
+          optional(hexChain), // optional leading hex groups before "::"
+          str("::"),
+          optional(hexGroupsPrefix), // zero or more "hex:" groups before IPv4
+          s.IPv4, // IPv4 address occupying the last 32 bits
+        ),
+        (_, b, a) => b.text.substring(b.index, a.index),
+      ),
+      (addr) => {
+        const dcolonIdx = addr.indexOf("::");
+        if (dcolonIdx === -1) return false;
+        const leftStr = addr.slice(0, dcolonIdx);
+        const rightStr = addr.slice(dcolonIdx + 2);
+        const leftGroups = leftStr ? leftStr.split(":") : [];
+        // Isolate the IPv4 suffix at the end of the right side
+        const ipv4Match = rightStr.match(/\d+\.\d+\.\d+\.\d+$/);
+        if (!ipv4Match) return false;
+        const hexPart = rightStr.slice(0, rightStr.length - ipv4Match[0].length)
+          .replace(/:$/, "");
+        const middleGroups = hexPart ? hexPart.split(":") : [];
+        // IPv4 counts as 2 groups (32 bits ÷ 16 bits/group).
+        // Total explicit groups + 2 must be < 8 so "::" can expand to ≥ 1 group.
+        const total = leftGroups.length + middleGroups.length + 2;
+        return total < 8;
+      },
+    ),
+
   Full4: (s) => map(s.IPv4, (_, b, a) => mkIP(4, b, a)),
   Full6: (s) => map(s.IPv6Full, (_, b, a) => mkIP(6, b, a)),
   Full6c: (s) => map(s.IPv6Compressed, (_, b, a) => mkIP(6, b, a)),
-  parser: (s) => dot(any(s.Full4, s.Full6, s.Full6c)),
+  Full6v4: (s) => map(s.IPv6v4Mapped, (_, b, a) => mkIP(6, b, a)),
+  parser: (s) =>
+    // Format-specific boundaries prevent prefix matches:
+    //  • IPv4: rejects adjacent digit (via \w) or "." followed by digit
+    //  • IPv6 full: rejects adjacent ":" (would form a 9th group)
+    //  • IPv6 v4-mapped: tried before compressed so ::ffff:a.b.c.d is fully matched
+    //  • IPv6 compressed: rejects ":" and "." followed by digit
+    any(
+      ipv4Boundary(s.Full4),
+      strictBoundary(s.Full6, /[:]/),
+      ipv6CompBoundary(s.Full6v4),
+      ipv6CompBoundary(s.Full6c),
+    ),
 });

@@ -46,3 +46,9 @@ Deno.test("JWT in Duckling default parsers", () => {
     true,
   );
 });
+
+Deno.test("JWT with extra dot-segment is rejected", () => {
+  // A valid JWT followed by ".extra" must not yield the JWT prefix
+  const res = Duckling([JWT.parser]).extract(`${TEST_JWT}.extra end`);
+  assertEquals(res.length, 0);
+});

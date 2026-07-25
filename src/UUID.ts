@@ -8,7 +8,7 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
 /**
@@ -58,6 +58,8 @@ export const UUID: DefinedLanguage<UUIDOutputs> = defineLanguage<UUIDOutputs>({
     );
   },
   parser: (s): Parser<UUIDEntity> => {
-    return dot(s.Full);
+    // Reject adjacent hex or hyphen to prevent matching a UUID prefix
+    // inside a longer hyphen-separated token (e.g. "…0000-dead").
+    return strictBoundary(s.Full, /[-]/);
   },
 });
