@@ -5,7 +5,6 @@ import {
   digit,
   either,
   eof,
-  keepNonNull,
   many1,
   map,
   minus,
@@ -189,11 +188,9 @@ export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
       seq(
         any(s.ThreeLeadDigit, s.TwoLeadDigit, s.LeadDigit),
         str(english.quantity.symbols.group),
-        keepNonNull(
-          sepBy1(
-            s.ThreeDigitGroup,
-            skip1(str(english.quantity.symbols.group)),
-          ),
+        sepBy1(
+          s.ThreeDigitGroup,
+          skip1(str(english.quantity.symbols.group)),
         ),
       ),
       ([first, _dot, rest]) => {
