@@ -3,7 +3,7 @@ import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import languages from "@data/languages-en" with { type: "json" };
-import { fuzzyCase } from "./parsers.ts";
+import { longestLiteral } from "./parsers.ts";
 
 type CldrLanguages = {
   names: Record<string, string>;
@@ -35,6 +35,26 @@ export const language = (
   return ent(value, "language", before, after);
 };
 
+const languageNames = Object.entries(cldr.names).flatMap(([code, name]) => [
+  [code, name] as const,
+  ...(cldr.aliases[code] ?? []).map((alias) => [code, alias] as const),
+]).concat(
+  Object.entries(cldr.compatibility).flatMap(([code, aliases]) =>
+    aliases.map((alias) => [code, alias] as const)
+  ),
+).sort(([, a], [, b]) => b.length - a.length || a.localeCompare(b));
+const languageCodesByName = new Map<string, string>();
+for (const [code, name] of languageNames) {
+  if (!languageCodesByName.has(name)) languageCodesByName.set(name, code);
+}
+const languageNameParser = map(
+  longestLiteral(languageNames.map(([, name]) => name), {
+    caseInsensitive: true,
+  }),
+  (name, b, a) =>
+    language({ code: languageCodesByName.get(name)!, name }, b, a),
+);
+
 type LanguageOutputs = {
   Language: LanguageEntity;
   parser: LanguageEntity;
@@ -46,19 +66,6 @@ type LanguageOutputs = {
 export const Language: DefinedLanguage<LanguageOutputs> = defineLanguage<
   LanguageOutputs
 >({
-  Language: () => {
-    const lang = (code: string, name: string) =>
-      map(fuzzyCase(name), (_match, b, a) => language({ code, name }, b, a));
-    const names = Object.entries(cldr.names).flatMap(([code, name]) => [
-      [code, name] as const,
-      ...(cldr.aliases[code] ?? []).map((alias) => [code, alias] as const),
-    ]).concat(
-      Object.entries(cldr.compatibility).flatMap(([code, aliases]) =>
-        aliases.map((alias) => [code, alias] as const)
-      ),
-    ).sort(([, a], [, b]) => b.length - a.length || a.localeCompare(b));
-
-    return any(...names.map(([code, name]) => lang(code, name)));
-  },
+  Language: () => languageNameParser,
   parser: (s) => dot(any(s.Language)),
 });

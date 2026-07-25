@@ -10,6 +10,88 @@ import {
   success,
 } from "@claudiu-ceia/combine";
 
+type LiteralTrieNode = {
+  children: Map<string, LiteralTrieNode>;
+  literals?: string[];
+};
+
+/** Compile literals once and match the longest literal at the current index. */
+export const longestLiteral = (
+  literals: readonly string[],
+  options: { caseInsensitive?: boolean } = {},
+): Parser<string> => {
+  const root: LiteralTrieNode = { children: new Map() };
+  const caseInsensitive = options.caseInsensitive ?? false;
+  const fold = caseInsensitive
+    ? (character: string) => character.toUpperCase().toLowerCase()
+    : (character: string) => character;
+
+  for (const literal of literals) {
+    let node = root;
+    for (const character of literal) {
+      for (const foldedCharacter of fold(character)) {
+        let child = node.children.get(foldedCharacter);
+        if (!child) {
+          child = { children: new Map() };
+          node.children.set(foldedCharacter, child);
+        }
+        node = child;
+      }
+    }
+    (node.literals ??= []).push(literal);
+  }
+
+  return (ctx) => {
+    let node = root;
+    let index = ctx.index;
+    let matchedLiteral: string | undefined;
+    let matchedIndex = index;
+
+    const updateMatch = () => {
+      const candidates = node.literals;
+      if (!candidates) return;
+
+      if (!caseInsensitive) {
+        matchedLiteral = candidates[0];
+        matchedIndex = index;
+        return;
+      }
+
+      const input = ctx.text.substring(ctx.index, index).toLowerCase();
+      const candidate = candidates.find((literal) =>
+        literal.length === index - ctx.index &&
+        literal.toLowerCase() === input
+      );
+      if (candidate !== undefined) {
+        matchedLiteral = candidate;
+        matchedIndex = index;
+      }
+    };
+
+    updateMatch();
+    while (index < ctx.text.length) {
+      const codePoint = ctx.text.codePointAt(index);
+      if (codePoint === undefined) break;
+      const character = String.fromCodePoint(codePoint);
+
+      let nextNode: LiteralTrieNode | undefined = node;
+      for (const foldedCharacter of fold(character)) {
+        nextNode = nextNode.children.get(foldedCharacter);
+        if (!nextNode) break;
+      }
+      if (!nextNode) break;
+
+      node = nextNode;
+      index += character.length;
+      updateMatch();
+    }
+
+    return matchedLiteral === undefined
+      ? failure(ctx, "literal")
+      : success({ ...ctx, index: matchedIndex }, matchedLiteral);
+  };
+};
+
 // Match string regardless of casing
 export const fuzzyCase = (match: string): Parser<string> => {
   return (ctx) => {

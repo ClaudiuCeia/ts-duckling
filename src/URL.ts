@@ -2,7 +2,6 @@ import {
   any,
   type Context,
   defineLanguage,
-  furthest,
   many1,
   map,
   number,
@@ -17,9 +16,11 @@ import type {
 } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
+import { longestLiteral } from "./parsers.ts";
 import tlds from "@data/tlds" with { type: "json" };
 
 const tldList = tlds.values;
+const tldParser = longestLiteral(tldList);
 
 /**
  * URL entity.
@@ -61,7 +62,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     return any(regex(/https?/i, "http"), regex(/ftps?/i, "ftp"));
   },
   TLD: (): Parser<string> => {
-    return furthest(...tldList.map(str));
+    return tldParser;
   },
   Port: (): Parser<number> => {
     return number();

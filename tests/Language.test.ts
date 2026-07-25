@@ -97,3 +97,14 @@ Deno.test("Language preserves names shipped by the previous CLDR dataset", () =>
     { code: "tkl", name: "Tokelau" },
   ]);
 });
+
+Deno.test("Language prefers the longest overlapping name and preserves canonical casing", () => {
+  const res = Duckling([Language.parser]).extract(
+    "ARABIC, NAJDI and ENGLISH",
+  );
+
+  assertEquals(res.map((entity) => entity.value), [
+    { code: "ars", name: "Arabic, Najdi" },
+    { code: "en", name: "English" },
+  ]);
+});

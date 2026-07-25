@@ -102,3 +102,14 @@ Deno.test("Location excludes CLDR regions and ambiguous short aliases", () => {
 
   assertEquals(res, []);
 });
+
+Deno.test("Location prefers the longest overlapping name and preserves canonical casing", () => {
+  const res = Duckling([Location.parser]).extract(
+    "GUINEA-BISSAU and GUINEA",
+  );
+
+  assertEquals(res.map((entity) => entity.value.place), [
+    "Guinea-Bissau",
+    "Guinea",
+  ]);
+});

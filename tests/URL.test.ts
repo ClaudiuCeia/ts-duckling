@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling } from "../mod.ts";
+import { Duckling, URL } from "../mod.ts";
 
 Deno.test("URL", () => {
   const res = Duckling().extract(
@@ -159,4 +159,17 @@ Deno.test("URL accepts IDN TLDs in Punycode and Unicode", () => {
     "example.xn--p1ai",
     "example.рф",
   ]);
+});
+
+Deno.test("URL prefers the longest overlapping TLD", () => {
+  const res = Duckling([URL.parser]).extract("service.community");
+
+  assertEquals(res.map(({ text }) => text), ["service.community"]);
+});
+
+Deno.test("URL keeps TLD matching lowercase-only", () => {
+  assertEquals(
+    Duckling([URL.parser]).extract("service.COM service.COMMUNITY"),
+    [],
+  );
 });
