@@ -93,3 +93,9 @@ Deno.test("BIC with branch digits", () => {
     branch: "100",
   });
 });
+
+Deno.test("BIC supports Kosovo operational code", () => {
+  const res = Duckling([BIC.parser]).extract("Send via RBKOXKPR please");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.country, "XK");
+});
