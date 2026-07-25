@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Duckling } from "../mod.ts";
+import { Duckling, Institution } from "../mod.ts";
 
 Deno.test("Educational", () => {
   const res = Duckling().extract(
@@ -7,6 +7,16 @@ Deno.test("Educational", () => {
   );
 
   assertEquals(res, [
+    {
+      end: 56,
+      kind: "institution",
+      start: 27,
+      text: "Italian University of Bologna",
+      value: {
+        name: "Italian University of Bologna",
+        type: "university",
+      },
+    },
     {
       end: 34,
       kind: "language",
@@ -132,4 +142,38 @@ Deno.test("Town hall of Recife, Brazil", () => {
       },
     },
   ]);
+});
+
+Deno.test("Institution suffix names include their separating space", () => {
+  const res = Duckling([Institution.parser]).extract(
+    "Harvard University is nearby",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "Harvard University");
+  assertEquals(res[0].value.type, "university");
+});
+
+Deno.test("Institution prefix names stop before lowercase prose", () => {
+  const res = Duckling([Institution.parser]).extract(
+    "University of Bologna is old",
+  );
+
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "University of Bologna");
+});
+
+Deno.test("Institution names support practical punctuation", () => {
+  const input =
+    "King's College London; Paris-Saclay University; MIT School of Medicine";
+  const res = Duckling([Institution.parser]).extract(input);
+
+  assertEquals(
+    res.map((entity) => entity.text),
+    [
+      "King's College London",
+      "Paris-Saclay University",
+      "MIT School of Medicine",
+    ],
+  );
 });

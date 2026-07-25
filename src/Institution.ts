@@ -2,17 +2,12 @@ import {
   any,
   type Context,
   defineLanguage,
-  either,
-  letter,
-  many,
-  many1,
-  manyTill,
   map,
   optional,
-  peek,
   regex,
-  sepBy1,
+  repeat,
   seq,
+  skip1,
   space,
   str,
 } from "@claudiu-ceia/combine";
@@ -23,6 +18,51 @@ import type {
 import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
+
+const MAX_NAME_WORDS = 8;
+const whitespace = skip1(space());
+
+const phraseOfLength = (
+  word: Parser<string>,
+  length: number,
+): Parser<string> =>
+  map(
+    seq(
+      word,
+      repeat(
+        length - 1,
+        map(seq(whitespace, word), ([, next]) => next),
+      ),
+    ),
+    ([first, rest]) => [first, ...rest].join(" "),
+  );
+
+const boundedPhrase = (word: Parser<string>): Parser<string> =>
+  any(
+    ...Array.from(
+      { length: MAX_NAME_WORDS },
+      (_, index) => phraseOfLength(word, MAX_NAME_WORDS - index),
+    ),
+  );
+
+const phraseBefore = <T>(
+  word: Parser<string>,
+  anchor: Parser<T>,
+): Parser<[string, T]> =>
+  any(
+    ...Array.from(
+      { length: MAX_NAME_WORDS },
+      (_, index) =>
+        map(
+          seq(
+            phraseOfLength(word, MAX_NAME_WORDS - index),
+            whitespace,
+            anchor,
+          ),
+          ([name, , value]) => [name, value] as [string, T],
+        ),
+    ),
+  );
 
 /**
  * Institution entity (schools, universities, town/city halls).
@@ -62,9 +102,9 @@ export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
   InstitutionOutputs
 >({
   Capitalized: (): Parser<string> => {
-    return map(
-      seq(regex(/[A-Z]/, "capital-letter"), many(letter())),
-      ([capital, rest]) => `${capital}${rest.join("")}`,
+    return regex(
+      /\p{Lu}[\p{L}\p{M}\d]*(?:[&'’.-][\p{L}\p{M}\d]+)*\.?/u,
+      "capitalized institution word",
     );
   },
   Educational: (): Parser<string> => {
@@ -78,13 +118,28 @@ export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
     return any(fuzzyCase("city hall"), fuzzyCase("town hall"));
   },
   EducationalFull: (s): Parser<InstitutionEntity> => {
+    const trailingName = optional(
+      any(
+        map(
+          seq(
+            whitespace,
+            __(str("of")),
+            optional(__(str("the"))),
+            boundedPhrase(s.Capitalized),
+          ),
+          ([, , , name]) => name,
+        ),
+        map(seq(whitespace, boundedPhrase(s.Capitalized)), ([, name]) => name),
+      ),
+    );
+
     return any(
       map(
         seq(
           __(s.Educational),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          sepBy1(s.Capitalized, space()),
+          boundedPhrase(s.Capitalized),
         ),
         ([educational], b, a) =>
           institution(
@@ -98,14 +153,8 @@ export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
           ),
       ),
       map(
-        seq(
-          many1(s.Capitalized),
-          s.Educational,
-          optional(__(str("of"))),
-          optional(__(str("the"))),
-          many(s.Capitalized),
-        ),
-        ([, educational], b, a) =>
+        seq(phraseBefore(s.Capitalized, s.Educational), trailingName),
+        ([[, educational]], b, a) =>
           institution(
             {
               name: b.text.substring(b.index, a.index),
@@ -121,15 +170,8 @@ export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
   AdministrativeFull: (s): Parser<InstitutionEntity> => {
     return any(
       map(
-        seq(
-          __(s.Capitalized),
-          either(
-            peek(s.Administrative),
-            manyTill(__(s.Capitalized), peek(s.Administrative)),
-          ),
-          s.Administrative,
-        ),
-        ([, , administrative], b, a) =>
+        phraseBefore(s.Capitalized, s.Administrative),
+        ([, administrative], b, a) =>
           institution(
             {
               name: b.text.substring(b.index, a.index),
@@ -145,7 +187,7 @@ export const Institution: DefinedLanguage<InstitutionOutputs> = defineLanguage<
           __(s.Administrative),
           optional(__(str("of"))),
           optional(__(str("the"))),
-          sepBy1(s.Capitalized, space()),
+          boundedPhrase(s.Capitalized),
         ),
         ([administrative], b, a) =>
           institution(
