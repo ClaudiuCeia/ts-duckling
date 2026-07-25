@@ -74,22 +74,21 @@ const BASE58_MAP = new Map<string, bigint>(
  * Leading '1' characters map to leading zero bytes.
  */
 function base58Decode(s: string): Uint8Array | null {
-  let leadingZeros = 0;
-  for (const c of s) {
-    if (c === "1") leadingZeros++;
-    else break;
-  }
+  // Each leading '1' maps to a leading zero byte in the decoded output.
+  const leadingZeros = s.match(/^1*/)?.[0]?.length ?? 0;
   let n = 0n;
   for (const c of s) {
     const v = BASE58_MAP.get(c);
     if (v === undefined) return null;
     n = n * 58n + v;
   }
+  // Build bytes in reverse order then flip once — avoids repeated unshift shifts.
   const bytes: number[] = [];
   while (n > 0n) {
-    bytes.unshift(Number(n & 0xffn));
+    bytes.push(Number(n & 0xffn));
     n >>= 8n;
   }
+  bytes.reverse();
   return new Uint8Array([...Array(leadingZeros).fill(0), ...bytes]);
 }
 
@@ -201,7 +200,9 @@ function isValidBech32Full(addr: string): boolean {
       program.push((acc >> bits) & 0xff);
     }
   }
-  // Padding bits must be fewer than 5 and all zero.
+  // After conversion, remaining bits must be < 5 and all zero.
+  // Non-zero leftover padding would indicate the witness program was
+  // not properly padded when the address was encoded (per BIP-0173/0350).
   if (bits >= 5 || (acc & ((1 << bits) - 1)) !== 0) return false;
 
   if (program.length < 2 || program.length > 40) return false;
@@ -237,10 +238,12 @@ function isValidEip55(addr: string): boolean {
   for (let i = 0; i < body.length; i++) {
     const c = body[i];
     if (c >= "0" && c <= "9") continue;
-    // High nibble for even positions, low nibble for odd positions.
+    // Each hex character maps to one nibble of the Keccak-256 hash:
+    // even index → high nibble of the byte, odd index → low nibble.
+    const byteIndex = Math.floor(i / 2);
     const nibble = i % 2 === 0
-      ? (hashBytes[Math.floor(i / 2)] >> 4) & 0xf
-      : hashBytes[Math.floor(i / 2)] & 0xf;
+      ? (hashBytes[byteIndex] >> 4) & 0xf
+      : hashBytes[byteIndex] & 0xf;
     if (nibble >= 8) {
       if (c !== c.toUpperCase()) return false;
     } else {
