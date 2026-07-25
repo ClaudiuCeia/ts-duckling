@@ -20,6 +20,15 @@ Deno.test("IBAN GB grouped with spaces", () => {
   assertEquals(res[0].value.country, "GB");
 });
 
+Deno.test("IBAN stops before following uppercase prose", () => {
+  const res = Duckling([IBAN.parser]).extract(
+    "pay GB29 NWBK 6016 1331 9268 19 NOW",
+  );
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "GB29 NWBK 6016 1331 9268 19");
+  assertEquals(res[0].value.iban, "GB29NWBK60161331926819");
+});
+
 Deno.test("IBAN DE", () => {
   const res = Duckling([IBAN.parser]).extract(
     "IBAN: DE89370400440532013000 here",

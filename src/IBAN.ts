@@ -1,6 +1,7 @@
 import {
   type Context,
   defineLanguage,
+  failure,
   many1,
   map,
   optional,
@@ -125,23 +126,18 @@ const IBAN_LENGTHS: Record<string, number> = {
  */
 const ibanChecksum = (raw: string): boolean => {
   const normalized = raw.replace(/\s/g, "").toUpperCase();
-  // Move first 4 chars to end
   const rearranged = normalized.slice(4) + normalized.slice(0, 4);
-  // Convert letters to numbers (A=10, B=11, ..., Z=35)
-  let numStr = "";
+  let remainder = 0;
+
   for (const ch of rearranged) {
     const code = ch.charCodeAt(0);
     if (code >= 65 && code <= 90) {
-      numStr += (code - 55).toString();
+      remainder = (remainder * 100 + code - 55) % 97;
     } else {
-      numStr += ch;
+      remainder = (remainder * 10 + code - 48) % 97;
     }
   }
-  // Mod 97 on the large number (process in chunks to avoid BigInt)
-  let remainder = 0;
-  for (let i = 0; i < numStr.length; i++) {
-    remainder = (remainder * 10 + parseInt(numStr[i], 10)) % 97;
-  }
+
   return remainder === 1;
 };
 
@@ -157,6 +153,7 @@ const isValidIBAN = (raw: string): boolean => {
 // Leaf tokens
 const upperLetter = regex(/[A-Z]/, "uppercase letter");
 const ibanDigit = regex(/\d/, "digit");
+const alphanum = regex(/[A-Z0-9]/, "BBAN character");
 const alphanumGroup = regex(/[A-Z0-9]{1,4}/, "BBAN group");
 
 type IBANOutputs = {
@@ -198,15 +195,29 @@ export const IBAN: DefinedLanguage<IBANOutputs> = defineLanguage<IBANOutputs>({
       (parts) => parts.map(([, g]) => g).join(""),
     ),
 
-  // Assemble and validate
-  Raw: (s) =>
-    guard(
+  // Select an exact repeat count from the country registry before parsing the
+  // BBAN, bounding candidate work and leaving following prose untouched.
+  Raw: (s) => (ctx) => {
+    const country = ctx.text.slice(ctx.index, ctx.index + 2);
+    const expectedLength = IBAN_LENGTHS[country];
+    if (!expectedLength) return failure(ctx, "IBAN country");
+
+    const bban = map(
+      repeat(
+        expectedLength - 4,
+        map(seq(optional(str(" ")), alphanum), ([, ch]) => ch),
+      ),
+      (chars) => chars.join(""),
+    );
+
+    return guard(
       map(
-        seq(s.Country, s.CheckDigits, s.BBAN),
+        seq(s.Country, s.CheckDigits, bban),
         (_, b, a) => b.text.substring(b.index, a.index),
       ),
       isValidIBAN,
-    ),
+    )(ctx);
+  },
 
   Full: (s) =>
     map(s.Raw, (raw, b, a) => {
