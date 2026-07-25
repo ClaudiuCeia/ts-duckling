@@ -38,3 +38,38 @@ Deno.test("Email with subdomain", () => {
   assertEquals(res.length, 1);
   assertEquals(res[0].value.email, "user@sub.domain.com");
 });
+
+Deno.test("Email supports practical local parts and domains", () => {
+  const input = [
+    "first.last@my-company.COM",
+    "o'hara@example.com",
+    "customer/department=shipping@example.com",
+    "user@xn--mnchen-3ya.de",
+  ].join(" ");
+  const res = Duckling([Email.parser]).extract(input);
+
+  assertEquals(
+    res.map((entity) => entity.value.email),
+    [
+      "first.last@my-company.COM",
+      "o'hara@example.com",
+      "customer/department=shipping@example.com",
+      "user@xn--mnchen-3ya.de",
+    ],
+  );
+});
+
+Deno.test("Email rejects malformed addresses and partial matches", () => {
+  const invalid = [
+    "@example.com",
+    ".user@example.com",
+    "user.@example.com",
+    "user..name@example.com",
+    "user@example-.com",
+    `${"a".repeat(65)}@example.com`,
+  ];
+
+  for (const input of invalid) {
+    assertEquals(Duckling([Email.parser]).extract(input), [], input);
+  }
+});
