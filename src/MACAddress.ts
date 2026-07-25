@@ -38,8 +38,13 @@ export const macAddress = (
   return ent(value, "mac_address", before, after);
 };
 
-const normalizeMac = (raw: string): string =>
-  raw.replace(/[-. ]/g, ":").toLowerCase();
+const normalizeMac = (raw: string): string => {
+  const compact = raw.replaceAll(/[:.-]/g, "").toLowerCase();
+  return Array.from(
+    { length: 6 },
+    (_, index) => compact.slice(index * 2, index * 2 + 2),
+  ).join(":");
+};
 
 // Leaf tokens — character class is the natural expression for "two hex digits"
 const hexPair = regex(/[0-9a-fA-F]{2}/, "hex-pair");

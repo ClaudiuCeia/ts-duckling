@@ -26,7 +26,7 @@ Deno.test("MAC address Cisco dot notation", () => {
   );
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "001A.2B3C.4D5E");
-  assertEquals(res[0].value.normalized, "001a:2b3c:4d5e");
+  assertEquals(res[0].value.normalized, "00:1a:2b:3c:4d:5e");
 });
 
 Deno.test("MAC address lowercase", () => {
