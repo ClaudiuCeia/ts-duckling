@@ -73,6 +73,20 @@ Deno.test("Phone intl UK spaced +44 20 7123 4567", () => {
   assertEquals(res[0].value.normalized, "+442071234567");
 });
 
+Deno.test("Phone supports long international groups", () => {
+  const res = Duckling([Phone.parser]).extract("Dial +49-172-1234567 now");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "+49-172-1234567");
+  assertEquals(res[0].value.normalized, "+491721234567");
+});
+
+Deno.test("Phone supports repeated horizontal whitespace", () => {
+  const res = Duckling([Phone.parser]).extract("Dial +44 20  7123\t4567 now");
+  assertEquals(res.length, 1);
+  assertEquals(res[0].text, "+44 20  7123\t4567");
+  assertEquals(res[0].value.normalized, "+442071234567");
+});
+
 Deno.test("Phone preferred over quantity in Duckling()", () => {
   const res = Duckling().extract("Call +14155552671 now");
 

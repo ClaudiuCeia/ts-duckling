@@ -58,7 +58,8 @@ const isValidPhone = (raw: string): boolean => {
 const digits = (min: number, max: number): Parser<string> =>
   regex(new RegExp(`\\d{${min},${max}}`), `${min}-${max} digits`);
 
-const digitsSep = any(str("-"), str("."), str(" "));
+const horizontalWhitespace = regex(/[ \t]+/, "horizontal whitespace");
+const digitsSep = any(str("-"), str("."), horizontalWhitespace);
 
 type PhoneOutputs = {
   /** Strict E.164: +NNN...N (8-15 digits, no separators) */
@@ -101,7 +102,7 @@ export const Phone: DefinedLanguage<PhoneOutputs> = defineLanguage<
   // (NNN) with optional trailing separator
   ParenArea: () =>
     map(
-      seq(str("("), digits(1, 5), str(")"), optional(str(" "))),
+      seq(str("("), digits(1, 5), str(")"), optional(horizontalWhitespace)),
       ([, d]) => d,
     ),
 
@@ -120,7 +121,7 @@ export const Phone: DefinedLanguage<PhoneOutputs> = defineLanguage<
   // When `seq(sep, group)` fails (sep matches but group doesn't), `many`
   // stays at the position before the failed seq — before the separator.
   IntlFormatted: () => {
-    const justDigits = digits(1, 5);
+    const justDigits = digits(1, 12);
     const parenGroup = map(
       seq(str("("), digits(1, 5), str(")")),
       ([, d]) => d,
