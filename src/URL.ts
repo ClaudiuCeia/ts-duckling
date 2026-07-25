@@ -58,9 +58,21 @@ type URLOutputs = {
 };
 
 /**
+ * Count occurrences of a single character in a string.
+ */
+function countChar(s: string, ch: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === ch) n++;
+  }
+  return n;
+}
+
+/**
  * Trim trailing characters from a URL suffix that are clearly unmatched
  * sentence/context punctuation rather than part of the URL itself.
- * Balanced brackets are kept (e.g. "(foo)" is preserved).
+ * Balanced brackets are kept by counting opens vs closes (e.g. "(foo)" is
+ * preserved, but a lone ")" is trimmed).
  */
 function trimUrlSuffix(s: string): string {
   const closingPairs: Record<string, string> = { ")": "(", "]": "[", "}": "{" };
@@ -70,7 +82,9 @@ function trimUrlSuffix(s: string): string {
     if (".,;!?".includes(last)) {
       result = result.slice(0, -1);
     } else if (last in closingPairs) {
-      if (!result.includes(closingPairs[last])) {
+      const opener = closingPairs[last];
+      // Trim if there are more closing brackets than opening ones
+      if (countChar(result, last) > countChar(result, opener)) {
         result = result.slice(0, -1);
       } else {
         break;
@@ -109,10 +123,10 @@ const fullHostParser: Parser<string> = (ctx) => {
   }
 
   // Hostname: one or more DNS labels separated by dots.
-  // A label starts and ends with a letter, digit, or Unicode char and
+  // A label starts and ends with a letter or digit (Unicode included) and
   // may contain hyphens internally (RFC 1123 + IDN).
-  const isLabelStart = (ch: string): boolean => /[\p{L}\p{N}_]/u.test(ch);
-  const isLabelMid = (ch: string): boolean => /[\p{L}\p{N}_\-]/u.test(ch);
+  const isLabelStart = (ch: string): boolean => /[\p{L}\p{N}]/u.test(ch);
+  const isLabelMid = (ch: string): boolean => /[\p{L}\p{N}\-]/u.test(ch);
 
   const parseLabelEnd = (pos: number): number => {
     if (pos >= text.length || !isLabelStart(text[pos])) return -1;

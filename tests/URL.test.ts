@@ -225,10 +225,12 @@ Deno.test("URL rejects decimal port :1.5", () => {
   const res = Duckling().extract("http://example.com:1.5");
   assertEquals(res[0].kind, "url");
   assertEquals(res[0].text, "http://example.com");
+  assertEquals(res[0].value, { url: "http://example.com" });
 });
 
 Deno.test("URL rejects out-of-range port :65536", () => {
   const res = Duckling().extract("http://example.com:65536 end");
   assertEquals(res[0].kind, "url");
   assertEquals(res[0].text, "http://example.com");
+  assertEquals(res[0].value, { url: "http://example.com" });
 });
