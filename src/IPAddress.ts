@@ -59,12 +59,10 @@ const octet: Parser<number> = guard(
 // the quantifier requires hex digits — a second ":" causes backtracking.
 const hexChain = regex(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*/, "hex-chain");
 
-// Regex for one or more hex groups each with a trailing colon, e.g. "ffff:a:".
-// Used in IPv4-mapped IPv6 to match middle groups before the IPv4 suffix.
-// Unlike hexChain this stops as soon as the next group would not be followed
-// by ":" — so for "ffff:192.0.2.128" it matches only "ffff:" because "192."
-// has no trailing colon. Wrapped with optional() in seq() to handle the
-// zero-group case (e.g. "::192.0.2.128").
+// Matches one or more hex groups each with a trailing colon, e.g. "ffff:a:".
+// Unlike hexChain, each group must be immediately followed by ":" so the
+// regex stops before an IPv4 octet (which ends with "."). Wrap with
+// optional() at the call site to handle the zero-group case.
 const hexGroupsPrefix = regex(
   /(?:[0-9a-fA-F]{1,4}:)+/,
   "hex-groups-prefix",
