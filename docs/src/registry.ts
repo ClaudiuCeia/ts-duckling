@@ -81,6 +81,12 @@ export const PII_IDS: ParserId[] = [
   "BIC",
 ];
 
+/** PII + protocol-qualified URLs (SensitiveParsers preset). */
+export const SENSITIVE_IDS: ParserId[] = [
+  ...PII_IDS,
+  "URL",
+];
+
 /** Parser ordering sent to the worker (priority: specific → generic). */
 export const PARSER_PRIORITY: ParserId[] = [
   "Email",
