@@ -6,7 +6,6 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
       "@claudiu-ceia/ts-duckling": ["../mod.ts"],
       "@claudiu-ceia/combine": ["./node_modules/@claudiu-ceia/combine/mod.ts"],

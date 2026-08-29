@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "exports": {
     ".": "./mod.ts"
   },
@@ -15,10 +15,10 @@
     ]
   },
   "imports": {
-    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.6.0",
-    "@deno/dnt": "jsr:@deno/dnt@^0.42.3",
-    "@std/assert": "jsr:@std/assert@1.0.18",
-    "@std/testing/time": "jsr:@std/testing@1.0.17/time",
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.6.1",
+    "@deno/dnt": "jsr:@deno/dnt@^0.43.2",
+    "@std/assert": "jsr:@std/assert@1.0.19",
+    "@std/testing/time": "jsr:@std/testing@1.0.20/time",
 
     "@data/countries-en-us": "./data/countries-en-us.json",
     "@data/languages-en": "./data/languages-en.json",
