@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "exports": {
     ".": "./mod.ts"
   },
@@ -15,7 +15,7 @@
     ]
   },
   "imports": {
-    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.6.1",
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.8.0",
     "@deno/dnt": "jsr:@deno/dnt@^0.43.2",
     "@std/assert": "jsr:@std/assert@1.0.19",
     "@std/testing/time": "jsr:@std/testing@1.0.20/time",

@@ -11,7 +11,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine@0.6.1",
+    "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine@0.8.0",
     "@mozilla/readability": "^0.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

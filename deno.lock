@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@claudiu-ceia/combine@0.6.1": "0.6.1",
+    "jsr:@claudiu-ceia/combine@0.8.0": "0.8.0",
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@deno/dnt@~0.43.2": "0.43.2",
     "jsr:@std/assert@1.0.19": "1.0.19",
@@ -18,8 +18,8 @@
     "jsr:@ts-morph/common@0.29": "0.29.0"
   },
   "jsr": {
-    "@claudiu-ceia/combine@0.6.1": {
-      "integrity": "84768c5ff17d215114338402da445e1d1e757c6cea6c1e736367e1d0ad76f7c7"
+    "@claudiu-ceia/combine@0.8.0": {
+      "integrity": "23155c1717c6743717261b798b1e02c4d23ffaaf88f91ce16293b03ffc45a634"
     },
     "@david/code-block-writer@13.0.3": {
       "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
@@ -99,7 +99,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@claudiu-ceia/combine@0.6.1",
+      "jsr:@claudiu-ceia/combine@0.8.0",
       "jsr:@deno/dnt@~0.43.2",
       "jsr:@std/assert@1.0.19",
       "jsr:@std/testing@1.0.20"
