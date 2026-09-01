@@ -5,8 +5,13 @@ import {
   Email,
   IPAddress,
   Phone,
+  type PIIEntity,
+  PIIParsers,
+  type SensitiveEntity,
+  SensitiveParsers,
   SSN,
   URL,
+  type URLEntity,
   UUID,
 } from "../mod.ts";
 
@@ -172,4 +177,71 @@ Deno.test("redact: result length matches input length with single-char mask", ()
   const input = "My SSN is 123-45-6789.";
   const result = Duckling([SSN.parser]).redact(input);
   assertEquals(result.length, input.length);
+});
+
+// ---------------------------------------------------------------------------
+// SensitiveParsers preset
+// ---------------------------------------------------------------------------
+
+Deno.test("SensitiveParsers: redacts supported protocol-qualified URLs", () => {
+  for (
+    const url of [
+      "http://example.com/reset?token=abc123",
+      "https://example.com/reset?token=abc123",
+      "ftp://example.com/private/file",
+      "ftps://example.com/private/file",
+    ]
+  ) {
+    assertEquals(
+      Duckling(SensitiveParsers).redact(`Secret: ${url}`),
+      `Secret: ${"█".repeat(url.length)}`,
+    );
+  }
+});
+
+Deno.test("SensitiveParsers: does not redact bare domains", () => {
+  for (
+    const input of [
+      "Visit example.com for help",
+      "Reset at docs.example.com/reset?token=abc123",
+      "Internal tool example.com:8080/private",
+    ]
+  ) {
+    assertEquals(Duckling(SensitiveParsers).redact(input), input);
+  }
+});
+
+Deno.test("SensitiveParsers: redacts PII alongside full URLs", () => {
+  const input = "Email a@b.com, see https://example.com/reset?token=xyz";
+  assertEquals(
+    Duckling(SensitiveParsers).redact(input),
+    `Email ${"█".repeat(7)}, see ${"█".repeat(35)}`,
+  );
+});
+
+Deno.test("SensitiveParsers: bare domain is not redacted when full URL is also present", () => {
+  const input = "Docs at docs.example.com or https://example.com/docs";
+  assertEquals(
+    Duckling(SensitiveParsers).redact(input),
+    `Docs at docs.example.com or ${"█".repeat(24)}`,
+  );
+});
+
+Deno.test("PIIParsers: remains unchanged by SensitiveParsers", () => {
+  const input = "Visit https://example.com/reset?token=abc123 or example.com";
+  assertEquals(Duckling(PIIParsers).redact(input), input);
+});
+
+Deno.test("SensitiveParsers: exported type membership", () => {
+  type Assert<T extends true> = T;
+  type IsAssignable<T, U> = T extends U ? true : false;
+  type IsNotAssignable<T, U> = T extends U ? false : true;
+
+  const assertions: [
+    Assert<IsAssignable<URLEntity, SensitiveEntity>>,
+    Assert<IsAssignable<PIIEntity, SensitiveEntity>>,
+    Assert<IsNotAssignable<URLEntity, PIIEntity>>,
+  ] = [true, true, true];
+
+  assertEquals(assertions, [true, true, true]);
 });

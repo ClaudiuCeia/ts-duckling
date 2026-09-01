@@ -157,6 +157,54 @@ export const PIIParsers: ParserTuple<
   BIC.parser,
 ];
 
+/**
+ * Union of entity types considered sensitive — extends {@link PIIEntity} with
+ * protocol-qualified URLs (http/https/ftp/ftps), which routinely carry reset
+ * tokens, user IDs, signed query parameters, and credentials.
+ *
+ * Bare domains (e.g. `example.com`) are intentionally excluded; use
+ * {@link Duckling} with {@link URL.parser} directly if you need those too.
+ */
+export type SensitiveEntity = PIIEntity | URLEntity;
+
+/**
+ * Pre-built parser tuple targeting sensitive entities.
+ *
+ * Includes everything in {@link PIIParsers} plus protocol-qualified URLs
+ * (`http://…`, `https://…`, `ftp://…`, `ftps://…`). Bare domains are **not**
+ * matched.
+ *
+ * @example
+ * ```ts
+ * import { Duckling, SensitiveParsers } from "@claudiu-ceia/ts-duckling";
+ *
+ * Duckling(SensitiveParsers).redact(
+ *   "Reset your password: https://example.com/reset?token=abc123",
+ * );
+ * // → "Reset your password: ████████████████████████████████████████"
+ * ```
+ */
+export const SensitiveParsers: ParserTuple<
+  [
+    EmailEntity,
+    PhoneEntity,
+    IPAddressEntity,
+    SSNEntity,
+    CreditCardEntity,
+    UUIDEntity,
+    ApiKeyEntity,
+    IBANEntity,
+    MACAddressEntity,
+    JWTEntity,
+    CryptoAddressEntity,
+    BICEntity,
+    URLEntity,
+  ]
+> = [
+  ...PIIParsers,
+  dot(URL.Full),
+];
+
 type NonEmptyArray<T> = [T, ...T[]];
 type ParserTuple<T extends NonEmptyArray<unknown>> = {
   [K in keyof T]: Parser<T[K]>;
