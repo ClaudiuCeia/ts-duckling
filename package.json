@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@claudiu-ceia/combine": "0.8.1",
-    "@std/crypto": "npm:@jsr/std__crypto@1.1.0"
+    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
