@@ -78,11 +78,13 @@ TypeScript and running anywhere — Deno, Node, or the browser.
   - [`.renderMapAsync(text, fn, opts?)`](#rendermapasynctext-fn-opts)
   - [`AsyncScanOptions`](#asyncscanoptions)
   - [`PIIParsers`](#piiparsers)
+  - [`SensitiveParsers`](#sensitiveparsers)
   - [`RedactOptions`](#redactoptions)
   - [`RenderFn`](#renderfn)
   - [`RenderMapFn`](#rendermapfn)
   - [`AnyEntity`](#anyentity)
   - [`PIIEntity`](#piientity)
+  - [`SensitiveEntity`](#sensitiveentity)
 - [Caveats](#caveats)
 - [Playground](#playground)
 - [License](#license)
@@ -160,7 +162,11 @@ const entities = Duckling([Email.parser, URL.parser, Time.parser]).extract(
 Use `.redact()` to replace matched entity spans with a mask character:
 
 ```ts
-import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
+import {
+  Duckling,
+  PIIParsers,
+  SensitiveParsers,
+} from "@claudiu-ceia/ts-duckling";
 
 // Redact all PII (email, phone, IP, SSN, credit card, UUID, API key, IBAN, MAC, JWT, BIC)
 Duckling(PIIParsers).redact(
@@ -178,6 +184,12 @@ Duckling(PIIParsers).redact(
   { kinds: ["ssn"] },
 );
 // → "Contact john.doe@clinic.org, SSN ███████████"
+
+// Include protocol-qualified URLs while leaving bare domains unchanged
+Duckling(SensitiveParsers).redact(
+  "Reset at https://example.com/reset?token=abc123 or visit example.com",
+);
+// → "Reset at ██████████████████████████████████████ or visit example.com"
 ```
 
 ### Render entities
@@ -532,6 +544,12 @@ const PIIParsers: [
 Pre-built parser tuple for PII-sensitive entities. Use with
 `Duckling(PIIParsers)` for a quick redaction pipeline.
 
+### `SensitiveParsers`
+
+Pre-built parser tuple containing every parser in `PIIParsers` plus
+protocol-qualified URLs (`http`, `https`, `ftp` and `ftps`). Bare domains are
+intentionally excluded.
+
 ### `RedactOptions`
 
 ```ts
@@ -576,6 +594,11 @@ Union of all 20 built-in entity types. This is the return element type of
 
 Union of the 12 PII entity types:
 `EmailEntity | PhoneEntity | IPAddressEntity | SSNEntity | CreditCardEntity | UUIDEntity | ApiKeyEntity | IBANEntity | MACAddressEntity | JWTEntity | CryptoAddressEntity | BICEntity`.
+
+### `SensitiveEntity`
+
+Union of `PIIEntity | URLEntity`, matching the entities produced by
+`SensitiveParsers`.
 
 ## Caveats
 

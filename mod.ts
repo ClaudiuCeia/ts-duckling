@@ -159,8 +159,8 @@ export const PIIParsers: ParserTuple<
 
 /**
  * Union of entity types considered sensitive — extends {@link PIIEntity} with
- * protocol-qualified URLs (https/http/ftp), which routinely carry reset tokens,
- * user IDs, signed query parameters, and credentials.
+ * protocol-qualified URLs (http/https/ftp/ftps), which routinely carry reset
+ * tokens, user IDs, signed query parameters, and credentials.
  *
  * Bare domains (e.g. `example.com`) are intentionally excluded; use
  * {@link Duckling} with {@link URL.parser} directly if you need those too.
@@ -171,7 +171,8 @@ export type SensitiveEntity = PIIEntity | URLEntity;
  * Pre-built parser tuple targeting sensitive entities.
  *
  * Includes everything in {@link PIIParsers} plus protocol-qualified URLs
- * (`https://…`, `http://…`, `ftp://…`). Bare domains are **not** matched.
+ * (`http://…`, `https://…`, `ftp://…`, `ftps://…`). Bare domains are **not**
+ * matched.
  *
  * @example
  * ```ts
@@ -200,18 +201,7 @@ export const SensitiveParsers: ParserTuple<
     URLEntity,
   ]
 > = [
-  Email.parser,
-  Phone.parser,
-  IPAddress.parser,
-  SSN.parser,
-  CreditCard.parser,
-  UUID.parser,
-  ApiKey.parser,
-  IBAN.parser,
-  MACAddress.parser,
-  JWT.parser,
-  CryptoAddress.parser,
-  BIC.parser,
+  ...PIIParsers,
   dot(URL.Full),
 ];
 
