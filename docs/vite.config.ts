@@ -13,6 +13,9 @@ export default defineConfig({
       "@claudiu-ceia/combine": fileURLToPath(
         new URL("./node_modules/@claudiu-ceia/combine/mod.js", import.meta.url),
       ),
+      "@std/crypto": fileURLToPath(
+        new URL("./node_modules/@std/crypto/mod.js", import.meta.url),
+      ),
       "@data": fileURLToPath(new URL("../data", import.meta.url)),
     },
   },

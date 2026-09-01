@@ -84,6 +84,15 @@ Deno.test("BTC Bech32 uppercase accepted (BIP-0173)", () => {
   );
 });
 
+Deno.test("BTC Bech32 accepts a 32-byte v0 witness program", () => {
+  const address =
+    "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3";
+  const res = Duckling([CryptoAddress.parser]).extract(address);
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.address, address);
+  assertEquals(res[0].value.format, "bech32");
+});
+
 // ---------------------------------------------------------------------------
 // BTC Bech32m (Taproot / SegWit v1) — BIP-0350 test vector
 // ---------------------------------------------------------------------------
@@ -102,6 +111,60 @@ Deno.test("BTC Taproot one-char mutation rejected (bad polymod)", () => {
   // Last char changed: '0' → '2'; length and charset are valid but polymod fails.
   const res = Duckling([CryptoAddress.parser]).extract(
     "taproot bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj2 ok",
+  );
+  assertEquals(res.length, 0);
+});
+
+Deno.test("BTC Bech32m accepts witness versions 2 through 16", () => {
+  const addresses = [
+    // BIP-0350 v2, 16-byte witness program.
+    "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs",
+    // BIP-0350 v16, minimum 2-byte witness program.
+    "BC1SW50QGDZ25J",
+  ];
+  for (const address of addresses) {
+    const res = Duckling([CryptoAddress.parser]).extract(address);
+    assertEquals(res.length, 1, `expected ${address} to be accepted`);
+    assertEquals(res[0].value.address, address);
+    assertEquals(res[0].value.currency, "btc");
+    assertEquals(res[0].value.format, "bech32m");
+  }
+});
+
+Deno.test("BTC Bech32m accepts a maximum 40-byte witness program", () => {
+  const address =
+    "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y";
+  const res = Duckling([CryptoAddress.parser]).extract(address);
+  assertEquals(res.length, 1);
+  assertEquals(res[0].value.address, address);
+  assertEquals(res[0].value.format, "bech32m");
+});
+
+Deno.test("BTC Bech32/Bech32m invalid BIP-0350 vectors rejected", () => {
+  const addresses = [
+    // Bech32 checksum used for v1 instead of Bech32m.
+    "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
+    // Bech32m checksum used for v0 instead of Bech32.
+    "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh",
+    // Witness version 17 is outside the 0-16 range.
+    "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
+    // Witness programs below 2 bytes and above 40 bytes.
+    "bc1pw5dgrnzv",
+    "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
+    // A v0 witness program that is neither 20 nor 32 bytes.
+    "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+    // More than four zero-padding bits.
+    "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v07qwwzcrf",
+  ];
+  for (const address of addresses) {
+    const res = Duckling([CryptoAddress.parser]).extract(address);
+    assertEquals(res.length, 0, `expected ${address} to be rejected`);
+  }
+});
+
+Deno.test("BTC Bech32m mixed case rejected", () => {
+  const res = Duckling([CryptoAddress.parser]).extract(
+    "bc1p0xLxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
   );
   assertEquals(res.length, 0);
 });

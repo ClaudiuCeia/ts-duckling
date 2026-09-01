@@ -6,6 +6,7 @@
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@std/assert@1.0.18": "1.0.18",
     "jsr:@std/async@^1.1.0": "1.1.1",
+    "jsr:@std/crypto@1": "1.1.0",
     "jsr:@std/data-structures@^1.0.10": "1.0.10",
     "jsr:@std/fmt@1": "1.0.10",
     "jsr:@std/fs@1": "1.0.24",
@@ -42,6 +43,9 @@
     },
     "@std/async@1.1.1": {
       "integrity": "8a79beb3378cc229ce65ba2c746cfd03e4855ddd891d1eb6b9e32128e0d5339c"
+    },
+    "@std/crypto@1.1.0": {
+      "integrity": "b8d6d0a6377a32b213af2661ed7bf1062d94feac0c57def5526a8e74a95c3ec8"
     },
     "@std/data-structures@1.0.10": {
       "integrity": "f574f86b0e07c69b9edc555fcc814b57d29258bad39fd5a34ba8a80ecf033cfe"
@@ -102,6 +106,7 @@
       "jsr:@claudiu-ceia/combine@0.6.0",
       "jsr:@deno/dnt@~0.42.3",
       "jsr:@std/assert@1.0.18",
+      "jsr:@std/crypto@1",
       "jsr:@std/testing@1.0.17"
     ]
   }

@@ -156,10 +156,12 @@ function bech32HrpExpand(hrp: string): number[] {
  *
  * - Accepts all-lowercase or all-uppercase; rejects mixed case.
  * - Verifies the polymod checksum (Bech32 → 1, Bech32m → 0x2bc830a3).
- * - Validates witness program length (20 or 32 bytes for v0, 32 for v1)
- *   and zero-padding of the final 5-bit group.
+ * - Validates witness version, program length, and zero-padding of the final
+ *   5-bit group.
  */
 function isValidBech32Full(addr: string): boolean {
+  if (addr.length < 14 || addr.length > 74) return false;
+
   const lower = addr.toLowerCase();
   const upper = addr.toUpperCase();
   if (addr !== lower && addr !== upper) return false;
@@ -184,6 +186,7 @@ function isValidBech32Full(addr: string): boolean {
   if (!isBech32 && !isBech32m) return false;
 
   const witnessVersion = values[0];
+  if (witnessVersion > 16) return false;
   if (witnessVersion === 0 && !isBech32) return false;
   if (witnessVersion !== 0 && !isBech32m) return false;
 
@@ -258,7 +261,7 @@ type CryptoAddressOutputs = {
   BtcP2PKH: CryptoAddressEntity;
   /** BTC P2SH: `3` + 25-33 base58 chars */
   BtcP2SH: CryptoAddressEntity;
-  /** BTC Bech32/Bech32m: `bc1q...` or `bc1p...` (and uppercase variants) */
+  /** BTC Bech32/Bech32m: `bc1...` (and uppercase variants) */
   BtcBech32: CryptoAddressEntity;
   /** ETH: `0x` + 40 hex chars */
   Eth: CryptoAddressEntity;
@@ -317,25 +320,19 @@ export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
       (e) => isValidBase58CheckAddress(e.value.address, 0x05),
     ),
 
-  // BTC Bech32 (SegWit) / Bech32m (Taproot): bc1q... or bc1p... and uppercase
+  // BTC Bech32 (SegWit v0) / Bech32m (SegWit v1-16)
   BtcBech32: () => {
-    const prefix = any(
-      str("bc1q"),
-      str("bc1p"),
-      str("BC1Q"),
-      str("BC1P"),
-    );
+    const prefix = any(str("bc1"), str("BC1"));
     return guard(
       map(
         seq(prefix, bech32CharsCI),
         ([pfx, body], b, a) => {
           const addr = `${pfx}${body}`;
-          const normalizedPfx = pfx.toLowerCase();
           return cryptoAddress(
             {
               address: addr,
               currency: "btc",
-              format: normalizedPfx === "bc1p" ? "bech32m" : "bech32",
+              format: body[0].toLowerCase() === "q" ? "bech32" : "bech32m",
             },
             b,
             a,
