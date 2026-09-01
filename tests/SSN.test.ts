@@ -57,3 +57,14 @@ Deno.test("SSN wins over Quantity even when Quantity is ordered first", () => {
 
   assertEquals(res.some((e) => e.kind === "ssn"), true);
 });
+
+Deno.test("SSN with extra hyphen group is rejected", () => {
+  // 123-45-6789-00 has a fourth segment; parser must not yield the prefix
+  const res = Duckling([SSN.parser]).extract("123-45-6789-00");
+  assertEquals(res, []);
+});
+
+Deno.test("SSN after an extra hyphen group is rejected", () => {
+  const res = Duckling([SSN.parser]).extract("00-123-45-6789");
+  assertEquals(res, []);
+});

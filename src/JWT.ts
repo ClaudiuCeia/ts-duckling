@@ -8,7 +8,7 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 
@@ -110,5 +110,12 @@ export const JWT: DefinedLanguage<JWTOutputs> = defineLanguage<JWTOutputs>({
       return jwt({ jwt: raw, header: decodeHeader(header) }, b, a);
     }),
 
-  parser: (s) => dot(s.Full),
+  parser: (s) =>
+    // Reject adjacent base64url chars or "." to prevent matching a JWT
+    // prefix inside a longer dot-delimited token (e.g. "<jwt>.extra").
+    strictBoundary(
+      s.Full,
+      /^\.(?=[A-Za-z0-9_-])/,
+      /[A-Za-z0-9_-]\.$/,
+    ),
 });

@@ -7,7 +7,7 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 import { IntN, type QuantityEntity } from "./Quantity.ts";
@@ -94,7 +94,8 @@ export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
         a,
       )),
   parser: (s) => {
-    // Use dot to ensure we end on a token boundary (like other entities).
-    return dot(s.Full);
+    // Reject adjacent digit or hyphen to prevent matching an SSN prefix
+    // inside a longer hyphen-separated number (e.g. "123-45-6789-00").
+    return strictBoundary(s.Full, /^-/, /(?:^|[^\w])\d{1,4}-$/);
   },
 });

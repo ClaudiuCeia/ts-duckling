@@ -12,7 +12,7 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 
 /**
@@ -102,5 +102,24 @@ export const MACAddress: DefinedLanguage<MACAddressOutputs> = defineLanguage<
   Colon: () => map(sixPairs(str(":")), (_, b, a) => mkMac(b, a)),
   Hyphen: () => map(sixPairs(str("-")), (_, b, a) => mkMac(b, a)),
   Dot: () => map(threeQuads, (_, b, a) => mkMac(b, a)),
-  parser: (s) => dot(any(s.Colon, s.Hyphen, s.Dot)),
+  parser: (s) =>
+    // Each format rejects its own structural separator to prevent prefix
+    // matching (e.g. 7-octet colon-string, extra Cisco quad).
+    any(
+      strictBoundary(
+        s.Colon,
+        /^:/,
+        /(?:^|[^\w])[0-9a-fA-F]{2}:$/,
+      ),
+      strictBoundary(
+        s.Hyphen,
+        /^-/,
+        /(?:^|[^\w])[0-9a-fA-F]{2}-$/,
+      ),
+      strictBoundary(
+        s.Dot,
+        /^\.(?=[0-9a-fA-F])/,
+        /(?:^|[^\w])[0-9a-fA-F]{4}\.$/,
+      ),
+    ),
 });
