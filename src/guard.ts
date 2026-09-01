@@ -14,10 +14,7 @@ export const guard = <T>(
 };
 
 // Catch exceptions thrown during parsing and convert them to failures.
-export const safe = <T>(
-  p: Parser<T>,
-  expected = "safe",
-): Parser<T> => {
+export const safe = <T>(p: Parser<T>, expected = "safe"): Parser<T> => {
   return (ctx) => {
     try {
       return p(ctx);

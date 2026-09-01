@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Location } from "../mod.ts";
 
-Deno.test("Location", () => {
+test("Location", () => {
   const res = Duckling().extract(`
         The Kingdom of the Netherlands consists of the Netherlands proper, the Aruba, Curaçao, and Sint Maarten. 
         The United Kingdom consists of England, Scotland, Wales, and Northern Ireland.
@@ -81,21 +82,24 @@ Deno.test("Location", () => {
   ]);
 });
 
-Deno.test("Location recognizes CLDR canonical and alternate territory names", () => {
+test("Location recognizes CLDR canonical and alternate territory names", () => {
   const res = Duckling([Location.parser]).extract(
     "Türkiye, Turkey, Ivory Coast, Czech Republic, and Falkland Islands (Islas Malvinas)",
   );
 
-  assertEquals(res.map((entity) => entity.value.place), [
-    "Türkiye",
-    "Turkey",
-    "Ivory Coast",
-    "Czech Republic",
-    "Falkland Islands (Islas Malvinas)",
-  ]);
+  assertEquals(
+    res.map((entity) => entity.value.place),
+    [
+      "Türkiye",
+      "Turkey",
+      "Ivory Coast",
+      "Czech Republic",
+      "Falkland Islands (Islas Malvinas)",
+    ],
+  );
 });
 
-Deno.test("Location excludes CLDR regions and ambiguous short aliases", () => {
+test("Location excludes CLDR regions and ambiguous short aliases", () => {
   const res = Duckling([Location.parser]).extract(
     "Contact us in the European Union or World region",
   );
@@ -103,13 +107,11 @@ Deno.test("Location excludes CLDR regions and ambiguous short aliases", () => {
   assertEquals(res, []);
 });
 
-Deno.test("Location prefers the longest overlapping name and preserves canonical casing", () => {
-  const res = Duckling([Location.parser]).extract(
-    "GUINEA-BISSAU and GUINEA",
-  );
+test("Location prefers the longest overlapping name and preserves canonical casing", () => {
+  const res = Duckling([Location.parser]).extract("GUINEA-BISSAU and GUINEA");
 
-  assertEquals(res.map((entity) => entity.value.place), [
-    "Guinea-Bissau",
-    "Guinea",
-  ]);
+  assertEquals(
+    res.map((entity) => entity.value.place),
+    ["Guinea-Bissau", "Guinea"],
+  );
 });

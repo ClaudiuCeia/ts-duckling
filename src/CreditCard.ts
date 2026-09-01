@@ -64,19 +64,19 @@ type CreditCardOutputs = {
 /**
  * Credit card parser language (13-19 digits with separators) validated via Luhn.
  */
-export const CreditCard: DefinedLanguage<CreditCardOutputs> = defineLanguage<
-  CreditCardOutputs
->({
-  // 13-19 digits with optional single separators (space or '-').
-  Raw: () => guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard),
-  Full: (s) =>
-    map(s.Raw, (raw, b, a) =>
-      creditCard(
-        {
-          digits: normalizeDigits(raw),
-        },
-        b,
-        a,
-      )),
-  parser: (s) => dot(s.Full),
-});
+export const CreditCard: DefinedLanguage<CreditCardOutputs> =
+  defineLanguage<CreditCardOutputs>({
+    // 13-19 digits with optional single separators (space or '-').
+    Raw: () => guard(regex(/\d(?:[ -]?\d){12,18}/, "credit-card"), isValidCard),
+    Full: (s) =>
+      map(s.Raw, (raw, b, a) =>
+        creditCard(
+          {
+            digits: normalizeDigits(raw),
+          },
+          b,
+          a,
+        ),
+      ),
+    parser: (s) => dot(s.Full),
+  });

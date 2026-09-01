@@ -2,7 +2,7 @@ import { any, type Context, defineLanguage, map } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
-import countries from "@data/countries-en-us" with { type: "json" };
+import countries from "../data/countries-en-us.json" with { type: "json" };
 import { longestLiteral } from "./parsers.ts";
 
 type CldrCountries = {
@@ -40,8 +40,8 @@ const countryNames = Object.entries(cldr.names).flatMap(([code, name]) => [
 ]);
 const countryParser = map(
   longestLiteral(
-    [...new Set(countryNames)].sort((a, b) =>
-      b.length - a.length || a.localeCompare(b)
+    [...new Set(countryNames)].sort(
+      (a, b) => b.length - a.length || a.localeCompare(b),
     ),
     { caseInsensitive: true },
   ),
@@ -64,9 +64,8 @@ type LocationOutputs = {
 /**
  * Location parser language (countries list).
  */
-export const Location: DefinedLanguage<LocationOutputs> = defineLanguage<
-  LocationOutputs
->({
-  Country: () => countryParser,
-  parser: (s) => dot(any(s.Country)),
-});
+export const Location: DefinedLanguage<LocationOutputs> =
+  defineLanguage<LocationOutputs>({
+    Country: () => countryParser,
+    parser: (s) => dot(any(s.Country)),
+  });

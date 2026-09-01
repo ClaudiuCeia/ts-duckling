@@ -1,3 +1,4 @@
+import { bench, run } from "mitata";
 import { Duckling, Language, Location, URL } from "../mod.ts";
 
 const cases = [
@@ -40,10 +41,12 @@ const cases = [
 ] as const;
 
 for (const benchmark of cases) {
-  Deno.bench(`generated vocabulary: ${benchmark.name}`, () => {
+  bench(`generated vocabulary: ${benchmark.name}`, () => {
     const entities = benchmark.extract(benchmark.input);
     if (entities.length !== benchmark.expected) {
       throw new Error(`expected ${benchmark.expected} entities`);
     }
   });
 }
+
+await run();

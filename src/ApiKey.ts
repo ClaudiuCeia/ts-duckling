@@ -35,12 +35,12 @@ type ApiKeyOutputs = {
 
 const ProviderPrefixes: Record<string, string> = {
   // Stripe
-  "sk_live_": "stripe",
-  "sk_test_": "stripe",
-  "pk_live_": "stripe",
-  "pk_test_": "stripe",
-  "rk_live_": "stripe",
-  "rk_test_": "stripe",
+  sk_live_: "stripe",
+  sk_test_: "stripe",
+  pk_live_: "stripe",
+  pk_test_: "stripe",
+  rk_live_: "stripe",
+  rk_test_: "stripe",
 
   // OpenAI
   "sk-": "openai",
@@ -52,12 +52,12 @@ const ProviderPrefixes: Record<string, string> = {
   "sk-ant-api03-": "anthropic",
 
   // GitHub
-  "ghp_": "github",
-  "gho_": "github",
-  "ghu_": "github",
-  "ghs_": "github",
-  "ghr_": "github",
-  "github_pat_": "github",
+  ghp_: "github",
+  gho_: "github",
+  ghu_: "github",
+  ghs_: "github",
+  ghr_: "github",
+  github_pat_: "github",
 
   // GitLab
   "glpat-": "gitlab",
@@ -70,17 +70,17 @@ const ProviderPrefixes: Record<string, string> = {
   "xapp-": "slack",
 
   // AWS access key IDs (public identifier, not the secret)
-  "AKIA": "aws",
-  "ASIA": "aws",
-  "AIDA": "aws",
-  "AGPA": "aws",
-  "ANPA": "aws",
-  "ANVA": "aws",
-  "AROA": "aws",
-  "AIPA": "aws",
+  AKIA: "aws",
+  ASIA: "aws",
+  AIDA: "aws",
+  AGPA: "aws",
+  ANPA: "aws",
+  ANVA: "aws",
+  AROA: "aws",
+  AIPA: "aws",
 
   // Google API keys
-  "AIza": "google",
+  AIza: "google",
 
   // SendGrid
   "SG.": "sendgrid",
@@ -117,41 +117,40 @@ export const apiKey = (
 /**
  * API key parser language.
  */
-export const ApiKey: DefinedLanguage<ApiKeyOutputs> = defineLanguage<
-  ApiKeyOutputs
->({
-  /**
-   * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
-   * This is optional since not all API keys have a prefix.
-   *
-   * Returns a provider name if a known prefix is matched, or undefined otherwise.
-   * This allows downstream code to potentially apply provider-specific validation or parsing logic.
-   */
-  Prefix: (): Parser<string> => {
-    return map(
-      regex(ProviderPrefixRegex, "api-key-prefix"),
-      (prefix) => ProviderPrefixes[prefix],
-    );
-  },
-  /**
-   * Parses a known provider prefix + key body.
-   */
-  PrefixKey: (): Parser<ApiKeyEntity["value"]> => {
-    return map(
-      seq(
+export const ApiKey: DefinedLanguage<ApiKeyOutputs> =
+  defineLanguage<ApiKeyOutputs>({
+    /**
+     * Matches prefix for common API key formats, e.g. "sk-" for Stripe, "pk-" for some others, etc.
+     * This is optional since not all API keys have a prefix.
+     *
+     * Returns a provider name if a known prefix is matched, or undefined otherwise.
+     * This allows downstream code to potentially apply provider-specific validation or parsing logic.
+     */
+    Prefix: (): Parser<string> => {
+      return map(
         regex(ProviderPrefixRegex, "api-key-prefix"),
-        regex(/[A-Za-z0-9][A-Za-z0-9._-]{7,199}/, "api-key-body"),
-      ),
-      ([prefix, body]) => ({
-        provider: ProviderPrefixes[prefix],
-        key: `${prefix}${body}`,
-      }),
-    );
-  },
-  Full: (s): Parser<ApiKeyEntity> => {
-    return map(s.PrefixKey, (value, b, a) => apiKey(value, b, a));
-  },
-  parser: (s): Parser<ApiKeyEntity> => {
-    return dot(any(s.Full));
-  },
-});
+        (prefix) => ProviderPrefixes[prefix],
+      );
+    },
+    /**
+     * Parses a known provider prefix + key body.
+     */
+    PrefixKey: (): Parser<ApiKeyEntity["value"]> => {
+      return map(
+        seq(
+          regex(ProviderPrefixRegex, "api-key-prefix"),
+          regex(/[A-Za-z0-9][A-Za-z0-9._-]{7,199}/, "api-key-body"),
+        ),
+        ([prefix, body]) => ({
+          provider: ProviderPrefixes[prefix],
+          key: `${prefix}${body}`,
+        }),
+      );
+    },
+    Full: (s): Parser<ApiKeyEntity> => {
+      return map(s.PrefixKey, (value, b, a) => apiKey(value, b, a));
+    },
+    parser: (s): Parser<ApiKeyEntity> => {
+      return dot(any(s.Full));
+    },
+  });

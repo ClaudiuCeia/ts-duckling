@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Language } from "../mod.ts";
 
-Deno.test("Language", () => {
+test("Language", () => {
   const res = Duckling().extract(`
         Five languages have more than 50 million native speakers in 
         Europe: Russian, French, Italian, German, and English.
@@ -70,41 +71,48 @@ Deno.test("Language", () => {
   ]);
 });
 
-Deno.test("Language maps CLDR alternate names to canonical codes", () => {
+test("Language maps CLDR alternate names to canonical codes", () => {
   const res = Duckling([Language.parser]).extract(
     "Azeri, American English, Mandarin Chinese, and Arabic, Najdi",
   );
 
-  assertEquals(res.map((entity) => entity.value), [
-    { code: "az", name: "Azeri" },
-    { code: "en-US", name: "American English" },
-    { code: "zh", name: "Mandarin Chinese" },
-    { code: "ars", name: "Arabic, Najdi" },
-  ]);
+  assertEquals(
+    res.map((entity) => entity.value),
+    [
+      { code: "az", name: "Azeri" },
+      { code: "en-US", name: "American English" },
+      { code: "zh", name: "Mandarin Chinese" },
+      { code: "ars", name: "Arabic, Najdi" },
+    ],
+  );
 });
 
-Deno.test("Language preserves names shipped by the previous CLDR dataset", () => {
+test("Language preserves names shipped by the previous CLDR dataset", () => {
   const res = Duckling([Language.parser]).extract(
     "Woods Cree, Goan Konkani, Northern Haida, Eastern Canadian Inuktitut, Eastern Ojibwa, and Tokelau",
   );
 
-  assertEquals(res.map((entity) => entity.value), [
-    { code: "cwd", name: "Woods Cree" },
-    { code: "gom", name: "Goan Konkani" },
-    { code: "hdn", name: "Northern Haida" },
-    { code: "ike", name: "Eastern Canadian Inuktitut" },
-    { code: "ojg", name: "Eastern Ojibwa" },
-    { code: "tkl", name: "Tokelau" },
-  ]);
+  assertEquals(
+    res.map((entity) => entity.value),
+    [
+      { code: "cwd", name: "Woods Cree" },
+      { code: "gom", name: "Goan Konkani" },
+      { code: "hdn", name: "Northern Haida" },
+      { code: "ike", name: "Eastern Canadian Inuktitut" },
+      { code: "ojg", name: "Eastern Ojibwa" },
+      { code: "tkl", name: "Tokelau" },
+    ],
+  );
 });
 
-Deno.test("Language prefers the longest overlapping name and preserves canonical casing", () => {
-  const res = Duckling([Language.parser]).extract(
-    "ARABIC, NAJDI and ENGLISH",
-  );
+test("Language prefers the longest overlapping name and preserves canonical casing", () => {
+  const res = Duckling([Language.parser]).extract("ARABIC, NAJDI and ENGLISH");
 
-  assertEquals(res.map((entity) => entity.value), [
-    { code: "ars", name: "Arabic, Najdi" },
-    { code: "en", name: "English" },
-  ]);
+  assertEquals(
+    res.map((entity) => entity.value),
+    [
+      { code: "ars", name: "Arabic, Najdi" },
+      { code: "en", name: "English" },
+    ],
+  );
 });
