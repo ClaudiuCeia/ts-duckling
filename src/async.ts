@@ -15,7 +15,6 @@ import { __, dot, word } from "./common.ts";
 type NonEmptyArray<T> = [T, ...T[]];
 
 const yieldToEventLoop: () => Promise<void> = (() => {
-  // deno-lint-ignore no-explicit-any
   const s = (globalThis as any).scheduler;
   return typeof s?.yield === "function"
     ? () => s.yield()

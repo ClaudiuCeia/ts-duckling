@@ -18,10 +18,7 @@ import { guard } from "./guard.ts";
 
 const atom = regex(/[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+/, "email atom");
 const localPart = map(
-  seq(
-    atom,
-    many(map(seq(str("."), atom), ([dot, part]) => `${dot}${part}`)),
-  ),
+  seq(atom, many(map(seq(str("."), atom), ([dot, part]) => `${dot}${part}`))),
   ([first, rest]) => `${first}${rest.join("")}`,
 );
 const domainLabel = regex(
@@ -34,9 +31,7 @@ const terminalLabel = any(
 );
 const domain = map(
   seq(
-    many1(
-      map(seq(domainLabel, str(".")), ([label, dot]) => `${label}${dot}`),
-    ),
+    many1(map(seq(domainLabel, str(".")), ([label, dot]) => `${label}${dot}`)),
     terminalLabel,
   ),
   ([labels, tld]) => `${labels.join("")}${tld}`,
@@ -98,13 +93,10 @@ type EmailOutputs = {
 /**
  * Email address parser language.
  */
-export const Email: DefinedLanguage<EmailOutputs> = defineLanguage<
-  EmailOutputs
->({
-  Full: () =>
-    map(
-      candidate,
-      (raw, b, a) =>
+export const Email: DefinedLanguage<EmailOutputs> =
+  defineLanguage<EmailOutputs>({
+    Full: () =>
+      map(candidate, (raw, b, a) =>
         email(
           {
             email: raw,
@@ -112,6 +104,6 @@ export const Email: DefinedLanguage<EmailOutputs> = defineLanguage<
           b,
           a,
         ),
-    ),
-  parser: (s) => dot(any(s.Full)),
-});
+      ),
+    parser: (s) => dot(any(s.Full)),
+  });

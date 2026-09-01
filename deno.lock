@@ -2,112 +2,20 @@
   "version": "5",
   "specifiers": {
     "jsr:@claudiu-ceia/combine@0.8.0": "0.8.0",
-    "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
-    "jsr:@deno/dnt@~0.43.2": "0.43.2",
-    "jsr:@std/assert@1.0.19": "1.0.19",
-    "jsr:@std/async@^1.5.0": "1.5.0",
-    "jsr:@std/crypto@1": "1.1.0",
-    "jsr:@std/data-structures@^1.1.2": "1.1.2",
-    "jsr:@std/fmt@1": "1.0.10",
-    "jsr:@std/fs@1": "1.0.24",
-    "jsr:@std/internal@^1.0.12": "1.0.14",
-    "jsr:@std/internal@^1.0.14": "1.0.14",
-    "jsr:@std/path@1": "1.1.6",
-    "jsr:@std/path@^1.1.5": "1.1.6",
-    "jsr:@std/testing@1.0.20": "1.0.20",
-    "jsr:@ts-morph/bootstrap@0.29": "0.29.0",
-    "jsr:@ts-morph/common@0.29": "0.29.0"
+    "jsr:@std/crypto@1": "1.1.0"
   },
   "jsr": {
     "@claudiu-ceia/combine@0.8.0": {
       "integrity": "23155c1717c6743717261b798b1e02c4d23ffaaf88f91ce16293b03ffc45a634"
     },
-    "@david/code-block-writer@13.0.3": {
-      "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
-    },
-    "@deno/dnt@0.43.2": {
-      "integrity": "8068703a782f389d9fcb4ead32809ca666d3b088262a23f1d9016cbc9af5d37f",
-      "dependencies": [
-        "jsr:@david/code-block-writer",
-        "jsr:@std/fmt",
-        "jsr:@std/fs",
-        "jsr:@std/path@1",
-        "jsr:@ts-morph/bootstrap"
-      ]
-    },
-    "@std/assert@1.0.19": {
-      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.12"
-      ]
-    },
-    "@std/async@1.5.0": {
-      "integrity": "4c1f22d287a17ad7d8643b1952bc5a4d21e5d8b68dc8c20d8268eecc69096e82"
-    },
     "@std/crypto@1.1.0": {
       "integrity": "b8d6d0a6377a32b213af2661ed7bf1062d94feac0c57def5526a8e74a95c3ec8"
-    },
-    "@std/data-structures@1.1.2": {
-      "integrity": "2471377c9e0051f9ec34e57d0ebd0ad133a5a889677446ec6ba9938e4e102918"
-    },
-    "@std/fmt@1.0.10": {
-      "integrity": "90dfba288802ac6de82fb31d0917eb9e4450b9925b954d5e51fc29ac07419db5"
-    },
-    "@std/fs@1.0.24": {
-      "integrity": "f3061b45b81673a2bece689da041df32d174be064c89eb6397fb5718d3fb7877",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.14",
-        "jsr:@std/path@^1.1.5"
-      ]
-    },
-    "@std/internal@1.0.12": {
-      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
-    },
-    "@std/internal@1.0.14": {
-      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
-    },
-    "@std/path@1.1.6": {
-      "integrity": "c68485c2a4dfbb5ae3cc74fae4e8c4e5d874cf8a8ed12927917235c758b46cbe",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.14"
-      ]
-    },
-    "@std/testing@1.0.20": {
-      "integrity": "21380ed438672762e4ec549cbf4fe41c5b68f5598773a30b64abe7375513e721",
-      "dependencies": [
-        "jsr:@std/async",
-        "jsr:@std/data-structures"
-      ]
-    },
-    "@ts-morph/bootstrap@0.29.0": {
-      "integrity": "69f9b1b42b03423308a9f623f924174181ef20f6f2a8771799f216f561b9b7a6",
-      "dependencies": [
-        "jsr:@ts-morph/common"
-      ]
-    },
-    "@ts-morph/common@0.29.0": {
-      "integrity": "14e8f44c5e4297628cf756aed071787dc026c493e36c1cc29ce49dc95e493f8f",
-      "dependencies": [
-        "jsr:@std/fs",
-        "jsr:@std/path@1"
-      ]
     }
-  },
-  "redirects": {
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts": "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts"
-  },
-  "remote": {
-    "https://esm.sh/@jsr/claudiu-ceia__combine@0.2.6/denonext/claudiu-ceia__combine.mjs": "dd12f93a369e87c87b011ed7c0178a2aaffab32e7c07d66912702be3188f58cc",
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/denonext/mod.ts.mjs": "5f836821e56a3ac0b6b4113badc2f9c1c71bf77385b2233ef37f863ffbce5fba",
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts": "c58207de2fd57424550e59178ba2519cf55d7857a8444da745f5a346f609fb44"
   },
   "workspace": {
     "dependencies": [
       "jsr:@claudiu-ceia/combine@0.8.0",
-      "jsr:@deno/dnt@~0.43.2",
-      "jsr:@std/assert@1.0.19",
-      "jsr:@std/crypto@1",
-      "jsr:@std/testing@1.0.20"
+      "jsr:@std/crypto@1"
     ]
   }
 }

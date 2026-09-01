@@ -200,10 +200,7 @@ export type {
 export function Duckling(): {
   extract: (text: string) => AnyEntity[];
   /** @experimental */
-  extractAsync: (
-    text: string,
-    opts?: AsyncScanOptions,
-  ) => Promise<AnyEntity[]>;
+  extractAsync: (text: string, opts?: AsyncScanOptions) => Promise<AnyEntity[]>;
   redact: (text: string, opts?: RedactOptions<AnyEntity["kind"]>) => string;
   render: (text: string, fn: RenderFn<AnyEntity>) => string;
   /** @experimental */
@@ -240,10 +237,7 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
 ): {
   extract: (text: string) => T[number][];
   /** @experimental */
-  extractAsync: (
-    text: string,
-    opts?: AsyncScanOptions,
-  ) => Promise<T[number][]>;
+  extractAsync: (text: string, opts?: AsyncScanOptions) => Promise<T[number][]>;
   redact: (
     text: string,
     opts?: RedactOptions<
@@ -257,10 +251,7 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
     fn: RenderFn<T[number]>,
     opts?: AsyncScanOptions,
   ) => Promise<string>;
-  renderMap: <R>(
-    text: string,
-    fn: RenderMapFn<T[number], R>,
-  ) => (string | R)[];
+  renderMap: <R>(text: string, fn: RenderMapFn<T[number], R>) => (string | R)[];
   /** @experimental */
   renderMapAsync: <R>(
     text: string,
@@ -269,7 +260,6 @@ export function Duckling<T extends NonEmptyArray<unknown>>(
   ) => Promise<(string | R)[]>;
 };
 
-// deno-lint-ignore no-explicit-any
 export function Duckling(parsers?: any): any {
   const p: Parser<unknown>[] = parsers ?? DefaultParsers;
   let parser: Parser<unknown>;
@@ -279,10 +269,7 @@ export function Duckling(parsers?: any): any {
   }
 
   const entities = map(
-    step(
-      recognizeAt(...(p as NonEmptyArray<Parser<unknown>>)),
-      "shortest",
-    ),
+    step(recognizeAt(...(p as NonEmptyArray<Parser<unknown>>)), "shortest"),
     (recs) => recs.map((r) => r.value),
   );
 
@@ -331,11 +318,7 @@ export function Duckling(parsers?: any): any {
       input: string,
       opts?: AsyncScanOptions,
     ): Promise<unknown[]> => {
-      return asyncScan(
-        input,
-        p as NonEmptyArray<Parser<unknown>>,
-        opts,
-      );
+      return asyncScan(input, p as NonEmptyArray<Parser<unknown>>, opts);
     },
     /**
      * Replace entity spans using a callback function.
@@ -359,10 +342,7 @@ export function Duckling(parsers?: any): any {
      * // → 'Email me at <mark data-kind="email">a@b.com</mark>'
      * ```
      */
-    render: (
-      input: string,
-      fn: RenderFn<unknown>,
-    ): string => {
+    render: (input: string, fn: RenderFn<unknown>): string => {
       const all = parse(input) as {
         kind: string;
         start: number;
@@ -417,11 +397,7 @@ export function Duckling(parsers?: any): any {
      * // → ["Contact ", <mark data-kind="email">a@b.com</mark>, " please"]
      * ```
      */
-    renderMap: <R>(
-      input: string,
-      // deno-lint-ignore no-explicit-any
-      fn: RenderMapFn<any, R>,
-    ): (string | R)[] => {
+    renderMap: <R>(input: string, fn: RenderMapFn<any, R>): (string | R)[] => {
       const all = parse(input) as {
         kind: string;
         start: number;
@@ -440,7 +416,6 @@ export function Duckling(parsers?: any): any {
      */
     renderMapAsync: async <R>(
       input: string,
-      // deno-lint-ignore no-explicit-any
       fn: RenderMapFn<any, R>,
       opts?: AsyncScanOptions,
     ): Promise<(string | R)[]> => {
@@ -477,10 +452,7 @@ export function Duckling(parsers?: any): any {
      * // → "SSN XXXXXXXXXXX"
      * ```
      */
-    redact: (
-      input: string,
-      opts: RedactOptions = {},
-    ): string => {
+    redact: (input: string, opts: RedactOptions = {}): string => {
       const mask = opts.mask ?? "█";
       const all = parse(input) as {
         kind: string;

@@ -6,36 +6,28 @@
   },
   "publish": {
     "exclude": [
+      ".oxfmtrc.json",
+      ".git",
       ".github/",
+      ".gitignore",
+      ".npmrc",
+      ".vscode/",
+      "AGENTS.md",
       "bench/",
+      "bun.lock",
       "coverage/",
+      "deno.lock",
+      "dist/",
       "docs/",
+      "package.json",
       "scripts/",
-      "tests/"
+      "tests/",
+      "tsconfig.build.json",
+      "tsconfig.json"
     ]
   },
   "imports": {
     "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.8.0",
-    "@deno/dnt": "jsr:@deno/dnt@^0.43.2",
-    "@std/assert": "jsr:@std/assert@1.0.19",
-    "@std/crypto": "jsr:@std/crypto@1",
-    "@std/testing/time": "jsr:@std/testing@1.0.20/time",
-
-    "@data/countries-en-us": "./data/countries-en-us.json",
-    "@data/languages-en": "./data/languages-en.json",
-    "@data/parser-en": "./data/parser-en.json",
-    "@data/tlds": "./data/tlds.json"
-  },
-  "tasks": {
-    "fmt": "deno fmt",
-    "lint": "deno lint",
-    "check": "deno fmt --check && deno lint && deno check mod.ts && deno test",
-    "build:npm": "deno run -A scripts/build_npm.ts",
-    "publish:npm": "deno task build:npm && npm publish ./npm --access public",
-    "update:data": "deno run --allow-net=cdn.jsdelivr.net,data.iana.org --allow-write=data scripts/update_data.ts",
-    "test": "deno test",
-    "hooks:install": "ln -sf ../../scripts/pre-commit .git/hooks/pre-commit && chmod +x scripts/pre-commit",
-    "hooks:uninstall": "rm -f .git/hooks/pre-commit"
-  },
-  "exclude": ["./docs/"]
+    "@std/crypto": "jsr:@std/crypto@1"
+  }
 }

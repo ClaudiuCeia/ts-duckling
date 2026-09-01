@@ -1,7 +1,8 @@
-import { assertObjectMatch } from "@std/assert";
+import { test } from "bun:test";
+import { assertObjectMatch } from "./assert.ts";
 import { nonWord, word } from "../src/common.ts";
 
-Deno.test("word ok", () => {
+test("word ok", () => {
   const res = word({
     text: `foo`,
     index: 0,
@@ -13,7 +14,7 @@ Deno.test("word ok", () => {
   });
 });
 
-Deno.test("word fail", () => {
+test("word fail", () => {
   const res = word({
     text: ` ?`,
     index: 0,
@@ -24,7 +25,7 @@ Deno.test("word fail", () => {
   });
 });
 
-Deno.test("nonWord ok", () => {
+test("nonWord ok", () => {
   const res = nonWord({
     text: ` ?`,
     index: 0,

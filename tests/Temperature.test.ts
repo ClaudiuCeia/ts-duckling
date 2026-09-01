@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Temperature } from "../mod.ts";
 
-Deno.test("fahrneheit", () => {
+test("fahrneheit", () => {
   const res = Duckling().extract("It's hot! Over 90F outside...");
 
   assertEquals(res, [
@@ -26,7 +27,7 @@ Deno.test("fahrneheit", () => {
   ]);
 });
 
-Deno.test("celsius", () => {
+test("celsius", () => {
   const res = Duckling().extract("It's hot! Over 40°C outside...");
 
   assertEquals(
@@ -35,7 +36,7 @@ Deno.test("celsius", () => {
   );
 });
 
-Deno.test("unspecified", () => {
+test("unspecified", () => {
   const res = Duckling().extract(
     "Not sure how it is! Over 14 degrees outside...",
   );
@@ -46,18 +47,18 @@ Deno.test("unspecified", () => {
   );
 });
 
-Deno.test("below zero", () => {
+test("below zero", () => {
   const res = Duckling().extract("I'm freezing, 21 celsius below zero here");
 
   assertEquals(
-    res.some((e) =>
-      e.kind === "temperature" && e.text === "21 celsius below zero"
+    res.some(
+      (e) => e.kind === "temperature" && e.text === "21 celsius below zero",
     ),
     true,
   );
 });
 
-Deno.test("below zero no unit does not parse temperature", () => {
+test("below zero no unit does not parse temperature", () => {
   // NOTE: current grammar requires an extra space when unit is omitted
   // (one space is consumed by optional(space()), and another by skip1(space())).
   const res = Duckling().extract("I'm freezing, 21  below zero here");
@@ -66,7 +67,7 @@ Deno.test("below zero no unit does not parse temperature", () => {
   assertEquals(temp, undefined);
 });
 
-Deno.test("No false positive for temperature", () => {
+test("No false positive for temperature", () => {
   const res = Duckling().extract(
     "In 1837 Charles Babbage first described his Analytical Engine",
   );
@@ -84,7 +85,7 @@ Deno.test("No false positive for temperature", () => {
   ]);
 });
 
-Deno.test("enumeration inherits Celsius from the final item", () => {
+test("enumeration inherits Celsius from the final item", () => {
   const res = Duckling([Temperature.parser]).extract(
     "temperatures of 20, 25 and 30 Celsius",
   );
@@ -141,27 +142,34 @@ Deno.test("enumeration inherits Celsius from the final item", () => {
   ]);
 });
 
-Deno.test("temperature enumerations support conjunctions and numeric forms", () => {
+test("temperature enumerations support conjunctions and numeric forms", () => {
   const fahrenheit = Duckling([Temperature.parser]).extract("20 or 30 F");
   assertEquals(
-    fahrenheit.map((
-      entity,
-    ) => [entity.value.amount.value.amount, entity.value.unit]),
-    [[20, "Fahrenheit"], [30, "Fahrenheit"]],
+    fahrenheit.map((entity) => [
+      entity.value.amount.value.amount,
+      entity.value.unit,
+    ]),
+    [
+      [20, "Fahrenheit"],
+      [30, "Fahrenheit"],
+    ],
   );
 
-  const celsius = Duckling([Temperature.parser]).extract(
-    "-5.5, 0, and 2.5 °C",
-  );
+  const celsius = Duckling([Temperature.parser]).extract("-5.5, 0, and 2.5 °C");
   assertEquals(
-    celsius.map((
-      entity,
-    ) => [entity.value.amount.value.amount, entity.value.unit]),
-    [[-5.5, "Celsius"], [0, "Celsius"], [2.5, "Celsius"]],
+    celsius.map((entity) => [
+      entity.value.amount.value.amount,
+      entity.value.unit,
+    ]),
+    [
+      [-5.5, "Celsius"],
+      [0, "Celsius"],
+      [2.5, "Celsius"],
+    ],
   );
 });
 
-Deno.test("temperature enumerations require a bounded explicit unit", () => {
+test("temperature enumerations require a bounded explicit unit", () => {
   assertEquals(
     Duckling([Temperature.parser]).extract("scores of 20, 25 and 30 points"),
     [],
@@ -172,7 +180,7 @@ Deno.test("temperature enumerations require a bounded explicit unit", () => {
   );
 });
 
-Deno.test("CLDR temperature names support singular degree forms", () => {
+test("CLDR temperature names support singular degree forms", () => {
   const cases: [string, string][] = [
     ["1 degree Celsius", "Celsius"],
     ["1 degree Fahrenheit", "Fahrenheit"],
@@ -187,18 +195,16 @@ Deno.test("CLDR temperature names support singular degree forms", () => {
   }
 });
 
-Deno.test("bare singular degree is not an unspecified temperature", () => {
-  for (
-    const text of [
-      "The angle is 1 degree",
-      "She earned a 1 degree qualification",
-    ]
-  ) {
+test("bare singular degree is not an unspecified temperature", () => {
+  for (const text of [
+    "The angle is 1 degree",
+    "She earned a 1 degree qualification",
+  ]) {
     assertEquals(Duckling([Temperature.parser]).extract(text), [], text);
   }
 });
 
-Deno.test("CLDR degree symbol and compatibility unit aliases remain accepted", () => {
+test("CLDR degree symbol and compatibility unit aliases remain accepted", () => {
   const cases: [string, string][] = [
     ["10°C", "Celsius"],
     ["10°F", "Fahrenheit"],

@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, URL } from "../mod.ts";
 
-Deno.test("URL", () => {
+test("URL", () => {
   const res = Duckling().extract(
     "Checkout the preview at https://duckling.deno.dev:8080/",
   );
@@ -19,7 +20,7 @@ Deno.test("URL", () => {
   ]);
 });
 
-Deno.test("URL without port", () => {
+test("URL without port", () => {
   const res = Duckling().extract("Visit https://duckling.deno.dev/ now");
 
   assertEquals(res, [
@@ -35,7 +36,7 @@ Deno.test("URL without port", () => {
   ]);
 });
 
-Deno.test("URL ftp", () => {
+test("URL ftp", () => {
   const res = Duckling().extract("Get it from ftp://example.com/ now");
 
   assertEquals(res, [
@@ -51,7 +52,7 @@ Deno.test("URL ftp", () => {
   ]);
 });
 
-Deno.test("URL with path + fragment (Wikipedia)", () => {
+test("URL with path + fragment (Wikipedia)", () => {
   const text =
     "See https://en.wikipedia.org/wiki/Master_Juba#England_tour,_1848 for more";
   const res = Duckling().extract(text);
@@ -63,7 +64,7 @@ Deno.test("URL with path + fragment (Wikipedia)", () => {
   );
 });
 
-Deno.test("URL with percent-encoded path (Wikipedia Arabic)", () => {
+test("URL with percent-encoded path (Wikipedia Arabic)", () => {
   const text =
     "See https://ar.wikipedia.org/wiki/%D8%A7%D9%84%D9%85%D8%B9%D9%84%D9%85_%D8%AC%D9%88%D8%A8%D8%A7";
   const res = Duckling().extract(text);
@@ -75,7 +76,7 @@ Deno.test("URL with percent-encoded path (Wikipedia Arabic)", () => {
   );
 });
 
-Deno.test("URL with query params (Wikipedia create account)", () => {
+test("URL with query params (Wikipedia create account)", () => {
   const text =
     "https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Master+Juba";
   const res = Duckling().extract(text);
@@ -87,7 +88,7 @@ Deno.test("URL with query params (Wikipedia create account)", () => {
   );
 });
 
-Deno.test("URL bare domain", () => {
+test("URL bare domain", () => {
   const res = Duckling().extract("Visit google.com for more");
 
   assertEquals(res, [
@@ -101,7 +102,7 @@ Deno.test("URL bare domain", () => {
   ]);
 });
 
-Deno.test("URL bare domain with subdomain", () => {
+test("URL bare domain with subdomain", () => {
   const res = Duckling().extract("Check docs.example.org please");
 
   assertEquals(res, [
@@ -115,7 +116,7 @@ Deno.test("URL bare domain with subdomain", () => {
   ]);
 });
 
-Deno.test("URL bare domain with path", () => {
+test("URL bare domain with path", () => {
   const res = Duckling().extract("See example.com/about for info");
 
   assertEquals(res[0].kind, "url");
@@ -123,7 +124,7 @@ Deno.test("URL bare domain with path", () => {
   assertEquals(res[0].value, { url: "example.com/about" });
 });
 
-Deno.test("URL bare domain with port", () => {
+test("URL bare domain with port", () => {
   const res = Duckling().extract("Running at localhost.com:3000 now");
 
   assertEquals(res[0].kind, "url");
@@ -131,7 +132,7 @@ Deno.test("URL bare domain with port", () => {
   assertEquals(res[0].value, { url: "localhost.com:3000" });
 });
 
-Deno.test("URL prefers full URL over bare domain", () => {
+test("URL prefers full URL over bare domain", () => {
   const res = Duckling().extract("Go to https://example.com/path please");
 
   assertEquals(res.length, 1);
@@ -139,7 +140,7 @@ Deno.test("URL prefers full URL over bare domain", () => {
   assertEquals(res[0].value, { url: "https://example.com/path" });
 });
 
-Deno.test("URL accepts active TLDs added since the old snapshot", () => {
+test("URL accepts active TLDs added since the old snapshot", () => {
   const res = Duckling().extract("radio.music");
 
   assertEquals(res.length, 1);
@@ -147,27 +148,30 @@ Deno.test("URL accepts active TLDs added since the old snapshot", () => {
   assertEquals(res[0].value, { url: "radio.music" });
 });
 
-Deno.test("URL rejects retired and non-root TLDs as bare domains", () => {
+test("URL rejects retired and non-root TLDs as bare domains", () => {
   assertEquals(Duckling().extract("example.active"), []);
   assertEquals(Duckling().extract("example.an"), []);
 });
 
-Deno.test("URL accepts IDN TLDs in Punycode and Unicode", () => {
+test("URL accepts IDN TLDs in Punycode and Unicode", () => {
   const res = Duckling().extract("Visit example.xn--p1ai or example.рф");
 
-  assertEquals(res.map(({ text }) => text), [
-    "example.xn--p1ai",
-    "example.рф",
-  ]);
+  assertEquals(
+    res.map(({ text }) => text),
+    ["example.xn--p1ai", "example.рф"],
+  );
 });
 
-Deno.test("URL prefers the longest overlapping TLD", () => {
+test("URL prefers the longest overlapping TLD", () => {
   const res = Duckling([URL.parser]).extract("service.community");
 
-  assertEquals(res.map(({ text }) => text), ["service.community"]);
+  assertEquals(
+    res.map(({ text }) => text),
+    ["service.community"],
+  );
 });
 
-Deno.test("URL keeps TLD matching lowercase-only", () => {
+test("URL keeps TLD matching lowercase-only", () => {
   assertEquals(
     Duckling([URL.parser]).extract("service.COM service.COMMUNITY"),
     [],

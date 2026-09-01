@@ -22,12 +22,7 @@ export type CryptoAddressEntity = Entity<
     address: string;
     currency: "btc" | "eth";
     /** Address format variant. */
-    format:
-      | "p2pkh"
-      | "p2sh"
-      | "bech32"
-      | "bech32m"
-      | "erc20";
+    format: "p2pkh" | "p2sh" | "bech32" | "bech32m" | "erc20";
   }
 >;
 
@@ -52,10 +47,7 @@ const base58Chars = regex(
 
 // Bech32 character class (case-insensitive: lowercase + uppercase equivalents,
 // both excluding 1, b/B, i/I, o/O)
-const bech32CharsCI = regex(
-  /[023456789ac-hj-np-zAC-HJ-NP-Z]+/,
-  "bech32-ci",
-);
+const bech32CharsCI = regex(/[023456789ac-hj-np-zAC-HJ-NP-Z]+/, "bech32-ci");
 
 // 40 hex characters (ETH address body)
 const hex40 = regex(/[0-9a-fA-F]{40}/, "hex-40");
@@ -97,22 +89,15 @@ function base58Decode(s: string): Uint8Array | null {
  * Verifies the 25-byte decoded length, version byte, and
  * 4-byte double-SHA-256 checksum.
  */
-function isValidBase58CheckAddress(
-  addr: string,
-  versionByte: number,
-): boolean {
+function isValidBase58CheckAddress(addr: string, versionByte: number): boolean {
   if (addr.length < 25 || addr.length > 34) return false;
   const decoded = base58Decode(addr);
   if (decoded === null || decoded.length !== 25) return false;
   if (decoded[0] !== versionByte) return false;
   const payload = decoded.slice(0, 21);
   const storedChecksum = decoded.slice(21);
-  const hash1 = new Uint8Array(
-    stdCrypto.subtle.digestSync("SHA-256", payload),
-  );
-  const hash2 = new Uint8Array(
-    stdCrypto.subtle.digestSync("SHA-256", hash1),
-  );
+  const hash1 = new Uint8Array(stdCrypto.subtle.digestSync("SHA-256", payload));
+  const hash2 = new Uint8Array(stdCrypto.subtle.digestSync("SHA-256", hash1));
   return (
     hash2[0] === storedChecksum[0] &&
     hash2[1] === storedChecksum[1] &&
@@ -244,9 +229,10 @@ function isValidEip55(addr: string): boolean {
     // Each hex character maps to one nibble of the Keccak-256 hash:
     // even index → high nibble of the byte, odd index → low nibble.
     const byteIndex = Math.floor(i / 2);
-    const nibble = i % 2 === 0
-      ? (hashBytes[byteIndex] >> 4) & 0xf
-      : hashBytes[byteIndex] & 0xf;
+    const nibble =
+      i % 2 === 0
+        ? (hashBytes[byteIndex] >> 4) & 0xf
+        : hashBytes[byteIndex] & 0xf;
     if (nibble >= 8) {
       if (c !== c.toUpperCase()) return false;
     } else {
@@ -279,15 +265,12 @@ type CryptoAddressOutputs = {
  * - **BTC Taproot**: `bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3s7a`
  * - **ETH (ERC-20)**: `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed`
  */
-export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
-  CryptoAddressOutputs
->({
-  // BTC Legacy (P2PKH): starts with "1", followed by base58 chars
-  BtcP2PKH: () =>
-    guard(
-      map(
-        seq(str("1"), base58Chars),
-        ([prefix, body], b, a) =>
+export const CryptoAddress: Language<CryptoAddressOutputs> =
+  defineLanguage<CryptoAddressOutputs>({
+    // BTC Legacy (P2PKH): starts with "1", followed by base58 chars
+    BtcP2PKH: () =>
+      guard(
+        map(seq(str("1"), base58Chars), ([prefix, body], b, a) =>
           cryptoAddress(
             {
               address: `${prefix}${body}`,
@@ -297,16 +280,14 @@ export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
             b,
             a,
           ),
+        ),
+        (e) => isValidBase58CheckAddress(e.value.address, 0x00),
       ),
-      (e) => isValidBase58CheckAddress(e.value.address, 0x00),
-    ),
 
-  // BTC Script (P2SH): starts with "3", followed by base58 chars
-  BtcP2SH: () =>
-    guard(
-      map(
-        seq(str("3"), base58Chars),
-        ([prefix, body], b, a) =>
+    // BTC Script (P2SH): starts with "3", followed by base58 chars
+    BtcP2SH: () =>
+      guard(
+        map(seq(str("3"), base58Chars), ([prefix, body], b, a) =>
           cryptoAddress(
             {
               address: `${prefix}${body}`,
@@ -316,17 +297,15 @@ export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
             b,
             a,
           ),
+        ),
+        (e) => isValidBase58CheckAddress(e.value.address, 0x05),
       ),
-      (e) => isValidBase58CheckAddress(e.value.address, 0x05),
-    ),
 
-  // BTC Bech32 (SegWit v0) / Bech32m (SegWit v1-16)
-  BtcBech32: () => {
-    const prefix = any(str("bc1"), str("BC1"));
-    return guard(
-      map(
-        seq(prefix, bech32CharsCI),
-        ([pfx, body], b, a) => {
+    // BTC Bech32 (SegWit v0) / Bech32m (SegWit v1-16)
+    BtcBech32: () => {
+      const prefix = any(str("bc1"), str("BC1"));
+      return guard(
+        map(seq(prefix, bech32CharsCI), ([pfx, body], b, a) => {
           const addr = `${pfx}${body}`;
           return cryptoAddress(
             {
@@ -337,18 +316,15 @@ export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
             b,
             a,
           );
-        },
-      ),
-      (e) => isValidBech32Full(e.value.address),
-    );
-  },
+        }),
+        (e) => isValidBech32Full(e.value.address),
+      );
+    },
 
-  // ETH (ERC-20): 0x + 40 hex characters with EIP-55 checksum for mixed-case
-  Eth: () =>
-    guard(
-      map(
-        seq(str("0x"), hex40),
-        ([prefix, body], b, a) =>
+    // ETH (ERC-20): 0x + 40 hex characters with EIP-55 checksum for mixed-case
+    Eth: () =>
+      guard(
+        map(seq(str("0x"), hex40), ([prefix, body], b, a) =>
           cryptoAddress(
             {
               address: `${prefix}${body}`,
@@ -358,11 +334,11 @@ export const CryptoAddress: Language<CryptoAddressOutputs> = defineLanguage<
             b,
             a,
           ),
+        ),
+        (e) => isValidEip55(e.value.address),
       ),
-      (e) => isValidEip55(e.value.address),
-    ),
 
-  Full: (s) => any(s.BtcBech32, s.BtcP2PKH, s.BtcP2SH, s.Eth),
+    Full: (s) => any(s.BtcBech32, s.BtcP2PKH, s.BtcP2SH, s.Eth),
 
-  parser: (s) => dot(s.Full),
-});
+    parser: (s) => dot(s.Full),
+  });
