@@ -113,5 +113,9 @@ export const JWT: DefinedLanguage<JWTOutputs> = defineLanguage<JWTOutputs>({
   parser: (s) =>
     // Reject adjacent base64url chars or "." to prevent matching a JWT
     // prefix inside a longer dot-delimited token (e.g. "<jwt>.extra").
-    strictBoundary(s.Full, /[.]/),
+    strictBoundary(
+      s.Full,
+      /^\.(?=[A-Za-z0-9_-])/,
+      /[A-Za-z0-9_-]\.$/,
+    ),
 });

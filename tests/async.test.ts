@@ -1,8 +1,10 @@
 import { assertEquals } from "@std/assert";
+import type { Parser } from "@claudiu-ceia/combine";
 import {
   Duckling,
   Email,
   IPAddress,
+  JWT,
   MACAddress,
   PIIParsers,
   Quantity,
@@ -192,15 +194,11 @@ Deno.test("extractAsync: empty input returns empty array", async () => {
 Deno.test("extractAsync: format-specific boundaries match sync (prefix cases)", async () => {
   // These inputs previously returned a wrong prefix match; both sync and async
   // must now return zero results.
-  const cases = [
-    { parsers: [IPAddress.parser] as [typeof IPAddress.parser], input: "1:2:3:4:5:6:7:8:9" },
-    { parsers: [MACAddress.parser] as [typeof MACAddress.parser], input: "00:1A:2B:3C:4D:5E:6F" },
-    { parsers: [UUID.parser] as [typeof UUID.parser], input: "550e8400-e29b-41d4-a716-446655440000-dead" },
-    { parsers: [SSN.parser] as [typeof SSN.parser], input: "123-45-6789-00" },
-  ];
-
-  for (const { parsers, input } of cases) {
-    const d = Duckling(parsers);
+  const assertNoMatch = async <T extends { kind: string; text: string }>(
+    parser: Parser<T>,
+    input: string,
+  ) => {
+    const d = Duckling([parser]);
     const sync = d.extract(input);
     const async_ = await d.extractAsync(input, { yieldEvery: 2 });
 
@@ -210,7 +208,19 @@ Deno.test("extractAsync: format-specific boundaries match sync (prefix cases)", 
       `sync/async mismatch for: ${input}`,
     );
     assertEquals(sync.length, 0, `expected no match for: ${input}`);
-  }
+  };
+
+  await assertNoMatch(IPAddress.parser, "1:2:3:4:5:6:7:8:9");
+  await assertNoMatch(MACAddress.parser, "00:1A:2B:3C:4D:5E:6F");
+  await assertNoMatch(
+    UUID.parser,
+    "550e8400-e29b-41d4-a716-446655440000-dead",
+  );
+  await assertNoMatch(SSN.parser, "123-45-6789-00");
+  await assertNoMatch(
+    JWT.parser,
+    "eyJhbGciOiJIUzI1NiJ9.e30.signature.extra",
+  );
 });
 
 Deno.test("extractAsync: IPv4-mapped IPv6 matches sync", async () => {

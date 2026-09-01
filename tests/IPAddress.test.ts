@@ -29,6 +29,22 @@ Deno.test("IPv4 followed by fifth octet is rejected", () => {
   assertEquals(res, []);
 });
 
+Deno.test("IPv4 malformed continuations do not expose a valid suffix", () => {
+  for (
+    const input of [
+      "999.192.168.0.1",
+      "192.168.0.1.example",
+      "::ffff:192.0.2.128.5",
+    ]
+  ) {
+    assertEquals(
+      Duckling([IPAddress.parser]).extract(input),
+      [],
+      `expected no match for: ${input}`,
+    );
+  }
+});
+
 Deno.test("IPv4 at end of sentence (trailing period) still matches", () => {
   const res = Duckling([IPAddress.parser]).extract("Connect to 192.168.0.1.");
   assertEquals(res.length, 1);
@@ -60,6 +76,31 @@ Deno.test("IPv6 full form with extra ninth group is rejected", () => {
     "1:2:3:4:5:6:7:8:9",
   );
   assertEquals(res, []);
+});
+
+Deno.test("IPv6 full form rejects an IPv4-style continuation", () => {
+  const res = Duckling([IPAddress.parser]).extract("1:2:3:4:5:6:7:8.9");
+  assertEquals(res, []);
+});
+
+Deno.test("IPv6 full form at end of sentence still matches", () => {
+  const res = Duckling([IPAddress.parser]).extract("Use 1:2:3:4:5:6:7:8.");
+  assertEquals(res.map((entity) => entity.text), ["1:2:3:4:5:6:7:8"]);
+});
+
+Deno.test("invalid compressed IPv6 group counts do not expose a valid suffix", () => {
+  for (
+    const input of [
+      "1:2:3:4:5:6:7::8",
+      "1:2:3:4:5:6::192.0.2.1",
+    ]
+  ) {
+    assertEquals(
+      Duckling([IPAddress.parser]).extract(input),
+      [],
+      `expected no match for: ${input}`,
+    );
+  }
 });
 
 Deno.test("IPv6 compressed loopback ::1", () => {
@@ -127,4 +168,15 @@ Deno.test("IPv4-mapped IPv6 with prefix 2001:db8::ffff:192.0.2.128", () => {
   assertEquals(res.length, 1);
   assertEquals(res[0].value.ip, "2001:db8::ffff:192.0.2.128");
   assertEquals(res[0].value.version, 6);
+});
+
+Deno.test("IP parsers still accept common label separators", () => {
+  const res = Duckling([IPAddress.parser]).extract(
+    "IPv4:192.168.0.1 IPv6:2001:db8:85a3:0:0:8a2e:370:7334",
+  );
+
+  assertEquals(res.map((entity) => entity.text), [
+    "192.168.0.1",
+    "2001:db8:85a3:0:0:8a2e:370:7334",
+  ]);
 });

@@ -96,6 +96,6 @@ export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
   parser: (s) => {
     // Reject adjacent digit or hyphen to prevent matching an SSN prefix
     // inside a longer hyphen-separated number (e.g. "123-45-6789-00").
-    return strictBoundary(s.Full, /[-]/);
+    return strictBoundary(s.Full, /^-/, /(?:^|[^\w])\d{1,4}-$/);
   },
 });

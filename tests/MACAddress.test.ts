@@ -46,12 +46,43 @@ Deno.test("MAC with extra octet is rejected", () => {
   assertEquals(res.length, 0);
 });
 
+Deno.test("MAC formats reject extra leading and trailing groups", () => {
+  for (
+    const input of [
+      "00-1A-2B-3C-4D-5E-6F",
+      "001A.2B3C.4D5E.6F70",
+      "00:1A:2B:3C:4D:5E:6F",
+    ]
+  ) {
+    assertEquals(
+      Duckling([MACAddress.parser]).extract(input),
+      [],
+      `expected no match for: ${input}`,
+    );
+  }
+});
+
+Deno.test("MAC parsers still accept common label separators", () => {
+  const res = Duckling([MACAddress.parser]).extract(
+    "MAC:00:1A:2B:3C:4D:5E MAC-00-1A-2B-3C-4D-5E",
+  );
+  assertEquals(res.map((entity) => entity.text), [
+    "00:1A:2B:3C:4D:5E",
+    "00-1A-2B-3C-4D-5E",
+  ]);
+});
+
 Deno.test("MAC at end of sentence (trailing period) still matches", () => {
   const res = Duckling([MACAddress.parser]).extract(
     "The MAC is 00:1A:2B:3C:4D:5E.",
   );
   assertEquals(res.length, 1);
   assertEquals(res[0].value.normalized, "00:1a:2b:3c:4d:5e");
+});
+
+Deno.test("Cisco MAC at end of sentence still matches", () => {
+  const res = Duckling([MACAddress.parser]).extract("Use 001A.2B3C.4D5E.");
+  assertEquals(res.map((entity) => entity.text), ["001A.2B3C.4D5E"]);
 });
 
 Deno.test("MAC in Duckling default parsers", () => {

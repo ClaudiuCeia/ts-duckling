@@ -106,8 +106,20 @@ export const MACAddress: DefinedLanguage<MACAddressOutputs> = defineLanguage<
     // Each format rejects its own structural separator to prevent prefix
     // matching (e.g. 7-octet colon-string, extra Cisco quad).
     any(
-      strictBoundary(s.Colon, /[:]/),
-      strictBoundary(s.Hyphen, /[-]/),
-      strictBoundary(s.Dot, /[.]/),
+      strictBoundary(
+        s.Colon,
+        /^:/,
+        /(?:^|[^\w])[0-9a-fA-F]{2}:$/,
+      ),
+      strictBoundary(
+        s.Hyphen,
+        /^-/,
+        /(?:^|[^\w])[0-9a-fA-F]{2}-$/,
+      ),
+      strictBoundary(
+        s.Dot,
+        /^\.(?=[0-9a-fA-F])/,
+        /(?:^|[^\w])[0-9a-fA-F]{4}\.$/,
+      ),
     ),
 });

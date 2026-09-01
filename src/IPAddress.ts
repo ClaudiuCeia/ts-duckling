@@ -15,7 +15,6 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import { strictBoundary } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 
@@ -68,59 +67,80 @@ const hexGroupsPrefix = regex(
   "hex-groups-prefix",
 );
 
+const hasInvalidLeftBoundary = (ctx: Context, structural: RegExp): boolean => {
+  if (ctx.index === 0) return false;
+  return /\w/.test(ctx.text[ctx.index - 1]) ||
+    structural.test(ctx.text.slice(0, ctx.index));
+};
+
 /**
  * Zero-width IPv4 boundary.
  *
  * Rejects word characters (via the base `boundary` check) and also rejects
- * "." immediately followed by a digit, which indicates a fifth octet rather
- * than a sentence-ending period (e.g. "192.168.0.1.5" → no match, but
+ * "." immediately followed by a word character, which indicates another
+ * dotted component rather than a sentence-ending period (e.g.
+ * "192.168.0.1.5" → no match, but
  * "192.168.0.1." → match).
  */
-const ipv4Boundary = <T>(p: Parser<T>): Parser<T> =>
-  (ctx) => {
-    const res = p(ctx);
-    if (!res.success) return res;
-    const after = res.ctx;
-    if (after.index < after.text.length) {
-      const c = after.text[after.index];
-      if (/\w/.test(c)) return failure(ctx, "ipv4-boundary");
-      if (
-        c === "." &&
-        after.index + 1 < after.text.length &&
-        /\d/.test(after.text[after.index + 1])
-      ) {
-        return failure(ctx, "ipv4-boundary");
-      }
+const ipv4Boundary = <T>(p: Parser<T>): Parser<T> => (ctx) => {
+  const res = p(ctx);
+  if (!res.success) return res;
+  if (
+    hasInvalidLeftBoundary(
+      ctx,
+      /(?:^|[^\w])(?:\d{1,3}\.|[0-9a-fA-F]{1,4}:)$|::$/,
+    )
+  ) {
+    return failure(ctx, "ipv4-boundary");
+  }
+  const after = res.ctx;
+  if (after.index < after.text.length) {
+    const c = after.text[after.index];
+    if (/\w/.test(c)) return failure(ctx, "ipv4-boundary");
+    if (
+      c === "." &&
+      after.index + 1 < after.text.length &&
+      /\w/.test(after.text[after.index + 1])
+    ) {
+      return failure(ctx, "ipv4-boundary");
     }
-    return res;
-  };
+  }
+  return res;
+};
 
 /**
- * Zero-width IPv6-compressed boundary.
+ * Zero-width IPv6 boundary.
  *
  * Rejects ":" (more groups) and also rejects "." immediately followed by a
- * digit. The dot+digit lookahead lets "::1." (sentence period) succeed while
+ * word character. The lookahead lets "::1." (sentence period) succeed while
  * preventing "::ffff:192" from being accepted as a prefix of "::ffff:192.0.2.128"
  * (the full IPv4-mapped form is handled by `Full6v4` instead).
  */
-const ipv6CompBoundary = <T>(p: Parser<T>): Parser<T> =>
-  (ctx) => {
-    const res = p(ctx);
-    if (!res.success) return res;
-    const after = res.ctx;
-    if (after.index < after.text.length) {
-      const c = after.text[after.index];
-      if (/\w/.test(c) || c === ":") return failure(ctx, "ipv6-boundary");
-      if (
-        c === "." &&
-        after.index + 1 < after.text.length &&
-        /\d/.test(after.text[after.index + 1])
-      ) {
-        return failure(ctx, "ipv6-boundary");
-      }
+const ipv6Boundary = <T>(p: Parser<T>): Parser<T> => (ctx) => {
+  const res = p(ctx);
+  if (!res.success) return res;
+  if (
+    hasInvalidLeftBoundary(
+      ctx,
+      /(?:^|[^\w])(?:[0-9a-fA-F]{1,4}:|\d{1,3}\.)$/,
+    )
+  ) {
+    return failure(ctx, "ipv6-boundary");
+  }
+  const after = res.ctx;
+  if (after.index < after.text.length) {
+    const c = after.text[after.index];
+    if (/\w/.test(c) || c === ":") return failure(ctx, "ipv6-boundary");
+    if (
+      c === "." &&
+      after.index + 1 < after.text.length &&
+      /\w/.test(after.text[after.index + 1])
+    ) {
+      return failure(ctx, "ipv6-boundary");
     }
-    return res;
-  };
+  }
+  return res;
+};
 
 type IPAddressOutputs = {
   /** Dotted-decimal IPv4: four octets 0-255 separated by dots */
@@ -253,14 +273,14 @@ export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
   Full6v4: (s) => map(s.IPv6v4Mapped, (_, b, a) => mkIP(6, b, a)),
   parser: (s) =>
     // Format-specific boundaries prevent prefix matches:
-    //  • IPv4: rejects adjacent digit (via \w) or "." followed by digit
-    //  • IPv6 full: rejects adjacent ":" (would form a 9th group)
+    //  • IPv4: rejects word and dotted continuations
+    //  • IPv6 full: rejects adjacent ":" or an IPv4-style continuation
     //  • IPv6 v4-mapped: tried before compressed so ::ffff:a.b.c.d is fully matched
-    //  • IPv6 compressed: rejects ":" and "." followed by digit
+    //  • IPv6 compressed: rejects ":" and dotted continuations
     any(
       ipv4Boundary(s.Full4),
-      strictBoundary(s.Full6, /[:]/),
-      ipv6CompBoundary(s.Full6v4),
-      ipv6CompBoundary(s.Full6c),
+      ipv6Boundary(s.Full6),
+      ipv6Boundary(s.Full6v4),
+      ipv6Boundary(s.Full6c),
     ),
 });

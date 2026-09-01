@@ -60,6 +60,10 @@ export const UUID: DefinedLanguage<UUIDOutputs> = defineLanguage<UUIDOutputs>({
   parser: (s): Parser<UUIDEntity> => {
     // Reject adjacent hex or hyphen to prevent matching a UUID prefix
     // inside a longer hyphen-separated token (e.g. "…0000-dead").
-    return strictBoundary(s.Full, /[-]/);
+    return strictBoundary(
+      s.Full,
+      /^-/,
+      /(?:^|[^\w])[0-9a-fA-F]+-$/,
+    );
   },
 });
