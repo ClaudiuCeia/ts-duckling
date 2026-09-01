@@ -3,7 +3,6 @@ import {
   type Context,
   defineLanguage,
   failure,
-  many1,
   map,
   optional,
   regex,
@@ -21,8 +20,31 @@ import { longestLiteral } from "./parsers.ts";
 import tlds from "@data/tlds" with { type: "json" };
 
 const tldList = tlds.values;
-// TLD matching is case-insensitive (e.g. .COM and .com both match)
 const tldParser = longestLiteral(tldList, { caseInsensitive: true });
+const maxDomainLength = 253;
+const maxHostScanLength = maxDomainLength + 3;
+const maxIpv6HostLength = 47;
+const maxLabelLength = 63;
+const hostCharacter = /[\p{L}\p{M}\p{N}.-]/u;
+const labelEdge = /[\p{L}\p{N}]/u;
+const hostTerminators: ReadonlySet<string> = new Set([
+  ":",
+  "/",
+  "?",
+  "#",
+  ".",
+  ",",
+  ";",
+  "!",
+  ")",
+  "]",
+  "}",
+  '"',
+  "'",
+  ">",
+  "\u2019",
+  "\u201d",
+]);
 
 /**
  * URL entity.
@@ -57,15 +79,9 @@ type URLOutputs = {
   parser: URLEntity;
 };
 
-/**
- * Count occurrences of a single character in a string.
- */
-function countChar(s: string, ch: string): number {
-  let n = 0;
-  for (let i = 0; i < s.length; i++) {
-    if (s[i] === ch) n++;
-  }
-  return n;
+function characterAt(text: string, index: number): string {
+  const codePoint = text.codePointAt(index);
+  return codePoint === undefined ? "" : String.fromCodePoint(codePoint);
 }
 
 /**
@@ -75,25 +91,76 @@ function countChar(s: string, ch: string): number {
  * preserved, but a lone ")" is trimmed).
  */
 function trimUrlSuffix(s: string): string {
-  const closingPairs: Record<string, string> = { ")": "(", "]": "[", "}": "{" };
+  const closingPairs: Record<string, string> = {
+    ")": "(",
+    "]": "[",
+    "}": "{",
+    "\u2019": "\u2018",
+    "\u201d": "\u201c",
+  };
+  const openingPairs = new Map(
+    Object.entries(closingPairs).map(([closer, opener]) => [opener, closer]),
+  );
+  const excessClosers = Object.fromEntries(
+    Object.keys(closingPairs).map((closer) => [closer, 0]),
+  ) as Record<string, number>;
+  const quoteCounts: Record<string, number> = { '"': 0, "'": 0 };
+
+  for (const character of s) {
+    if (character in excessClosers) {
+      excessClosers[character]++;
+    } else {
+      const closer = openingPairs.get(character);
+      if (closer !== undefined) excessClosers[closer]--;
+    }
+    if (character in quoteCounts) quoteCounts[character]++;
+  }
+
   let result = s;
   while (result.length > 0) {
     const last = result[result.length - 1];
     if (".,;!?".includes(last)) {
       result = result.slice(0, -1);
-    } else if (last in closingPairs) {
-      const opener = closingPairs[last];
-      // Trim if there are more closing brackets than opening ones
-      if (countChar(result, last) > countChar(result, opener)) {
-        result = result.slice(0, -1);
-      } else {
-        break;
-      }
+    } else if (last in excessClosers && excessClosers[last] > 0) {
+      excessClosers[last]--;
+      result = result.slice(0, -1);
+    } else if (last in quoteCounts && quoteCounts[last] % 2 === 1) {
+      quoteCounts[last]--;
+      result = result.slice(0, -1);
     } else {
       break;
     }
   }
   return result;
+}
+
+function isHostTerminator(character: string): boolean {
+  return character === "" || /\s/u.test(character) ||
+    hostTerminators.has(character);
+}
+
+function isValidDnsName(host: string): boolean {
+  if (host.length === 0 || host.length > maxDomainLength) return false;
+
+  const labels = host.normalize("NFC").split(".");
+  if (
+    labels.some((label) => {
+      const characters = [...label];
+      return characters.length === 0 || characters.length > maxLabelLength ||
+        !labelEdge.test(characters[0]) ||
+        !labelEdge.test(characters[characters.length - 1]);
+    })
+  ) {
+    return false;
+  }
+
+  try {
+    const normalized = new globalThis.URL(`http://${host}/`).hostname;
+    return normalized.length <= maxDomainLength &&
+      normalized.split(".").every((label) => label.length <= maxLabelLength);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -110,46 +177,50 @@ const fullHostParser: Parser<string> = (ctx) => {
   const text = ctx.text;
   const start = ctx.index;
 
-  // Bracketed IPv6: [...]
-  if (start < text.length && text[start] === "[") {
-    const closeBracket = text.indexOf("]", start + 1);
-    if (closeBracket !== -1) {
-      return success(
-        { ...ctx, index: closeBracket + 1 },
-        text.substring(start, closeBracket + 1),
-      );
+  if (text[start] === "[") {
+    let closeBracket = -1;
+    const searchEnd = Math.min(text.length, start + maxIpv6HostLength);
+    for (let index = start + 1; index < searchEnd; index++) {
+      if (text[index] === "]") {
+        closeBracket = index;
+        break;
+      }
     }
-    return failure(ctx, "bracketed-host");
+    if (closeBracket === -1) return failure(ctx, "bracketed-host");
+
+    const host = text.substring(start, closeBracket + 1);
+    try {
+      new globalThis.URL(`http://${host}/`);
+    } catch {
+      return failure(ctx, "IPv6 host");
+    }
+
+    const end = closeBracket + 1;
+    if (!isHostTerminator(characterAt(text, end))) {
+      return failure(ctx, "host boundary");
+    }
+    return success({ ...ctx, index: end }, host);
   }
 
-  // Hostname: one or more DNS labels separated by dots.
-  // A label starts and ends with a letter or digit (Unicode included) and
-  // may contain hyphens internally (RFC 1123 + IDN).
-  const isLabelStart = (ch: string): boolean => /[\p{L}\p{N}]/u.test(ch);
-  const isLabelMid = (ch: string): boolean => /[\p{L}\p{N}\-]/u.test(ch);
-
-  const parseLabelEnd = (pos: number): number => {
-    if (pos >= text.length || !isLabelStart(text[pos])) return -1;
-    let j = pos + 1;
-    while (j < text.length && isLabelMid(text[j])) j++;
-    // Labels must not end with a hyphen
-    if (j > pos + 1 && text[j - 1] === "-") return -1;
-    return j;
-  };
-
-  let pos = start;
-  const firstEnd = parseLabelEnd(pos);
-  if (firstEnd === -1) return failure(ctx, "hostname");
-  pos = firstEnd;
-
-  // Consume additional dot.label segments
-  while (pos < text.length && text[pos] === ".") {
-    const nextEnd = parseLabelEnd(pos + 1);
-    if (nextEnd === -1) break;
-    pos = nextEnd;
+  let end = start;
+  while (end < text.length) {
+    const character = characterAt(text, end);
+    if (!hostCharacter.test(character)) break;
+    end += character.length;
+    if (end - start > maxHostScanLength) {
+      return failure(ctx, "hostname length");
+    }
   }
 
-  return success({ ...ctx, index: pos }, text.substring(start, pos));
+  let hostEnd = end;
+  while (text[hostEnd - 1] === ".") hostEnd--;
+  const host = text.substring(start, hostEnd);
+  if (!isValidDnsName(host)) return failure(ctx, "hostname");
+  if (!isHostTerminator(characterAt(text, end))) {
+    return failure(ctx, "host boundary");
+  }
+
+  return success({ ...ctx, index: hostEnd }, host);
 };
 
 /**
@@ -169,8 +240,17 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       const text = ctx.text;
       const start = ctx.index;
       let end = start;
-      while (end < text.length && text[end] >= "0" && text[end] <= "9") end++;
+      while (
+        end < text.length && end - start < 6 && text[end] >= "0" &&
+        text[end] <= "9"
+      ) end++;
       if (end === start) return failure(ctx, "port");
+      if (
+        end - start > 5 ||
+        (end < text.length && text[end] >= "0" && text[end] <= "9")
+      ) {
+        return failure(ctx, "port length");
+      }
       if (end < text.length && text[end] === ".") {
         return failure(ctx, "port: not an integer");
       }
@@ -182,7 +262,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     };
   },
   Suffix: (): Parser<string> => {
-    // Accept "/path", "?query", "#fragment" but not a lone "/" at end.
+    // Accept "/path", "?query", "#fragment", and a lone trailing "/".
     // Trailing unmatched closing punctuation (e.g. ")" or ".") is trimmed.
     return (ctx) => {
       const text = ctx.text;
@@ -193,7 +273,9 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       let end = start + 1;
       while (end < text.length && !/\s/.test(text[end])) end++;
       if (end === start + 1) {
-        // Lone /, ?, or # with nothing following it
+        if (text[start] === "/") {
+          return success({ ...ctx, index: end }, "/");
+        }
         return failure(ctx, "url-suffix");
       }
       const raw = text.substring(start, end);
@@ -204,27 +286,22 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     };
   },
   Domain: (s): Parser<string> => {
-    // DNS label: starts/ends with alnum; hyphens are allowed internally.
-    // Used for bare-domain detection, which requires a valid IANA TLD.
-    const label = regex(
-      /[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?/,
-      "label",
-    );
-    return map(
-      seq(
-        map(
-          many1(
-            map(
-              seq(label, str(".")),
-              ([word, d]) => `${word}${d}`,
-            ),
-          ),
-          (parts) => parts.join(""),
-        ),
-        map(s.TLD, (tld) => tld),
-      ),
-      (parts) => parts.join(""),
-    );
+    return (ctx) => {
+      const hostResult = fullHostParser(ctx);
+      if (!hostResult.success || hostResult.value.startsWith("[")) {
+        return failure(ctx, "domain");
+      }
+
+      const separator = hostResult.value.lastIndexOf(".");
+      if (separator <= 0) return failure(ctx, "domain TLD");
+
+      const tldResult = s.TLD({ ...ctx, index: ctx.index + separator + 1 });
+      if (!tldResult.success || tldResult.ctx.index !== hostResult.ctx.index) {
+        return failure(ctx, "domain TLD");
+      }
+
+      return success(hostResult.ctx, hostResult.value);
+    };
   },
   FullHost: (): Parser<string> => {
     return fullHostParser;
@@ -238,8 +315,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
         optional(seq(str(":"), s.Port)),
         optional(s.Suffix),
       ),
-      (_parts, b, a) =>
-        url({ url: b.text.substring(b.index, a.index) }, b, a),
+      (_parts, b, a) => url({ url: b.text.substring(b.index, a.index) }, b, a),
     );
   },
   Bare: (s): Parser<URLEntity> => {
@@ -249,8 +325,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
         optional(seq(str(":"), s.Port)),
         optional(s.Suffix),
       ),
-      (_parts, b, a) =>
-        url({ url: b.text.substring(b.index, a.index) }, b, a),
+      (_parts, b, a) => url({ url: b.text.substring(b.index, a.index) }, b, a),
     );
   },
   parser: (s): Parser<URLEntity> => {

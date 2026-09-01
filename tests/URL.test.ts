@@ -8,12 +8,12 @@ Deno.test("URL", () => {
 
   assertEquals(res, [
     {
-      end: 54,
+      end: 55,
       kind: "url",
       start: 24,
-      text: "https://duckling.deno.dev:8080",
+      text: "https://duckling.deno.dev:8080/",
       value: {
-        url: "https://duckling.deno.dev:8080",
+        url: "https://duckling.deno.dev:8080/",
       },
     },
   ]);
@@ -25,11 +25,11 @@ Deno.test("URL without port", () => {
   assertEquals(res, [
     {
       start: 6,
-      end: 31,
+      end: 32,
       kind: "url",
-      text: "https://duckling.deno.dev",
+      text: "https://duckling.deno.dev/",
       value: {
-        url: "https://duckling.deno.dev",
+        url: "https://duckling.deno.dev/",
       },
     },
   ]);
@@ -41,11 +41,11 @@ Deno.test("URL ftp", () => {
   assertEquals(res, [
     {
       start: 12,
-      end: 29,
+      end: 30,
       kind: "url",
-      text: "ftp://example.com",
+      text: "ftp://example.com/",
       value: {
-        url: "ftp://example.com",
+        url: "ftp://example.com/",
       },
     },
   ]);
@@ -102,16 +102,13 @@ Deno.test("URL bare domain", () => {
 });
 
 Deno.test("URL bare domain with subdomain", () => {
-  const res = Duckling().extract("Check docs.example.org please");
+  const res = Duckling().extract(
+    "Check docs.example.org and my-site.example.com please",
+  );
 
-  assertEquals(res, [
-    {
-      start: 6,
-      end: 22,
-      kind: "url",
-      text: "docs.example.org",
-      value: { url: "docs.example.org" },
-    },
+  assertEquals(res.map(({ text }) => text), [
+    "docs.example.org",
+    "my-site.example.com",
   ]);
 });
 
@@ -169,14 +166,17 @@ Deno.test("URL prefers the longest overlapping TLD", () => {
 
 Deno.test("URL matches case-insensitive TLDs in bare domains", () => {
   const res = Duckling([URL.parser]).extract("service.COM service.COMMUNITY");
-  assertEquals(res.map(({ text }) => text), ["service.COM", "service.COMMUNITY"]);
+  assertEquals(res.map(({ text }) => text), [
+    "service.COM",
+    "service.COMMUNITY",
+  ]);
 });
 
 Deno.test("URL full URL with localhost", () => {
   const res = Duckling().extract("http://localhost:3000/ is ready");
   assertEquals(res[0].kind, "url");
-  assertEquals(res[0].text, "http://localhost:3000");
-  assertEquals(res[0].value, { url: "http://localhost:3000" });
+  assertEquals(res[0].text, "http://localhost:3000/");
+  assertEquals(res[0].value, { url: "http://localhost:3000/" });
 });
 
 Deno.test("URL full URL with IPv4 literal", () => {
@@ -196,22 +196,82 @@ Deno.test("URL full URL with bracketed IPv6", () => {
 Deno.test("URL accepts uppercase TLD and hyphens in full URL", () => {
   const res = Duckling().extract("Visit https://my-site.EXAMPLE.COM/ now");
   assertEquals(res[0].kind, "url");
-  assertEquals(res[0].text, "https://my-site.EXAMPLE.COM");
-  assertEquals(res[0].value, { url: "https://my-site.EXAMPLE.COM" });
+  assertEquals(res[0].text, "https://my-site.EXAMPLE.COM/");
+  assertEquals(res[0].value, { url: "https://my-site.EXAMPLE.COM/" });
 });
 
 Deno.test("URL accepts Unicode label in full URL", () => {
   const res = Duckling().extract("See https://münchen.de/ page");
   assertEquals(res[0].kind, "url");
-  assertEquals(res[0].text, "https://münchen.de");
-  assertEquals(res[0].value, { url: "https://münchen.de" });
+  assertEquals(res[0].text, "https://münchen.de/");
+  assertEquals(res[0].value, { url: "https://münchen.de/" });
 });
 
 Deno.test("URL accepts Punycode label in full URL", () => {
   const res = Duckling().extract("See https://xn--mnchen-3ya.de/ info");
   assertEquals(res[0].kind, "url");
-  assertEquals(res[0].text, "https://xn--mnchen-3ya.de");
-  assertEquals(res[0].value, { url: "https://xn--mnchen-3ya.de" });
+  assertEquals(res[0].text, "https://xn--mnchen-3ya.de/");
+  assertEquals(res[0].value, { url: "https://xn--mnchen-3ya.de/" });
+});
+
+Deno.test("URL validates protocol-qualified hosts", () => {
+  for (
+    const host of [
+      "localhost",
+      "127.0.0.1",
+      "[2001:db8::1]",
+      "cafe\u0301.example",
+    ]
+  ) {
+    const result = URL.FullHost({ text: host, index: 0 });
+    assertEquals(result.success, true, host);
+    if (result.success) assertEquals(result.ctx.index, host.length, host);
+  }
+
+  for (
+    const host of [
+      "[garbage]",
+      "[]",
+      "999.999.999.999",
+      "-example.com",
+      "example-.com",
+      "example..com",
+      "example_com",
+      `[${"1".repeat(1000)}]`,
+    ]
+  ) {
+    assertEquals(URL.FullHost({ text: host, index: 0 }).success, false, host);
+  }
+});
+
+Deno.test("URL bounds DNS label and host lengths", () => {
+  const label63 = "a".repeat(63);
+  const label64 = "a".repeat(64);
+  const host253 = [label63, label63, label63, "a".repeat(61)].join(".");
+  const host254 = `${host253}a`;
+
+  for (const host of [label63, host253]) {
+    const result = URL.FullHost({ text: host, index: 0 });
+    assertEquals(result.success, true, host.length.toString());
+    if (result.success) assertEquals(result.ctx.index, host.length);
+  }
+  for (const host of [label64, host254]) {
+    assertEquals(
+      URL.FullHost({ text: host, index: 0 }).success,
+      false,
+      host.length.toString(),
+    );
+  }
+
+  const bare253 = [label63, label63, label63, "a".repeat(57), "com"].join(
+    ".",
+  );
+  const bare254 = bare253.replace(
+    `${"a".repeat(57)}.com`,
+    `${"a".repeat(58)}.com`,
+  );
+  assertEquals(URL.Domain({ text: bare253, index: 0 }).success, true);
+  assertEquals(URL.Domain({ text: bare254, index: 0 }).success, false);
 });
 
 Deno.test("URL trims trailing unmatched closing punctuation from suffix", () => {
@@ -219,6 +279,29 @@ Deno.test("URL trims trailing unmatched closing punctuation from suffix", () => 
   assertEquals(res[0].kind, "url");
   assertEquals(res[0].text, "https://example.com/a");
   assertEquals(res[0].value, { url: "https://example.com/a" });
+});
+
+Deno.test("URL trims unmatched quotes and preserves balanced brackets", () => {
+  const res = Duckling([URL.parser]).extract(
+    'See "https://example.com/a" and https://example.com/(a), then https://example.com...',
+  );
+  assertEquals(res.map(({ text }) => text), [
+    "https://example.com/a",
+    "https://example.com/(a)",
+    "https://example.com",
+  ]);
+});
+
+Deno.test("URL accepts a lone trailing slash but not empty query or fragment", () => {
+  assertEquals(
+    Duckling([URL.parser]).extract("https://example.com/").map(({ text }) =>
+      text
+    ),
+    ["https://example.com/"],
+  );
+  assertEquals(URL.Suffix({ text: "/", index: 0 }).success, true);
+  assertEquals(URL.Suffix({ text: "?", index: 0 }).success, false);
+  assertEquals(URL.Suffix({ text: "#", index: 0 }).success, false);
 });
 
 Deno.test("URL rejects decimal port :1.5", () => {
@@ -233,4 +316,15 @@ Deno.test("URL rejects out-of-range port :65536", () => {
   assertEquals(res[0].kind, "url");
   assertEquals(res[0].text, "http://example.com");
   assertEquals(res[0].value, { url: "http://example.com" });
+});
+
+Deno.test("URL validates integer port boundaries", () => {
+  for (const port of ["1", "65535"]) {
+    const result = URL.Port({ text: port, index: 0 });
+    assertEquals(result.success, true, port);
+    if (result.success) assertEquals(result.ctx.index, port.length, port);
+  }
+  for (const port of ["0", "65536", "1.5", "abc", "9".repeat(1000)]) {
+    assertEquals(URL.Port({ text: port, index: 0 }).success, false, port);
+  }
 });
