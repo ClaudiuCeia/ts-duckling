@@ -20,7 +20,7 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
-import parserData from "@data/parser-en" with { type: "json" };
+import parserData from "../data/parser-en.json" with { type: "json" };
 import { __, dot, nonWord } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { fuzzyCase } from "./parsers.ts";
@@ -50,8 +50,8 @@ type EnglishQuantityData = {
 
 const english = parserData as EnglishQuantityData;
 const longestFirst = <T extends { token: string }>(entries: T[]) =>
-  [...entries].sort((a, b) =>
-    b.token.length - a.token.length || a.token.localeCompare(b.token)
+  [...entries].sort(
+    (a, b) => b.token.length - a.token.length || a.token.localeCompare(b.token),
   );
 
 /**
@@ -124,166 +124,153 @@ type QuantityOutputs = {
 /**
  * Quantity parser language.
  */
-export const Quantity: DefinedLanguage<QuantityOutputs> = defineLanguage<
-  QuantityOutputs
->({
-  Literal: (): Parser<number> => {
-    const entries = [
-      ...english.quantity.compactMultipliers.map(({ value, long }) => ({
-        value,
-        token: long,
-      })),
-      ...english.compatibility.quantity.multiplierNames.flatMap(
-        ({ value, names }) => names.map((token) => ({ value, token })),
-      ),
-    ];
-    return any(
-      ...longestFirst(entries).map(({ value, token }) =>
-        map(fuzzyCase(token), () => value)
-      ),
-    );
-  },
-  ShortLiteral: (): Parser<number> => {
-    return any(
-      ...longestFirst(
-        english.quantity.compactMultipliers.map(({ value, short }) => ({
+export const Quantity: DefinedLanguage<QuantityOutputs> =
+  defineLanguage<QuantityOutputs>({
+    Literal: (): Parser<number> => {
+      const entries = [
+        ...english.quantity.compactMultipliers.map(({ value, long }) => ({
           value,
-          token: short,
+          token: long,
         })),
-      ).map(({ value, token }) => map(str(token), () => value)),
-    );
-  },
-  Under: (): Parser<string> => {
-    return __(
-      any(
+        ...english.compatibility.quantity.multiplierNames.flatMap(
+          ({ value, names }) => names.map((token) => ({ value, token })),
+        ),
+      ];
+      return any(
+        ...longestFirst(entries).map(({ value, token }) =>
+          map(fuzzyCase(token), () => value),
+        ),
+      );
+    },
+    ShortLiteral: (): Parser<number> => {
+      return any(
         ...longestFirst(
-          english.compatibility.quantity.under.map((token) => ({ token })),
-        ).map(({ token }) => fuzzyCase(token)),
-      ),
-    );
-  },
-  LeadDigit: (): Parser<number> => {
-    return minus(digit(), str("0"));
-  },
-  TwoLeadDigit: (s): Parser<number> => {
-    return map(
-      seq(s.LeadDigit, digit()),
-      ([d1, d2]) => parseInt(`${d1}${d2}`),
-    );
-  },
-  ThreeLeadDigit: (s): Parser<number> => {
-    return map(
-      seq(s.TwoLeadDigit, digit()),
-      ([d1, d2]) => parseInt(`${d1}${d2}`),
-    );
-  },
-  ThreeDigitGroup: (): Parser<string> => {
-    return map(
-      repeat(3, digit()),
-      (digits) => digits.reduce((acc, d) => `${acc}${d}`, ""),
-    );
-  },
-  CommaSeparated: (s): Parser<number> => {
-    return map(
-      seq(
-        any(s.ThreeLeadDigit, s.TwoLeadDigit, s.LeadDigit),
-        str(english.quantity.symbols.group),
-        sepBy1(
-          s.ThreeDigitGroup,
-          skip1(str(english.quantity.symbols.group)),
-        ),
-      ),
-      ([first, _dot, rest]) => {
-        const restJoin = rest.reduce((acc, d) => `${acc}${d}`, "");
-        return parseInt(`${first}${restJoin}`);
-      },
-    );
-  },
-  Fractional: (): Parser<string> => {
-    return map(
-      seq(
-        str(english.quantity.symbols.decimal),
-        map(
-          many1(digit()),
-          (digs) => digs.reduce((acc, d) => `${acc}${d}`, ""),
-        ),
-      ),
-      ([_dot, rest]) => rest,
-    );
-  },
-  FractionalComma: (s): Parser<number> => {
-    return map(
-      seq(s.CommaSeparated, optional(s.Fractional)),
-      ([num, fraction]) => parseFloat(`${num}.${fraction || ""}`),
-    );
-  },
-  Signed: (s): Parser<number> => {
-    return map(
-      seq(
+          english.quantity.compactMultipliers.map(({ value, short }) => ({
+            value,
+            token: short,
+          })),
+        ).map(({ value, token }) => map(str(token), () => value)),
+      );
+    },
+    Under: (): Parser<string> => {
+      return __(
         any(
-          str(english.quantity.symbols.plus),
-          str(english.quantity.symbols.minus),
-          str(english.compatibility.quantity.plusMinus),
+          ...longestFirst(
+            english.compatibility.quantity.under.map((token) => ({ token })),
+          ).map(({ token }) => fuzzyCase(token)),
         ),
-        any(number(), s.FractionalComma),
-      ),
-      ([sign, num]) => sign === english.quantity.symbols.minus ? num * -1 : num,
-    );
-  },
-  NonFractional: (s): Parser<QuantityEntity> => {
-    return map(
-      any(
-        s.CommaSeparated,
-        map(
-          seq(s.Under, any(s.CommaSeparated, number())),
-          ([, n]) => -n,
+      );
+    },
+    LeadDigit: (): Parser<number> => {
+      return minus(digit(), str("0"));
+    },
+    TwoLeadDigit: (s): Parser<number> => {
+      return map(seq(s.LeadDigit, digit()), ([d1, d2]) =>
+        parseInt(`${d1}${d2}`),
+      );
+    },
+    ThreeLeadDigit: (s): Parser<number> => {
+      return map(seq(s.TwoLeadDigit, digit()), ([d1, d2]) =>
+        parseInt(`${d1}${d2}`),
+      );
+    },
+    ThreeDigitGroup: (): Parser<string> => {
+      return map(repeat(3, digit()), (digits) =>
+        digits.reduce((acc, d) => `${acc}${d}`, ""),
+      );
+    },
+    CommaSeparated: (s): Parser<number> => {
+      return map(
+        seq(
+          any(s.ThreeLeadDigit, s.TwoLeadDigit, s.LeadDigit),
+          str(english.quantity.symbols.group),
+          sepBy1(s.ThreeDigitGroup, skip1(str(english.quantity.symbols.group))),
         ),
-        map(
-          seq(
-            any(
-              str(english.quantity.symbols.plus),
-              str(english.quantity.symbols.minus),
+        ([first, _dot, rest]) => {
+          const restJoin = rest.reduce((acc, d) => `${acc}${d}`, "");
+          return parseInt(`${first}${restJoin}`);
+        },
+      );
+    },
+    Fractional: (): Parser<string> => {
+      return map(
+        seq(
+          str(english.quantity.symbols.decimal),
+          map(many1(digit()), (digs) =>
+            digs.reduce((acc, d) => `${acc}${d}`, ""),
+          ),
+        ),
+        ([_dot, rest]) => rest,
+      );
+    },
+    FractionalComma: (s): Parser<number> => {
+      return map(
+        seq(s.CommaSeparated, optional(s.Fractional)),
+        ([num, fraction]) => parseFloat(`${num}.${fraction || ""}`),
+      );
+    },
+    Signed: (s): Parser<number> => {
+      return map(
+        seq(
+          any(
+            str(english.quantity.symbols.plus),
+            str(english.quantity.symbols.minus),
+            str(english.compatibility.quantity.plusMinus),
+          ),
+          any(number(), s.FractionalComma),
+        ),
+        ([sign, num]) =>
+          sign === english.quantity.symbols.minus ? num * -1 : num,
+      );
+    },
+    NonFractional: (s): Parser<QuantityEntity> => {
+      return map(
+        any(
+          s.CommaSeparated,
+          map(seq(s.Under, any(s.CommaSeparated, number())), ([, n]) => -n),
+          map(
+            seq(
+              any(
+                str(english.quantity.symbols.plus),
+                str(english.quantity.symbols.minus),
+              ),
+              number(),
             ),
-            number(),
+            ([sign, num]) =>
+              sign === english.quantity.symbols.minus ? num * -1 : num,
           ),
-          ([sign, num]) =>
-            sign === english.quantity.symbols.minus ? num * -1 : num,
+          number(),
         ),
+        (n, b, a) => quantity({ amount: n }, b, a),
+      );
+    },
+    Numbers: (s): Parser<number> => {
+      return any(
+        s.FractionalComma,
+        map(seq(s.Under, any(s.FractionalComma, number())), ([, n]) => -n),
+        s.Signed,
         number(),
-      ),
-      (n, b, a) => quantity({ amount: n }, b, a),
-    );
-  },
-  Numbers: (s): Parser<number> => {
-    return any(
-      s.FractionalComma,
-      map(
-        seq(s.Under, any(s.FractionalComma, number())),
-        ([, n]) => -n,
-      ),
-      s.Signed,
-      number(),
-    );
-  },
-  innerParser: (s): Parser<QuantityEntity> => {
-    return map(
-      any(
-        map(
-          seq(
-            s.Numbers,
-            optional(space()),
-            either(s.Literal, s.ShortLiteral),
-            peek(any(space(), nonWord, eof())),
+      );
+    },
+    innerParser: (s): Parser<QuantityEntity> => {
+      return map(
+        any(
+          map(
+            seq(
+              s.Numbers,
+              optional(space()),
+              either(s.Literal, s.ShortLiteral),
+              peek(any(space(), nonWord, eof())),
+            ),
+            ([num, , lit]) => num * lit,
           ),
-          ([num, _, lit]) => num * lit,
+          s.Literal,
+          s.Numbers,
         ),
-        s.Literal,
-        s.Numbers,
-      ),
-      (n, b, a) => quantity({ amount: n }, b, a),
-    );
-  },
-  parser: (s): Parser<QuantityEntity> => {
-    return dot(s.innerParser);
-  },
-});
+        (n, b, a) => quantity({ amount: n }, b, a),
+      );
+    },
+    parser: (s): Parser<QuantityEntity> => {
+      return dot(s.innerParser);
+    },
+  });

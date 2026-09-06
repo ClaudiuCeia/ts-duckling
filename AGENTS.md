@@ -7,34 +7,32 @@
 - `src/`: implementation modules (parsers/entities). Files are typically
   `PascalCase.ts` (e.g. `src/Time.ts`, `src/Quantity.ts`) plus shared helpers
   like `src/common.ts`.
-- `tests/`: Deno tests. Naming convention is `*.test.ts` (e.g.
+- `tests/`: Bun tests. Naming convention is `*.test.ts` (e.g.
   `tests/Time.test.ts`).
-- `deno.json`: Deno config, dependency mappings, and tasks.
+- `package.json`: Bun development scripts and npm package metadata.
+- `deno.json`: JSR package metadata and Deno dependency mappings.
 
 ## Build, Test, and Development Commands
 
-This is a Deno library (no npm scripts).
+This library uses Bun for development while retaining Deno/JSR compatibility.
 
-- `deno test`: run the full test suite in `tests/` (first run may download deps;
-  use `deno test --cached-only` when offline).
-- `deno fmt`: format all supported files (preferred over manual formatting).
-- `deno lint`: lint the codebase. Note: on Deno 2.x this repo’s inline `https:`
-  imports and JSON import attributes may be flagged; prefer adding deps to
-  `deno.json` when touching imports.
-- `deno check mod.ts`: type-check the public surface (add extra entrypoints as
-  needed).
+- `bun install`: install the pinned development dependencies.
+- `bun run check`: run formatting, lint, type checks, and tests.
+- `bun run format`: format supported files with `oxfmt`.
+- `bun run lint`: lint the library, tests, benchmarks, and scripts.
+- `bun run typecheck`: type-check the development surface.
+- `bun run package:check`: build and validate the npm package.
 
 ## Coding Style & Naming Conventions
 
-- TypeScript (Deno). Keep code Deno-idiomatic and let `deno fmt` enforce
-  formatting.
+- TypeScript. Keep code runtime-neutral and let `oxfmt` enforce formatting.
 - Modules/entities in `src/` use `PascalCase.ts`; test files use
   `Thing.test.ts`.
 - Prefer explicit exports via `mod.ts` for anything intended as public API.
 
 ## Testing Guidelines
 
-- Framework: built-in `Deno.test` with asserts from `jsr:@std/assert`.
+- Framework: Bun's built-in test runner with local assertion helpers.
 - Add/extend tests alongside new parsers/entities; cover both “happy path” and
   common false-positive/false-negative cases (see `tests/Time.test.ts` for
   patterns).
@@ -46,4 +44,4 @@ This is a Deno library (no npm scripts).
 - PRs should include:
   - brief description + rationale (and link issues if applicable)
   - updated tests for behavior changes
-  - `deno fmt`, `deno lint`, and `deno test` passing
+  - `bun run check` and `bun run package:check` passing

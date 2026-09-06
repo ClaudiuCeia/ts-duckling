@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Email } from "../mod.ts";
 
-Deno.test("Email in sentence", () => {
+test("Email in sentence", () => {
   const res = Duckling().extract(
     "I've never emailed no-reply+foo@some.domain.dev before",
   );
@@ -19,7 +20,7 @@ Deno.test("Email in sentence", () => {
   ]);
 });
 
-Deno.test("Email with underscore in local part", () => {
+test("Email with underscore in local part", () => {
   const res = Duckling([Email.parser]).extract(
     "mail user_name@example.com end",
   );
@@ -27,19 +28,19 @@ Deno.test("Email with underscore in local part", () => {
   assertEquals(res[0].value.email, "user_name@example.com");
 });
 
-Deno.test("Email minimal address", () => {
+test("Email minimal address", () => {
   const res = Duckling([Email.parser]).extract("send to a@b.co now");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.email, "a@b.co");
 });
 
-Deno.test("Email with subdomain", () => {
+test("Email with subdomain", () => {
   const res = Duckling([Email.parser]).extract("at user@sub.domain.com ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.email, "user@sub.domain.com");
 });
 
-Deno.test("Email supports practical local parts and domains", () => {
+test("Email supports practical local parts and domains", () => {
   const input = [
     "first.last@my-company.COM",
     "o'hara@example.com",
@@ -59,7 +60,7 @@ Deno.test("Email supports practical local parts and domains", () => {
   );
 });
 
-Deno.test("Email rejects malformed addresses and partial matches", () => {
+test("Email rejects malformed addresses and partial matches", () => {
   const invalid = [
     "@example.com",
     ".user@example.com",

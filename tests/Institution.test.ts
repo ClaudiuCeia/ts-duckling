@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Institution } from "../mod.ts";
 
-Deno.test("Educational", () => {
+test("Educational", () => {
   const res = Duckling().extract(
     "The term was coined by the Italian University of Bologna, which is considered to be the first university with a traditional founding date of 1088.",
   );
@@ -49,7 +50,7 @@ Deno.test("Educational", () => {
   ]);
 });
 
-Deno.test("New York City Hall", () => {
+test("New York City Hall", () => {
   const res = Duckling().extract(
     "New York City Hall, the oldest continuous seat of local government in the United States, completed in 1812",
   );
@@ -87,7 +88,7 @@ Deno.test("New York City Hall", () => {
   ]);
 });
 
-Deno.test("Fordwich Town Hall", () => {
+test("Fordwich Town Hall", () => {
   const res = Duckling().extract(
     "16th-century Fordwich Town Hall in Kent, England, closely resembling a market hall in its design",
   );
@@ -117,7 +118,7 @@ Deno.test("Fordwich Town Hall", () => {
   ]);
 });
 
-Deno.test("Town hall of Recife, Brazil", () => {
+test("Town hall of Recife, Brazil", () => {
   const res = Duckling().extract("Town hall of Recife, Brazil");
 
   assertEquals(res, [
@@ -144,7 +145,7 @@ Deno.test("Town hall of Recife, Brazil", () => {
   ]);
 });
 
-Deno.test("Institution suffix names include their separating space", () => {
+test("Institution suffix names include their separating space", () => {
   const res = Duckling([Institution.parser]).extract(
     "Harvard University is nearby",
   );
@@ -154,7 +155,7 @@ Deno.test("Institution suffix names include their separating space", () => {
   assertEquals(res[0].value.type, "university");
 });
 
-Deno.test("Institution prefix names stop before lowercase prose", () => {
+test("Institution prefix names stop before lowercase prose", () => {
   const res = Duckling([Institution.parser]).extract(
     "University of Bologna is old",
   );
@@ -163,7 +164,7 @@ Deno.test("Institution prefix names stop before lowercase prose", () => {
   assertEquals(res[0].text, "University of Bologna");
 });
 
-Deno.test("Institution names support practical punctuation", () => {
+test("Institution names support practical punctuation", () => {
   const input =
     "King's College London; Paris-Saclay University; MIT School of Medicine";
   const res = Duckling([Institution.parser]).extract(input);

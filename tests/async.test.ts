@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Email, PIIParsers, Quantity, SSN, URL } from "../mod.ts";
 
 const inputs = [
@@ -13,7 +14,7 @@ const inputs = [
 ];
 
 for (const input of inputs) {
-  Deno.test(`extractAsync matches extract: "${input.slice(0, 50)}…"`, async () => {
+  test(`extractAsync matches extract: "${input.slice(0, 50)}…"`, async () => {
     const d = Duckling(PIIParsers);
     const sync = d.extract(input);
     const async_ = await d.extractAsync(input, { yieldEvery: 4 });
@@ -35,7 +36,7 @@ for (const input of inputs) {
   });
 }
 
-Deno.test("extractAsync: all parsers match same entities as sync", async () => {
+test("extractAsync: all parsers match same entities as sync", async () => {
   const d = Duckling();
   // Avoid relative time ("tomorrow") which depends on current time
   const text =
@@ -50,7 +51,7 @@ Deno.test("extractAsync: all parsers match same entities as sync", async () => {
   );
 });
 
-Deno.test("extractAsync: custom parser subset", async () => {
+test("extractAsync: custom parser subset", async () => {
   const d = Duckling([Email.parser, URL.parser]);
   const text = "Reach me at a@b.com or https://example.com — ignore 12345";
 
@@ -63,7 +64,7 @@ Deno.test("extractAsync: custom parser subset", async () => {
   );
 });
 
-Deno.test("extractAsync: respects AbortSignal", async () => {
+test("extractAsync: respects AbortSignal", async () => {
   const controller = new AbortController();
   controller.abort();
 
@@ -77,7 +78,7 @@ Deno.test("extractAsync: respects AbortSignal", async () => {
   assertEquals(threw, true);
 });
 
-Deno.test("extractAsync: interleaves with other async work", async () => {
+test("extractAsync: interleaves with other async work", async () => {
   const log: string[] = [];
 
   // Schedule a setTimeout(0) that should fire while extractAsync yields
@@ -91,12 +92,12 @@ Deno.test("extractAsync: interleaves with other async work", async () => {
   // Use yieldEvery=1 to force yielding on every position
   const chunk = "Hello world a@b.com end of text";
   const d = Duckling([Email.parser]);
-  const extractPromise = d.extractAsync(chunk, { yieldEvery: 1 }).then(
-    (result) => {
+  const extractPromise = d
+    .extractAsync(chunk, { yieldEvery: 1 })
+    .then((result) => {
       log.push("extract");
       return result;
-    },
-  );
+    });
 
   await Promise.all([extractPromise, sideTask]);
 
@@ -109,19 +110,23 @@ Deno.test("extractAsync: interleaves with other async work", async () => {
   // "side" should appear before "extract" since extractAsync yields
   if (sideIdx >= extractIdx) {
     throw new Error(
-      `Side task did not interleave (side=${sideIdx}, extract=${extractIdx}): ${
-        JSON.stringify(log)
-      }`,
+      `Side task did not interleave (side=${sideIdx}, extract=${extractIdx}): ${JSON.stringify(
+        log,
+      )}`,
     );
   }
 });
 
-Deno.test("renderAsync matches render", async () => {
+test("renderAsync matches render", async () => {
   const d = Duckling([Email.parser, URL.parser]);
   const text = "Reach a@b.com or https://example.com";
-  const fn = (
-    { entity, children }: { entity: { kind: string }; children: string },
-  ) => `<${entity.kind}>${children}</${entity.kind}>`;
+  const fn = ({
+    entity,
+    children,
+  }: {
+    entity: { kind: string };
+    children: string;
+  }) => `<${entity.kind}>${children}</${entity.kind}>`;
 
   const sync = d.render(text, fn);
   const async_ = await d.renderAsync(text, fn, { yieldEvery: 4 });
@@ -129,15 +134,16 @@ Deno.test("renderAsync matches render", async () => {
   assertEquals(async_, sync);
 });
 
-Deno.test("renderMapAsync matches renderMap", async () => {
+test("renderMapAsync matches renderMap", async () => {
   const d = Duckling([Email.parser, URL.parser]);
   const text = "Reach a@b.com or https://example.com";
-  const fn = (
-    { entity, children }: {
-      entity: { kind: string };
-      children: (string | string)[];
-    },
-  ) => `[${entity.kind}:${children.join("")}]`;
+  const fn = ({
+    entity,
+    children,
+  }: {
+    entity: { kind: string };
+    children: (string | string)[];
+  }) => `[${entity.kind}:${children.join("")}]`;
 
   const sync = d.renderMap(text, fn);
   const async_ = await d.renderMapAsync(text, fn, { yieldEvery: 4 });
@@ -145,7 +151,7 @@ Deno.test("renderMapAsync matches renderMap", async () => {
   assertEquals(async_, sync);
 });
 
-Deno.test("extractAsync: handles nested entities (SSN + Quantity)", async () => {
+test("extractAsync: handles nested entities (SSN + Quantity)", async () => {
   const d = Duckling([Quantity.parser, SSN.parser]);
   const text = "SSN 123-45-6789";
 
@@ -158,7 +164,7 @@ Deno.test("extractAsync: handles nested entities (SSN + Quantity)", async () => 
   );
 });
 
-Deno.test("extractAsync: large repeated input produces same results", async () => {
+test("extractAsync: large repeated input produces same results", async () => {
   const chunk = "Email a@b.com and visit https://x.com. ";
   const text = chunk.repeat(50); // ~2000 chars
 
@@ -173,7 +179,7 @@ Deno.test("extractAsync: large repeated input produces same results", async () =
   );
 });
 
-Deno.test("extractAsync: empty input returns empty array", async () => {
+test("extractAsync: empty input returns empty array", async () => {
   const d = Duckling();
   const result = await d.extractAsync("");
   assertEquals(result, []);

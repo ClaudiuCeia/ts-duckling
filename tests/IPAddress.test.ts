@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, IPAddress } from "../mod.ts";
 
-Deno.test("IPv4", () => {
+test("IPv4", () => {
   const res = Duckling([IPAddress.parser]).extract("ping 192.168.0.1 please");
 
   assertEquals(res, [
@@ -18,13 +19,13 @@ Deno.test("IPv4", () => {
   ]);
 });
 
-Deno.test("IPv4 invalid octet does not parse", () => {
+test("IPv4 invalid octet does not parse", () => {
   const res = Duckling([IPAddress.parser]).extract("ping 999.1.1.1 please");
 
   assertEquals(res, []);
 });
 
-Deno.test("IPv6 full form", () => {
+test("IPv6 full form", () => {
   const res = Duckling([IPAddress.parser]).extract(
     "addr 2001:0db8:85a3:0000:0000:8a2e:0370:7334 ok",
   );
@@ -43,28 +44,28 @@ Deno.test("IPv6 full form", () => {
   ]);
 });
 
-Deno.test("IPv6 compressed loopback ::1", () => {
+test("IPv6 compressed loopback ::1", () => {
   const res = Duckling([IPAddress.parser]).extract("lo ::1 ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.ip, "::1");
   assertEquals(res[0].value.version, 6);
 });
 
-Deno.test("IPv6 compressed 2001:db8::1", () => {
+test("IPv6 compressed 2001:db8::1", () => {
   const res = Duckling([IPAddress.parser]).extract("addr 2001:db8::1 ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.ip, "2001:db8::1");
   assertEquals(res[0].value.version, 6);
 });
 
-Deno.test("IPv6 compressed fe80::1", () => {
+test("IPv6 compressed fe80::1", () => {
   const res = Duckling([IPAddress.parser]).extract("link fe80::1 ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.ip, "fe80::1");
   assertEquals(res[0].value.version, 6);
 });
 
-Deno.test("IPv6 compressed all-zeros ::", () => {
+test("IPv6 compressed all-zeros ::", () => {
   const res = Duckling([IPAddress.parser]).extract("unspecified :: ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.ip, "::");

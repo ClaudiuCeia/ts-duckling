@@ -1,4 +1,5 @@
-import { FakeTime } from "@std/testing/time";
+import { setSystemTime } from "bun:test";
+import { bench, run } from "mitata";
 import { Duckling, PIIParsers } from "../mod.ts";
 
 const piiDuckling = Duckling(PIIParsers);
@@ -44,16 +45,17 @@ const textPII = [
   "BIC: DEUTDEFF",
 ].join(" | ");
 
-Deno.bench("extract: PII-heavy (many matches)", () => {
+bench("extract: PII-heavy (many matches)", () => {
   const entities = piiDuckling.extract(textPII);
   assertPIIMatches(entities);
 });
 
-const textNoPII = (
-  "ordinary prose with punctuation, words, and harmless numbers 42 1088. "
-).repeat(20);
+const textNoPII =
+  "ordinary prose with punctuation, words, and harmless numbers 42 1088. ".repeat(
+    20,
+  );
 
-Deno.bench("extract: PII long no-match prose", () => {
+bench("extract: PII long no-match prose", () => {
   const entities = piiDuckling.extract(textNoPII);
   if (entities.length !== 0) throw new Error("unexpected PII match");
 });
@@ -66,11 +68,15 @@ const textMixed = [
   "My IP is 192.168.0.1 and my id is 550e8400-e29b-41d4-a716-446655440000.",
 ].join(" ");
 
-Deno.bench("extract: default Duckling (mixed)", () => {
-  using _time = new FakeTime("2022-01-07T12:00:00.000Z");
-  const entities = defaultDuckling.extract(textMixed);
-  if (!entities.some((e) => e.kind === "time")) {
-    throw new Error("expected at least one time entity");
+bench("extract: default Duckling (mixed)", () => {
+  setSystemTime(new Date("2022-01-07T12:00:00.000Z"));
+  try {
+    const entities = defaultDuckling.extract(textMixed);
+    if (!entities.some((e) => e.kind === "time")) {
+      throw new Error("expected at least one time entity");
+    }
+  } finally {
+    setSystemTime();
   }
 });
 
@@ -79,17 +85,17 @@ Deno.bench("extract: default Duckling (mixed)", () => {
 // ---------------------------------------------------------------------------
 
 // Compare sync vs async overhead on PII-heavy text
-Deno.bench("extractAsync: PII-heavy (yieldEvery=512)", async () => {
+bench("extractAsync: PII-heavy (yieldEvery=512)", async () => {
   const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 512 });
   assertPIIMatches(entities);
 });
 
-Deno.bench("extractAsync: PII-heavy (yieldEvery=64)", async () => {
+bench("extractAsync: PII-heavy (yieldEvery=64)", async () => {
   const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 64 });
   assertPIIMatches(entities);
 });
 
-Deno.bench("extractAsync: PII-heavy (yieldEvery=8)", async () => {
+bench("extractAsync: PII-heavy (yieldEvery=8)", async () => {
   const entities = await piiDuckling.extractAsync(textPII, { yieldEvery: 8 });
   assertPIIMatches(entities);
 });
@@ -97,21 +103,23 @@ Deno.bench("extractAsync: PII-heavy (yieldEvery=8)", async () => {
 // Large input: 5x repeated PII text (~1 KB)
 const textLarge = (textPII + " ").repeat(5);
 
-Deno.bench("extract: PII-heavy ×5 (sync)", () => {
+bench("extract: PII-heavy ×5 (sync)", () => {
   const entities = piiDuckling.extract(textLarge);
   assertPIIMatches(entities, 5);
 });
 
-Deno.bench("extractAsync: PII-heavy ×5 (yieldEvery=512)", async () => {
+bench("extractAsync: PII-heavy ×5 (yieldEvery=512)", async () => {
   const entities = await piiDuckling.extractAsync(textLarge, {
     yieldEvery: 512,
   });
   assertPIIMatches(entities, 5);
 });
 
-Deno.bench("extractAsync: PII-heavy ×5 (yieldEvery=64)", async () => {
+bench("extractAsync: PII-heavy ×5 (yieldEvery=64)", async () => {
   const entities = await piiDuckling.extractAsync(textLarge, {
     yieldEvery: 64,
   });
   assertPIIMatches(entities, 5);
 });
+
+await run();

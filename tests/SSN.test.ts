@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Quantity, SSN } from "../mod.ts";
 
-Deno.test("SSN", () => {
+test("SSN", () => {
   const res = Duckling([SSN.parser]).extract("My SSN is 123-45-6789.");
 
   assertEquals(res, [
@@ -44,16 +45,19 @@ Deno.test("SSN", () => {
   ]);
 });
 
-Deno.test("SSN invalid does not parse", () => {
+test("SSN invalid does not parse", () => {
   const res = Duckling([SSN.parser]).extract("no ssn 000-12-1234 here");
 
   assertEquals(res, []);
 });
 
-Deno.test("SSN wins over Quantity even when Quantity is ordered first", () => {
+test("SSN wins over Quantity even when Quantity is ordered first", () => {
   const res = Duckling([Quantity.parser, SSN.parser]).extract(
     "My SSN is 123-45-6789.",
   );
 
-  assertEquals(res.some((e) => e.kind === "ssn"), true);
+  assertEquals(
+    res.some((e) => e.kind === "ssn"),
+    true,
+  );
 });

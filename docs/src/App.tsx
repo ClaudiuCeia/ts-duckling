@@ -307,9 +307,11 @@ export function App() {
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-200/40"
                     >
                       <option value="">(none)</option>
-                      <option value="mixed">Mixed</option>
-                      <option value="pii">PII</option>
-                      <option value="article">Article-ish</option>
+                      <option value="chat">Chat response</option>
+                      <option value="support">Support ticket</option>
+                      <option value="log">Log message</option>
+                      <option value="dates">Dates and quantities</option>
+                      <option value="sensitive">Sensitive values</option>
                     </select>
                   </label>
 

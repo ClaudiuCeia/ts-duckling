@@ -1,6 +1,7 @@
 // Fetch and vendor external JSON datasets so the library doesn't depend on
 // network access at runtime.
 
+import { mkdir, writeFile } from "node:fs/promises";
 import { domainToUnicode } from "node:url";
 
 const DATA_DIR = new URL("../data/", import.meta.url);
@@ -139,7 +140,7 @@ async function fetchText(url: string): Promise<string> {
 
 async function writeJson(path: URL, value: unknown) {
   const text = JSON.stringify(value, null, 2) + "\n";
-  await Deno.writeTextFile(path, text);
+  await writeFile(path, text);
 }
 
 function record(value: unknown, label: string): JsonRecord {
@@ -292,7 +293,7 @@ function parseIanaTlds(text: string): TldData {
   };
 }
 
-await Deno.mkdir(DATA_DIR, { recursive: true });
+await mkdir(DATA_DIR, { recursive: true });
 
 const [
   territoriesJson,
@@ -316,16 +317,16 @@ const [
 
 const packageManifests = await Promise.all(
   CLDR_PACKAGES.map((name) =>
-    fetchJson(`${CLDR_BASE}/${name}@${CLDR_RELEASE}/package.json`)
+    fetchJson(`${CLDR_BASE}/${name}@${CLDR_RELEASE}/package.json`),
   ),
 );
 for (const [index, manifestJson] of packageManifests.entries()) {
   const manifest = record(manifestJson, `${CLDR_PACKAGES[index]} manifest`);
   if (manifest.version !== CLDR_RELEASE) {
     throw new Error(
-      `expected ${CLDR_PACKAGES[index]} version ${CLDR_RELEASE}, got ${
-        String(manifest.version)
-      }`,
+      `expected ${CLDR_PACKAGES[index]} version ${CLDR_RELEASE}, got ${String(
+        manifest.version,
+      )}`,
     );
   }
 }
@@ -360,7 +361,8 @@ if (cldrVersion !== "48") {
 
     const rawMapping = mappings[code];
     if (
-      typeof rawMapping !== "object" || rawMapping === null ||
+      typeof rawMapping !== "object" ||
+      rawMapping === null ||
       Array.isArray(rawMapping)
     ) {
       continue;
@@ -436,10 +438,7 @@ if (cldrVersion !== "48") {
     aliases: sortedAliases([...aliases]),
     compatibility: sortedAliases(Object.entries(LANGUAGE_COMPATIBILITY)),
   };
-  await writeJson(
-    new URL("languages-en.json", DATA_DIR),
-    generatedLanguages,
-  );
+  await writeJson(new URL("languages-en.json", DATA_DIR), generatedLanguages);
   console.log(
     `updated data/languages-en.json (CLDR ${CLDR_RELEASE}, ${names.size} languages)`,
   );
@@ -484,9 +483,9 @@ if (cldrVersion !== "48") {
   if (weekdayKeys.join(",") !== "fri,mon,sat,sun,thu,tue,wed") {
     throw new Error(`unexpected CLDR wide weekday keys: ${weekdayKeys}`);
   }
-  const weekdays = weekdayEntries.map(([, name]) => name).sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const weekdays = weekdayEntries
+    .map(([, name]) => name)
+    .sort((a, b) => a.localeCompare(b));
 
   const eraAbbreviations = nestedRecord(
     calendar,
@@ -504,10 +503,7 @@ if (cldrVersion !== "48") {
     "CLDR Gregorian wide day periods",
   );
   const dayPeriods = sortedRecord([
-    [
-      stringValue(wideDayPeriods, "midnight", "wide day period"),
-      "00:00",
-    ],
+    [stringValue(wideDayPeriods, "midnight", "wide day period"), "00:00"],
     [stringValue(wideDayPeriods, "noon", "wide day period"), "12:00"],
   ]);
 
@@ -524,20 +520,18 @@ if (cldrVersion !== "48") {
 
   const longUnits = nestedRecord(units, ["units", "long"], "CLDR long units");
   const grainEntries: [string, string[]][] = [];
-  for (
-    const grain of [
-      "century",
-      "day",
-      "decade",
-      "hour",
-      "minute",
-      "month",
-      "quarter",
-      "second",
-      "week",
-      "year",
-    ]
-  ) {
+  for (const grain of [
+    "century",
+    "day",
+    "decade",
+    "hour",
+    "minute",
+    "month",
+    "quarter",
+    "second",
+    "week",
+    "year",
+  ]) {
     const names = unitNames(
       record(longUnits[`duration-${grain}`], `duration-${grain}`),
       `duration-${grain}`,
@@ -567,35 +561,27 @@ if (cldrVersion !== "48") {
     "CLDR short compact decimal formats",
   );
   const compactMultipliers = [
-    1_000,
-    1_000_000,
-    1_000_000_000,
-    1_000_000_000_000,
-  ]
-    .map((value) => {
-      const key = `${value}-count-one`;
-      const otherKey = `${value}-count-other`;
-      const longPattern = stringValue(longCompact, key, "long compact format");
-      const shortPattern = stringValue(
-        shortCompact,
-        key,
-        "short compact format",
-      );
-      if (
-        longPattern !==
-          stringValue(longCompact, otherKey, "long compact format") ||
-        shortPattern !==
-          stringValue(shortCompact, otherKey, "short compact format")
-      ) {
-        throw new Error(`compact multiplier ${value} differs by plural count`);
-      }
-      const long = longPattern.replace(/^0+\s*/, "");
-      const short = shortPattern.replace(/^0+/, "");
-      if (!long || !short || /[0{}]/.test(long + short)) {
-        throw new Error(`unexpected compact multiplier patterns for ${value}`);
-      }
-      return { value, long, short };
-    });
+    1_000, 1_000_000, 1_000_000_000, 1_000_000_000_000,
+  ].map((value) => {
+    const key = `${value}-count-one`;
+    const otherKey = `${value}-count-other`;
+    const longPattern = stringValue(longCompact, key, "long compact format");
+    const shortPattern = stringValue(shortCompact, key, "short compact format");
+    if (
+      longPattern !==
+        stringValue(longCompact, otherKey, "long compact format") ||
+      shortPattern !==
+        stringValue(shortCompact, otherKey, "short compact format")
+    ) {
+      throw new Error(`compact multiplier ${value} differs by plural count`);
+    }
+    const long = longPattern.replace(/^0+\s*/, "");
+    const short = shortPattern.replace(/^0+/, "");
+    if (!long || !short || /[0{}]/.test(long + short)) {
+      throw new Error(`unexpected compact multiplier patterns for ${value}`);
+    }
+    return { value, long, short };
+  });
 
   const celsiusNames = unitNames(
     record(longUnits["temperature-celsius"], "temperature-celsius"),
@@ -611,10 +597,10 @@ if (cldrVersion !== "48") {
     return { degree: match[1], unit: match[2] };
   };
   const celsius = celsiusNames.map((name) =>
-    splitTemperatureName(name, "Celsius")
+    splitTemperatureName(name, "Celsius"),
   );
   const fahrenheit = fahrenheitNames.map((name) =>
-    splitTemperatureName(name, "Fahrenheit")
+    splitTemperatureName(name, "Fahrenheit"),
   );
   if (
     celsius.some(({ unit }) => unit !== "Celsius") ||

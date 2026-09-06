@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { ApiKey } from "../src/ApiKey.ts";
 
 const parseAtToken = (text: string, token: string) => {
@@ -9,7 +10,7 @@ const parseAtToken = (text: string, token: string) => {
   return ApiKey.parser({ text, index });
 };
 
-Deno.test("ApiKey: Stripe sk_live_", () => {
+test("ApiKey: Stripe sk_live_", () => {
   const token = `sk_live_${"a".repeat(24)}`;
   const text = `use ${token} please`;
   const res = parseAtToken(text, token);
@@ -23,7 +24,7 @@ Deno.test("ApiKey: Stripe sk_live_", () => {
   }
 });
 
-Deno.test("ApiKey: OpenAI sk-proj- wins over sk-", () => {
+test("ApiKey: OpenAI sk-proj- wins over sk-", () => {
   const token = `sk-proj-${"b".repeat(24)}`;
   const text = `hello ${token} world`;
   const res = parseAtToken(text, token);
@@ -36,7 +37,7 @@ Deno.test("ApiKey: OpenAI sk-proj- wins over sk-", () => {
   }
 });
 
-Deno.test("ApiKey: Anthropic sk-ant-api03-", () => {
+test("ApiKey: Anthropic sk-ant-api03-", () => {
   const token = `sk-ant-api03-${"c".repeat(24)}`;
   const text = `${token}`; // EOF boundary should be accepted.
   const res = parseAtToken(text, token);
@@ -48,7 +49,7 @@ Deno.test("ApiKey: Anthropic sk-ant-api03-", () => {
   }
 });
 
-Deno.test("ApiKey: GitHub ghp_", () => {
+test("ApiKey: GitHub ghp_", () => {
   const token = `ghp_${"d".repeat(32)}`;
   const text = `token=${token};`;
   const res = parseAtToken(text, token);
@@ -60,7 +61,7 @@ Deno.test("ApiKey: GitHub ghp_", () => {
   }
 });
 
-Deno.test("ApiKey: GitLab glpat-", () => {
+test("ApiKey: GitLab glpat-", () => {
   const token = `glpat-${"e".repeat(24)}`;
   const text = `Bearer ${token} `;
   const res = parseAtToken(text, token);
@@ -72,7 +73,7 @@ Deno.test("ApiKey: GitLab glpat-", () => {
   }
 });
 
-Deno.test("ApiKey: Slack xoxb-", () => {
+test("ApiKey: Slack xoxb-", () => {
   const token = `xoxb-${"f".repeat(30)}`;
   const text = `slack=${token}\n`;
   const res = parseAtToken(text, token);
@@ -84,7 +85,7 @@ Deno.test("ApiKey: Slack xoxb-", () => {
   }
 });
 
-Deno.test("ApiKey: AWS access key id AKIA...", () => {
+test("ApiKey: AWS access key id AKIA...", () => {
   const token = `AKIA${"G".repeat(16)}`;
   const text = `aws ${token} ok`;
   const res = parseAtToken(text, token);
@@ -96,7 +97,7 @@ Deno.test("ApiKey: AWS access key id AKIA...", () => {
   }
 });
 
-Deno.test("ApiKey: Google API key AIza...", () => {
+test("ApiKey: Google API key AIza...", () => {
   const token = `AIza${"h".repeat(32)}`;
   const text = `key: ${token} `;
   const res = parseAtToken(text, token);
@@ -108,7 +109,7 @@ Deno.test("ApiKey: Google API key AIza...", () => {
   }
 });
 
-Deno.test("ApiKey: SendGrid SG. token", () => {
+test("ApiKey: SendGrid SG. token", () => {
   const token = `SG.${"i".repeat(10)}.${"j".repeat(20)}`;
   const text = `sendgrid=${token} `;
   const res = parseAtToken(text, token);
@@ -120,7 +121,7 @@ Deno.test("ApiKey: SendGrid SG. token", () => {
   }
 });
 
-Deno.test("ApiKey: does not match too-short body", () => {
+test("ApiKey: does not match too-short body", () => {
   const token = "ghp_1234567"; // 7 chars body, min is 8
   const text = `${token} `;
   const res = parseAtToken(text, token);
@@ -128,7 +129,7 @@ Deno.test("ApiKey: does not match too-short body", () => {
   assertEquals(res.success, false);
 });
 
-Deno.test("ApiKey: does not include trailing punctuation", () => {
+test("ApiKey: does not include trailing punctuation", () => {
   const token = `sk_test_${"k".repeat(16)}`;
   const text = `${token};`; // ';' is not part of the body; should stop before it.
   const res = parseAtToken(text, token);

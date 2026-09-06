@@ -39,9 +39,9 @@ export function Header({ children }: Props) {
                 </a>
               </div>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">
-                A tiny, deterministic entity extractor for TypeScript/Deno,
-                inspired by Duckling. This version uses parser-combinator
-                grammars (no ML).
+                Extract typed dates, times, URLs, countries, quantities, and
+                sensitive values. Rule-based parsers run locally in your
+                browser.
               </p>
             </div>
           </div>

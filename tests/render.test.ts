@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import {
   CreditCard,
   Duckling,
@@ -12,13 +13,13 @@ import {
 
 // ── Basic behaviour ─────────────────────────────────────────────────
 
-Deno.test("render: returns input unchanged when callback returns undefined", () => {
+test("render: returns input unchanged when callback returns undefined", () => {
   const input = "Email me at foo@bar.com";
   const result = Duckling([Email.parser]).render(input, () => undefined);
   assertEquals(result, input);
 });
 
-Deno.test("render: returns input unchanged when no entities found", () => {
+test("render: returns input unchanged when no entities found", () => {
   const input = "no entities here";
   const result = Duckling([Email.parser]).render(
     input,
@@ -27,7 +28,7 @@ Deno.test("render: returns input unchanged when no entities found", () => {
   assertEquals(result, input);
 });
 
-Deno.test("render: wraps entity in brackets", () => {
+test("render: wraps entity in brackets", () => {
   const result = Duckling([Email.parser]).render(
     "Contact foo@bar.com please",
     ({ entity }) => `[${entity.kind}]`,
@@ -35,7 +36,7 @@ Deno.test("render: wraps entity in brackets", () => {
   assertEquals(result, "Contact [email] please");
 });
 
-Deno.test("render: wraps entity in HTML tags", () => {
+test("render: wraps entity in HTML tags", () => {
   const result = Duckling([Email.parser]).render(
     "Email me at a@b.com",
     ({ entity, children }) =>
@@ -46,7 +47,7 @@ Deno.test("render: wraps entity in HTML tags", () => {
 
 // ── Multiple entities ───────────────────────────────────────────────
 
-Deno.test("render: handles multiple entities", () => {
+test("render: handles multiple entities", () => {
   const result = Duckling([Email.parser, URL.parser]).render(
     "Reach a@b.com or https://example.com",
     ({ entity }) => `[${entity.kind}]`,
@@ -54,7 +55,7 @@ Deno.test("render: handles multiple entities", () => {
   assertEquals(result, "Reach [email] or [url]");
 });
 
-Deno.test("render: selective rendering — only transform specific kinds", () => {
+test("render: selective rendering — only transform specific kinds", () => {
   const result = Duckling([Email.parser, URL.parser]).render(
     "Reach a@b.com or https://example.com",
     ({ entity, children }) => {
@@ -70,7 +71,7 @@ Deno.test("render: selective rendering — only transform specific kinds", () =>
 
 // ── Nested entity rendering (tree-based) ────────────────────────────
 
-Deno.test("render: SSN with nested quantities — flat render masks whole SSN", () => {
+test("render: SSN with nested quantities — flat render masks whole SSN", () => {
   const result = Duckling([Quantity.parser, SSN.parser]).render(
     "SSN 123-45-6789",
     ({ entity }) => {
@@ -82,7 +83,7 @@ Deno.test("render: SSN with nested quantities — flat render masks whole SSN", 
   assertEquals(result, "SSN [REDACTED]");
 });
 
-Deno.test("render: SSN with nested quantities — nested rendering wraps both", () => {
+test("render: SSN with nested quantities — nested rendering wraps both", () => {
   const result = Duckling([Quantity.parser, SSN.parser]).render(
     "SSN 123-45-6789",
     ({ entity, children }) => `<${entity.kind}>${children}</${entity.kind}>`,
@@ -93,7 +94,7 @@ Deno.test("render: SSN with nested quantities — nested rendering wraps both", 
   );
 });
 
-Deno.test("render: nested children text is passed pre-rendered", () => {
+test("render: nested children text is passed pre-rendered", () => {
   // When rendering an SSN, `children` should already have the inner
   // quantities rendered
   const calls: { kind: string; children: string }[] = [];
@@ -111,7 +112,7 @@ Deno.test("render: nested children text is passed pre-rendered", () => {
   assertEquals(ssnCall!.children, "[quantity]-[quantity]-[quantity]");
 });
 
-Deno.test("render: CC with trailing dot — all four groups rendered inside parent", () => {
+test("render: CC with trailing dot — all four groups rendered inside parent", () => {
   // The `dot` combinator in the last quantity consumes the trailing ".",
   // making the child span extend past the CC parent. buildSpanTree clamps
   // the child's rendering bounds to the parent so all four groups appear
@@ -128,7 +129,7 @@ Deno.test("render: CC with trailing dot — all four groups rendered inside pare
 
 // ── Edge cases ──────────────────────────────────────────────────────
 
-Deno.test("render: empty input", () => {
+test("render: empty input", () => {
   const result = Duckling([Email.parser]).render(
     "",
     ({ entity }) => `[${entity.kind}]`,
@@ -136,7 +137,7 @@ Deno.test("render: empty input", () => {
   assertEquals(result, "");
 });
 
-Deno.test("render: entity at start of string", () => {
+test("render: entity at start of string", () => {
   const result = Duckling([Email.parser]).render(
     "a@b.com is my email",
     ({ entity }) => `[${entity.kind}]`,
@@ -144,7 +145,7 @@ Deno.test("render: entity at start of string", () => {
   assertEquals(result, "[email] is my email");
 });
 
-Deno.test("render: entity at end of string", () => {
+test("render: entity at end of string", () => {
   const result = Duckling([Email.parser]).render(
     "my email is a@b.com",
     ({ entity }) => `[${entity.kind}]`,
@@ -152,7 +153,7 @@ Deno.test("render: entity at end of string", () => {
   assertEquals(result, "my email is [email]");
 });
 
-Deno.test("render: entire input is one entity", () => {
+test("render: entire input is one entity", () => {
   const result = Duckling([Email.parser]).render(
     "a@b.com",
     ({ entity }) => `[${entity.kind}]`,
@@ -160,7 +161,7 @@ Deno.test("render: entire input is one entity", () => {
   assertEquals(result, "[email]");
 });
 
-Deno.test("render: replacement longer than original", () => {
+test("render: replacement longer than original", () => {
   const result = Duckling([Email.parser]).render(
     "a@b.com",
     ({ entity }) => `[REDACTED_${entity.kind.toUpperCase()}_ADDRESS]`,
@@ -168,7 +169,7 @@ Deno.test("render: replacement longer than original", () => {
   assertEquals(result, "[REDACTED_EMAIL_ADDRESS]");
 });
 
-Deno.test("render: replacement shorter than original", () => {
+test("render: replacement shorter than original", () => {
   const result = Duckling([UUID.parser]).render(
     "id: 550e8400-e29b-41d4-a716-446655440000",
     () => "***",
@@ -176,7 +177,7 @@ Deno.test("render: replacement shorter than original", () => {
   assertEquals(result, "id: ***");
 });
 
-Deno.test("render: replacement is empty string", () => {
+test("render: replacement is empty string", () => {
   const result = Duckling([Email.parser]).render(
     "Contact a@b.com please",
     () => "",
@@ -186,7 +187,7 @@ Deno.test("render: replacement is empty string", () => {
 
 // ── Composability with PIIParsers ───────────────────────────────────
 
-Deno.test("render: PIIParsers — mask only emails, linkify nothing", () => {
+test("render: PIIParsers — mask only emails, linkify nothing", () => {
   const result = Duckling(PIIParsers).render(
     "Email foo@bar.com, phone +14155552671",
     ({ entity }) => `[${entity.kind.toUpperCase()}]`,
@@ -196,14 +197,13 @@ Deno.test("render: PIIParsers — mask only emails, linkify nothing", () => {
 
 // ── Redact is consistent with render ────────────────────────────────
 
-Deno.test("render: can replicate redact behaviour", () => {
+test("render: can replicate redact behaviour", () => {
   const input = "Contact foo@bar.com, SSN 123-45-6789";
   const mask = "█";
 
   const redacted = Duckling(PIIParsers).redact(input);
-  const rendered = Duckling(PIIParsers).render(
-    input,
-    ({ entity }) => mask.repeat(entity.end - entity.start),
+  const rendered = Duckling(PIIParsers).render(input, ({ entity }) =>
+    mask.repeat(entity.end - entity.start),
   );
 
   assertEquals(rendered, redacted);
@@ -211,7 +211,7 @@ Deno.test("render: can replicate redact behaviour", () => {
 
 // ── renderMap: generic segment-based rendering ──────────────────────
 
-Deno.test("renderMap: returns segments with plain text and mapped entities", () => {
+test("renderMap: returns segments with plain text and mapped entities", () => {
   type Tag = { tag: string; text: string };
 
   const segments = Duckling([Email.parser]).renderMap<Tag>(
@@ -226,7 +226,7 @@ Deno.test("renderMap: returns segments with plain text and mapped entities", () 
   ]);
 });
 
-Deno.test("renderMap: returns single-element array for no entities", () => {
+test("renderMap: returns single-element array for no entities", () => {
   const segments = Duckling([Email.parser]).renderMap<string>(
     "no entities here",
     ({ entity }) => `[${entity.kind}]`,
@@ -234,7 +234,7 @@ Deno.test("renderMap: returns single-element array for no entities", () => {
   assertEquals(segments, ["no entities here"]);
 });
 
-Deno.test("renderMap: entity at start", () => {
+test("renderMap: entity at start", () => {
   type Tag = { kind: string };
   const segments = Duckling([Email.parser]).renderMap<Tag>(
     "a@b.com is mine",
@@ -243,7 +243,7 @@ Deno.test("renderMap: entity at start", () => {
   assertEquals(segments, [{ kind: "email" }, " is mine"]);
 });
 
-Deno.test("renderMap: entity at end", () => {
+test("renderMap: entity at end", () => {
   type Tag = { kind: string };
   const segments = Duckling([Email.parser]).renderMap<Tag>(
     "email: a@b.com",
@@ -252,7 +252,7 @@ Deno.test("renderMap: entity at end", () => {
   assertEquals(segments, ["email: ", { kind: "email" }]);
 });
 
-Deno.test("renderMap: entire input is one entity", () => {
+test("renderMap: entire input is one entity", () => {
   type Tag = { kind: string };
   const segments = Duckling([Email.parser]).renderMap<Tag>(
     "a@b.com",
@@ -261,7 +261,7 @@ Deno.test("renderMap: entire input is one entity", () => {
   assertEquals(segments, [{ kind: "email" }]);
 });
 
-Deno.test("renderMap: multiple entities produce interleaved segments", () => {
+test("renderMap: multiple entities produce interleaved segments", () => {
   type Tag = { kind: string };
   const segments = Duckling([Email.parser, URL.parser]).renderMap<Tag>(
     "Reach a@b.com or https://example.com",
@@ -275,7 +275,7 @@ Deno.test("renderMap: multiple entities produce interleaved segments", () => {
   ]);
 });
 
-Deno.test("renderMap: nested entities — children are segments", () => {
+test("renderMap: nested entities — children are segments", () => {
   // When SSN wraps quantities, children should be (string | R)[]
   type Tag = { kind: string; children: (string | Tag)[] };
   const segments = Duckling([Quantity.parser, SSN.parser]).renderMap<Tag>(
@@ -300,7 +300,7 @@ Deno.test("renderMap: nested entities — children are segments", () => {
   assertEquals(childStrings, ["-", "-"]);
 });
 
-Deno.test("renderMap: children array passed to callback for leaf entities", () => {
+test("renderMap: children array passed to callback for leaf entities", () => {
   // A leaf entity (no nested children) should receive children = [entity.text]
   const calls: { kind: string; children: (string | unknown)[] }[] = [];
 
@@ -318,7 +318,7 @@ Deno.test("renderMap: children array passed to callback for leaf entities", () =
   assertEquals(calls[0].children, ["a@b.com"]);
 });
 
-Deno.test("renderMap: can be used to implement render (join segments)", () => {
+test("renderMap: can be used to implement render (join segments)", () => {
   const input = "Contact a@b.com please";
 
   const rendered = Duckling([Email.parser]).render(

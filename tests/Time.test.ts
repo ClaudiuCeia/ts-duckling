@@ -1,8 +1,9 @@
-import { assertEquals } from "@std/assert";
-import { FakeTime } from "@std/testing/time";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
+import { FakeTime } from "./time.ts";
 import { Duckling, Time } from "../mod.ts";
 
-Deno.test("UnspecifiedGrainAmount", () => {
+test("UnspecifiedGrainAmount", () => {
   const res = Duckling([Time.parser]).extract(
     "People have been at this for centuries.",
   );
@@ -22,7 +23,7 @@ Deno.test("UnspecifiedGrainAmount", () => {
   ]);
 });
 
-Deno.test("DayOfWeek", () => {
+test("DayOfWeek", () => {
   const res = Duckling([Time.parser]).extract(
     "We could meet them either Monday or Friday.",
   );
@@ -53,22 +54,25 @@ Deno.test("DayOfWeek", () => {
   ]);
 });
 
-Deno.test("Common relative days", () => {
+test("Common relative days", () => {
   const time = new FakeTime(new Date("2024-03-01T12:00:00.000Z"));
   try {
     const res = Duckling([Time.parser]).extract("today, yesterday, tomorrow");
 
-    assertEquals(res.map((entity) => entity.value.when), [
-      { type: "date", year: 2024, month: 3, day: 1 },
-      { type: "date", year: 2024, month: 2, day: 29 },
-      { type: "date", year: 2024, month: 3, day: 2 },
-    ]);
+    assertEquals(
+      res.map((entity) => entity.value.when),
+      [
+        { type: "date", year: 2024, month: 3, day: 1 },
+        { type: "date", year: 2024, month: 2, day: 29 },
+        { type: "date", year: 2024, month: 3, day: 2 },
+      ],
+    );
   } finally {
     time.restore();
   }
 });
 
-Deno.test("ISODateTimeZ", () => {
+test("ISODateTimeZ", () => {
   const res = Duckling([Time.parser]).extract(
     "Timestamp: 2004-07-12T22:18:09Z.",
   );
@@ -88,7 +92,7 @@ Deno.test("ISODateTimeZ", () => {
   ]);
 });
 
-Deno.test("GrainQuantity", () => {
+test("GrainQuantity", () => {
   const res = Duckling([Time.parser]).extract(
     "I'll get to it in 5 days, it only takes about 51615 seconds.",
   );
@@ -119,7 +123,7 @@ Deno.test("GrainQuantity", () => {
   ]);
 });
 
-Deno.test("Relative", () => {
+test("Relative", () => {
   const res = Duckling([Time.parser]).extract(`
         We've been through this 4 days ago. Last week I also checked out the work
         that was done over the past year and I'm not sure what we'll do the next
@@ -174,7 +178,7 @@ Deno.test("Relative", () => {
   ]);
 });
 
-Deno.test("Relative defaults and optional quantities", () => {
+test("Relative defaults and optional quantities", () => {
   // Ensure the conditional defaults in Relative() are exercised.
   const nextWeek = Time.Relative({
     text: "next week",
@@ -207,7 +211,7 @@ Deno.test("Relative defaults and optional quantities", () => {
   }
 });
 
-Deno.test("PartialDateMonthYear numeric", () => {
+test("PartialDateMonthYear numeric", () => {
   const res = Duckling([Time.parser]).extract("What date is it? 12/2022?");
 
   assertEquals(res, [
@@ -225,7 +229,7 @@ Deno.test("PartialDateMonthYear numeric", () => {
   ]);
 });
 
-Deno.test("Year era CE/AD", () => {
+test("Year era CE/AD", () => {
   const res = Duckling([Time.parser]).extract(
     "Around 200 AD the empire expanded",
   );
@@ -236,7 +240,7 @@ Deno.test("Year era CE/AD", () => {
   if (t) assertEquals(t.value.era, "CE");
 });
 
-Deno.test("PartialDateMonthYear literal", () => {
+test("PartialDateMonthYear literal", () => {
   const res = Duckling([Time.parser]).extract(
     "What date is it? Sometime in June 2022?",
   );
@@ -256,7 +260,7 @@ Deno.test("PartialDateMonthYear literal", () => {
   ]);
 });
 
-Deno.test("PartialDateDayMonth literal", () => {
+test("PartialDateDayMonth literal", () => {
   const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
   try {
     const res = Duckling([Time.parser]).extract(
@@ -281,7 +285,7 @@ Deno.test("PartialDateDayMonth literal", () => {
   }
 });
 
-Deno.test("FullDate", () => {
+test("FullDate", () => {
   const res = Duckling([Time.parser]).extract(
     "What date is it? 1st of June 2023?",
   );
@@ -301,7 +305,7 @@ Deno.test("FullDate", () => {
   ]);
 });
 
-Deno.test("False positive time", () => {
+test("False positive time", () => {
   const res = Duckling([Time.parser]).extract("6/2022 is 0.00296735905");
 
   assertEquals(res, [
@@ -319,7 +323,7 @@ Deno.test("False positive time", () => {
   ]);
 });
 
-Deno.test("Era", () => {
+test("Era", () => {
   const res = Duckling([Time.parser]).extract(
     "It has been dated to circa 100 BC.",
   );
@@ -339,7 +343,7 @@ Deno.test("Era", () => {
   ]);
 });
 
-Deno.test("QualifiedGrain", () => {
+test("QualifiedGrain", () => {
   const res = Duckling([Time.parser]).extract(
     "In the 5th century BC in ancient India, the grammarian Pāṇini formulated the grammar of Sanskrit.",
   );
@@ -359,10 +363,8 @@ Deno.test("QualifiedGrain", () => {
   ]);
 });
 
-Deno.test("qualified grain enumeration inherits the final grain", () => {
-  const res = Duckling([Time.parser]).extract(
-    "16th, 17th and 18th century",
-  );
+test("qualified grain enumeration inherits the final grain", () => {
+  const res = Duckling([Time.parser]).extract("16th, 17th and 18th century");
 
   assertEquals(res, [
     {
@@ -401,7 +403,7 @@ Deno.test("qualified grain enumeration inherits the final grain", () => {
   ]);
 });
 
-Deno.test("qualified grain enumerations propagate eras and Oxford commas", () => {
+test("qualified grain enumerations propagate eras and Oxford commas", () => {
   const res = Duckling([Time.parser]).extract(
     "16th, 17th, and 18th century BC",
   );
@@ -416,7 +418,7 @@ Deno.test("qualified grain enumerations propagate eras and Oxford commas", () =>
   );
 });
 
-Deno.test("qualified grain accepts end of input", () => {
+test("qualified grain accepts end of input", () => {
   const res = Duckling([Time.parser]).extract("18th century");
 
   assertEquals(res.length, 1);
@@ -424,7 +426,7 @@ Deno.test("qualified grain accepts end of input", () => {
   assertEquals(res[0].value.grain, "century");
 });
 
-Deno.test("qualified grain enumeration requires an explicit final grain", () => {
+test("qualified grain enumeration requires an explicit final grain", () => {
   const res = Duckling([Time.parser]).extract(
     "The 16th, 17th and 18th amendments",
   );
@@ -432,7 +434,7 @@ Deno.test("qualified grain enumeration requires an explicit final grain", () => 
   assertEquals(res, []);
 });
 
-Deno.test("No grain quantity false positive", () => {
+test("No grain quantity false positive", () => {
   const res = Time.GrainQuantity({
     text: `Less than 10 Hertz`,
     index: 0,
@@ -441,7 +443,7 @@ Deno.test("No grain quantity false positive", () => {
   assertEquals(res.success, false);
 });
 
-Deno.test("Literal month", () => {
+test("Literal month", () => {
   const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
   try {
     const res = Duckling([Time.parser]).extract(
@@ -477,7 +479,7 @@ Deno.test("Literal month", () => {
   }
 });
 
-Deno.test("Circa time", () => {
+test("Circa time", () => {
   const res = Duckling([Time.parser]).extract("Some things happened c. 425 BC");
 
   assertEquals(res, [
@@ -494,7 +496,7 @@ Deno.test("Circa time", () => {
     },
   ]);
 });
-Deno.test("FullDate: invalid date backtracks instead of throwing", () => {
+test("FullDate: invalid date backtracks instead of throwing", () => {
   const res = Duckling([Time.parser]).extract(
     "On 31/02/2024 something happened",
   );
@@ -502,7 +504,7 @@ Deno.test("FullDate: invalid date backtracks instead of throwing", () => {
   assertEquals(res, []);
 });
 
-Deno.test("FullDate: valid date still parses correctly", () => {
+test("FullDate: valid date still parses correctly", () => {
   const res = Duckling([Time.parser]).extract("On 15/06/2024 we met.");
 
   assertEquals(res.length, 1);
@@ -515,7 +517,7 @@ Deno.test("FullDate: valid date still parses correctly", () => {
   });
 });
 
-Deno.test("calendar dates validate leap days", () => {
+test("calendar dates validate leap days", () => {
   const valid = [
     "29/02/2024",
     "29 February 2024",
@@ -538,14 +540,13 @@ Deno.test("calendar dates validate leap days", () => {
     false,
   );
   assertEquals(
-    Time.LiteralMonthDayYear({ text: "February 29, 2023", index: 0 })
-      .success,
+    Time.LiteralMonthDayYear({ text: "February 29, 2023", index: 0 }).success,
     false,
   );
   assertEquals(Time.ISODate({ text: "2023-02-29", index: 0 }).success, false);
 });
 
-Deno.test("calendar date productions reject rollover dates", () => {
+test("calendar date productions reject rollover dates", () => {
   assertEquals(Time.FullDate({ text: "31/04/2024", index: 0 }).success, false);
   assertEquals(
     Time.FullDate({ text: "31 April 2024", index: 0 }).success,
@@ -558,7 +559,7 @@ Deno.test("calendar date productions reject rollover dates", () => {
   assertEquals(Time.ISODate({ text: "2024-04-31", index: 0 }).success, false);
 });
 
-Deno.test("FullDate preserves numeric ambiguity ordering", () => {
+test("FullDate preserves numeric ambiguity ordering", () => {
   const res = Duckling([Time.parser]).extract(
     "Dates: 12/11/2024 and 12/31/2024.",
   );
@@ -572,7 +573,7 @@ Deno.test("FullDate preserves numeric ambiguity ordering", () => {
   );
 });
 
-Deno.test("numeric dates can follow sentence punctuation", () => {
+test("numeric dates can follow sentence punctuation", () => {
   const res = Duckling([Time.parser]).extract("Published.12/2022");
 
   assertEquals(res.length, 1);
@@ -580,7 +581,7 @@ Deno.test("numeric dates can follow sentence punctuation", () => {
   assertEquals(res[0].value.when, { type: "date", year: 2022, month: 12 });
 });
 
-Deno.test("FullDate: does not crash on nonsense date-like input", () => {
+test("FullDate: does not crash on nonsense date-like input", () => {
   // Should not throw, regardless of what entities are produced
   const inputs = [
     "99/99/9999 is not a date",
@@ -600,7 +601,7 @@ Deno.test("FullDate: does not crash on nonsense date-like input", () => {
 
 // ── ISODate (YYYY-MM-DD) ───────────────────────────────────────────
 
-Deno.test("ISODate: basic YYYY-MM-DD", () => {
+test("ISODate: basic YYYY-MM-DD", () => {
   const res = Duckling([Time.parser]).extract("Published 2024-05-18.");
 
   assertEquals(res, [
@@ -618,7 +619,7 @@ Deno.test("ISODate: basic YYYY-MM-DD", () => {
   ]);
 });
 
-Deno.test("ISODate: multiple YYYY-MM-DD in sentence", () => {
+test("ISODate: multiple YYYY-MM-DD in sentence", () => {
   const res = Duckling([Time.parser]).extract(
     "Born on 1990-03-15, died 2060-01-01.",
   );
@@ -640,7 +641,7 @@ Deno.test("ISODate: multiple YYYY-MM-DD in sentence", () => {
   });
 });
 
-Deno.test("ISODate: years below 100 retain their calendar year", () => {
+test("ISODate: years below 100 retain their calendar year", () => {
   const res = Duckling([Time.parser]).extract("0001-01-01 and 0099-12-31");
 
   assertEquals(
@@ -654,7 +655,7 @@ Deno.test("ISODate: years below 100 retain their calendar year", () => {
 
 // ── ISODateTime (with offset / without Z) ──────────────────────────
 
-Deno.test("ISODateTime: with positive offset", () => {
+test("ISODateTime: with positive offset", () => {
   const res = Duckling([Time.parser]).extract(
     "Logged at 2024-05-18T10:30:00+02:00.",
   );
@@ -668,7 +669,7 @@ Deno.test("ISODateTime: with positive offset", () => {
   assertEquals(res[0].value.grain, "second");
 });
 
-Deno.test("ISODateTime: with negative offset", () => {
+test("ISODateTime: with negative offset", () => {
   const res = Duckling([Time.parser]).extract(
     "Event: 2024-05-18T10:30:00-05:00.",
   );
@@ -681,7 +682,7 @@ Deno.test("ISODateTime: with negative offset", () => {
   });
 });
 
-Deno.test("ISODateTime: without timezone is UTC", () => {
+test("ISODateTime: without timezone is UTC", () => {
   const res = Duckling([Time.parser]).extract(
     "Timestamp: 2024-05-18T10:30:00.",
   );
@@ -695,10 +696,8 @@ Deno.test("ISODateTime: without timezone is UTC", () => {
   assertEquals(res[0].value.grain, "second");
 });
 
-Deno.test("ISODateTime: without seconds", () => {
-  const res = Duckling([Time.parser]).extract(
-    "Meeting at 2024-05-18T10:30.",
-  );
+test("ISODateTime: without seconds", () => {
+  const res = Duckling([Time.parser]).extract("Meeting at 2024-05-18T10:30.");
 
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "2024-05-18T10:30");
@@ -711,7 +710,7 @@ Deno.test("ISODateTime: without seconds", () => {
 
 // ── LiteralMonthDayYear ────────────────────────────────────────────
 
-Deno.test("LiteralMonthDayYear: with comma", () => {
+test("LiteralMonthDayYear: with comma", () => {
   const res = Duckling([Time.parser]).extract("On July 13, 2016 we met.");
 
   assertEquals(res.length, 1);
@@ -725,7 +724,7 @@ Deno.test("LiteralMonthDayYear: with comma", () => {
   assertEquals(res[0].value.grain, "day");
 });
 
-Deno.test("LiteralMonthDayYear: without comma", () => {
+test("LiteralMonthDayYear: without comma", () => {
   const res = Duckling([Time.parser]).extract("On March 3 1990 we met.");
 
   assertEquals(res.length, 1);
@@ -739,12 +738,8 @@ Deno.test("LiteralMonthDayYear: without comma", () => {
   assertEquals(res[0].value.grain, "day");
 });
 
-Deno.test("LiteralMonthDayYear: various months", () => {
-  const inputs = [
-    "January 1, 2000",
-    "December 25, 2024",
-    "September 5, 2019",
-  ];
+test("LiteralMonthDayYear: various months", () => {
+  const inputs = ["January 1, 2000", "December 25, 2024", "September 5, 2019"];
   for (const input of inputs) {
     const res = Duckling([Time.parser]).extract(`Published: ${input}.`);
     assertEquals(
@@ -759,7 +754,7 @@ Deno.test("LiteralMonthDayYear: various months", () => {
 
 // ── ClockTime ──────────────────────────────────────────────────────
 
-Deno.test("ClockTime: HH:MM with timezone in parens", () => {
+test("ClockTime: HH:MM with timezone in parens", () => {
   const res = Duckling([Time.parser]).extract("The call is at 23:28 (UTC).");
 
   assertEquals(res.length, 1);
@@ -768,7 +763,7 @@ Deno.test("ClockTime: HH:MM with timezone in parens", () => {
   assertEquals(res[0].value.grain, "minute");
 });
 
-Deno.test("ClockTime: HH:MM:SS", () => {
+test("ClockTime: HH:MM:SS", () => {
   const res = Duckling([Time.parser]).extract("Logged at 23:28:59.");
 
   assertEquals(res.length, 1);
@@ -776,7 +771,7 @@ Deno.test("ClockTime: HH:MM:SS", () => {
   assertEquals(res[0].value.grain, "second");
 });
 
-Deno.test("ClockTime: 12-hour AM/PM", () => {
+test("ClockTime: 12-hour AM/PM", () => {
   const cases = [
     { input: "Meet at 3:45 PM.", expected: "3:45 PM" },
     { input: "Wake up at 6:00 AM.", expected: "6:00 AM" },
@@ -794,7 +789,7 @@ Deno.test("ClockTime: 12-hour AM/PM", () => {
   }
 });
 
-Deno.test("ClockTime: HH:MM with bare timezone", () => {
+test("ClockTime: HH:MM with bare timezone", () => {
   const cases = [
     { input: "14:00 UTC", expected: "14:00 UTC" },
     { input: "09:30 EST", expected: "09:30 EST" },
@@ -813,7 +808,7 @@ Deno.test("ClockTime: HH:MM with bare timezone", () => {
 
 // ── Noon / Midnight ────────────────────────────────────────────────
 
-Deno.test("Common: noon", () => {
+test("Common: noon", () => {
   const res = Duckling([Time.parser]).extract("We eat lunch at noon.");
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "noon");
@@ -821,7 +816,7 @@ Deno.test("Common: noon", () => {
   assertEquals(res[0].value.grain, "hour");
 });
 
-Deno.test("Common: midnight", () => {
+test("Common: midnight", () => {
   const res = Duckling([Time.parser]).extract("Come back before midnight.");
   assertEquals(res.length, 1);
   assertEquals(res[0].text, "midnight");
@@ -829,7 +824,7 @@ Deno.test("Common: midnight", () => {
   assertEquals(res[0].value.grain, "hour");
 });
 
-Deno.test("CLDR wide month and weekday names preserve Time behavior", () => {
+test("CLDR wide month and weekday names preserve Time behavior", () => {
   const months = [
     "January",
     "February",
@@ -868,7 +863,7 @@ Deno.test("CLDR wide month and weekday names preserve Time behavior", () => {
   }
 });
 
-Deno.test("CLDR duration grains preserve singular and plural Time behavior", () => {
+test("CLDR duration grains preserve singular and plural Time behavior", () => {
   const grains = [
     ["second", "seconds"],
     ["minute", "minutes"],
@@ -894,7 +889,7 @@ Deno.test("CLDR duration grains preserve singular and plural Time behavior", () 
   }
 });
 
-Deno.test("CLDR and compatibility Time eras remain accepted", () => {
+test("CLDR and compatibility Time eras remain accepted", () => {
   for (const era of ["BC", "AD", "BCE", "CE"]) {
     const result = Time.Era({ text: era, index: 0 });
     assertEquals(result.success, true, era);
@@ -902,7 +897,7 @@ Deno.test("CLDR and compatibility Time eras remain accepted", () => {
   }
 });
 
-Deno.test("Time compatibility aliases remain accepted", () => {
+test("Time compatibility aliases remain accepted", () => {
   for (const grain of ["sec", "secs", "m", "min", "mins", "h", "hr", "hrs"]) {
     const result = Time.Grain({ text: grain, index: 0 });
     assertEquals(result.success, true, grain);
@@ -922,7 +917,7 @@ Deno.test("Time compatibility aliases remain accepted", () => {
   );
 });
 
-Deno.test("era-qualified dates preserve structured calendar values", () => {
+test("era-qualified dates preserve structured calendar values", () => {
   const res = Duckling([Time.parser]).extract(
     "Records mention June 2022 BC and 12 June 2022 BC.",
   );

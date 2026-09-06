@@ -40,9 +40,8 @@ export const macAddress = (
 
 const normalizeMac = (raw: string): string => {
   const compact = raw.replaceAll(/[:.-]/g, "").toLowerCase();
-  return Array.from(
-    { length: 6 },
-    (_, index) => compact.slice(index * 2, index * 2 + 2),
+  return Array.from({ length: 6 }, (_, index) =>
+    compact.slice(index * 2, index * 2 + 2),
   ).join(":");
 };
 
@@ -96,11 +95,10 @@ type MACAddressOutputs = {
  * Structure: six hex-pair octets joined by a delimiter (`:`, `-`, or Cisco `.`
  * notation with three quad groups). Case-insensitive.
  */
-export const MACAddress: DefinedLanguage<MACAddressOutputs> = defineLanguage<
-  MACAddressOutputs
->({
-  Colon: () => map(sixPairs(str(":")), (_, b, a) => mkMac(b, a)),
-  Hyphen: () => map(sixPairs(str("-")), (_, b, a) => mkMac(b, a)),
-  Dot: () => map(threeQuads, (_, b, a) => mkMac(b, a)),
-  parser: (s) => dot(any(s.Colon, s.Hyphen, s.Dot)),
-});
+export const MACAddress: DefinedLanguage<MACAddressOutputs> =
+  defineLanguage<MACAddressOutputs>({
+    Colon: () => map(sixPairs(str(":")), (_, b, a) => mkMac(b, a)),
+    Hyphen: () => map(sixPairs(str("-")), (_, b, a) => mkMac(b, a)),
+    Dot: () => map(threeQuads, (_, b, a) => mkMac(b, a)),
+    parser: (s) => dot(any(s.Colon, s.Hyphen, s.Dot)),
+  });

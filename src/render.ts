@@ -98,7 +98,7 @@ export function buildSpanTree(
 
   // Sort: earlier start first, wider spans first on tie
   const sorted = [...entities].sort(
-    (a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start),
+    (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start),
   );
 
   const stack: SpanNode[] = [root];
@@ -143,7 +143,6 @@ export function buildSpanTree(
 export function renderNode(
   node: SpanNode,
   input: string,
-  // deno-lint-ignore no-explicit-any
   fn: (ctx: { entity: any; children: string }) => string | undefined,
 ): string {
   // Build the inner text by interleaving raw text gaps with rendered children
@@ -183,7 +182,6 @@ export function renderNode(
 export function renderMapNode<R>(
   node: SpanNode,
   input: string,
-  // deno-lint-ignore no-explicit-any
   fn: (ctx: { entity: any; children: (string | R)[] }) => R,
 ): (string | R)[] {
   const segments: (string | R)[] = [];

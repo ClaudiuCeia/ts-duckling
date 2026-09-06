@@ -15,7 +15,7 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import parserData from "@data/parser-en" with { type: "json" };
+import parserData from "../data/parser-en.json" with { type: "json" };
 import { __, dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { Quantity, type QuantityEntity } from "./Quantity.ts";
@@ -42,8 +42,8 @@ type EnglishTemperatureData = {
 
 const english = parserData as EnglishTemperatureData;
 const longestFirst = (tokens: string[]) =>
-  [...new Set(tokens)].sort((a, b) =>
-    b.length - a.length || a.localeCompare(b)
+  [...new Set(tokens)].sort(
+    (a, b) => b.length - a.length || a.localeCompare(b),
   );
 const unitTokens = (unit: TemperatureUnit) => {
   const name = english.temperature.units[unit].name;
@@ -102,140 +102,137 @@ type TemperatureOutputs = {
 /**
  * Temperature parser language.
  */
-export const Temperature: DefinedLanguage<TemperatureOutputs> = defineLanguage<
-  TemperatureOutputs
->({
-  Degrees: (): Parser<string> => {
-    return any(
-      ...longestFirst([
-        english.temperature.degree.symbol,
-        english.temperature.degree.one,
-        english.temperature.degree.other,
-      ]).map(str),
-    );
-  },
-  UnitCelsius: (): Parser<"Celsius"> => {
-    return map(any(...unitTokens("Celsius").map(str)), () => "Celsius");
-  },
-  UnitFahrenheit: (): Parser<"Fahrenheit"> => {
-    return map(
-      any(...unitTokens("Fahrenheit").map(str)),
-      () => "Fahrenheit",
-    );
-  },
-  Celsius: (s): Parser<TemperatureEntity> => {
-    return any(
-      map(
+export const Temperature: DefinedLanguage<TemperatureOutputs> =
+  defineLanguage<TemperatureOutputs>({
+    Degrees: (): Parser<string> => {
+      return any(
+        ...longestFirst([
+          english.temperature.degree.symbol,
+          english.temperature.degree.one,
+          english.temperature.degree.other,
+        ]).map(str),
+      );
+    },
+    UnitCelsius: (): Parser<"Celsius"> => {
+      return map(any(...unitTokens("Celsius").map(str)), () => "Celsius");
+    },
+    UnitFahrenheit: (): Parser<"Fahrenheit"> => {
+      return map(any(...unitTokens("Fahrenheit").map(str)), () => "Fahrenheit");
+    },
+    Celsius: (s): Parser<TemperatureEntity> => {
+      return any(
+        map(
+          seq(
+            Quantity.innerParser,
+            optional(space()),
+            str(english.temperature.units.Celsius.symbol),
+          ),
+          ([amt], b, a) => temp({ amount: amt, unit: "Celsius" }, b, a),
+        ),
+        map(
+          seqNonNull<QuantityEntity | string | null>(
+            Quantity.innerParser,
+            optional(space()),
+            optional(s.Degrees),
+            optional(space()),
+            s.UnitCelsius,
+          ),
+          ([amt], b, a) =>
+            temp({ amount: amt as QuantityEntity, unit: "Celsius" }, b, a),
+        ),
+      );
+    },
+    Fahrenheit: (s): Parser<TemperatureEntity> => {
+      return any(
+        map(
+          seq(
+            Quantity.innerParser,
+            optional(space()),
+            str(english.temperature.units.Fahrenheit.symbol),
+          ),
+          ([amt], b, a) => temp({ amount: amt, unit: "Fahrenheit" }, b, a),
+        ),
+        map(
+          seqNonNull<QuantityEntity | string | null>(
+            Quantity.innerParser,
+            optional(space()),
+            optional(s.Degrees),
+            optional(space()),
+            s.UnitFahrenheit,
+          ),
+          ([amt], b, a) =>
+            temp({ amount: amt as QuantityEntity, unit: "Fahrenheit" }, b, a),
+        ),
+      );
+    },
+    Unspecified: (_s): Parser<TemperatureEntity> => {
+      return map(
         seq(
           Quantity.innerParser,
           optional(space()),
-          str(english.temperature.units.Celsius.symbol),
+          either(
+            str(english.temperature.degree.symbol),
+            str(english.temperature.degree.other),
+          ),
         ),
-        ([amt], b, a) => temp({ amount: amt, unit: "Celsius" }, b, a),
-      ),
-      map(
-        seqNonNull<QuantityEntity | string | null>(
-          Quantity.innerParser,
-          optional(space()),
-          optional(s.Degrees),
-          optional(space()),
-          s.UnitCelsius,
-        ),
-        ([amt], b, a) =>
-          temp({ amount: amt as QuantityEntity, unit: "Celsius" }, b, a),
-      ),
-    );
-  },
-  Fahrenheit: (s): Parser<TemperatureEntity> => {
-    return any(
-      map(
+        ([amt], b, a) => temp({ amount: amt as QuantityEntity }, b, a),
+      );
+    },
+    BelowZero: (s): Parser<TemperatureEntity> => {
+      return map(
         seq(
           Quantity.innerParser,
-          optional(space()),
-          str(english.temperature.units.Fahrenheit.symbol),
-        ),
-        ([amt], b, a) => temp({ amount: amt, unit: "Fahrenheit" }, b, a),
-      ),
-      map(
-        seqNonNull<QuantityEntity | string | null>(
-          Quantity.innerParser,
-          optional(space()),
           optional(s.Degrees),
           optional(space()),
-          s.UnitFahrenheit,
-        ),
-        ([amt], b, a) =>
-          temp({ amount: amt as QuantityEntity, unit: "Fahrenheit" }, b, a),
-      ),
-    );
-  },
-  Unspecified: (_s): Parser<TemperatureEntity> => {
-    return map(
-      seq(
-        Quantity.innerParser,
-        optional(space()),
-        either(
-          str(english.temperature.degree.symbol),
-          str(english.temperature.degree.other),
-        ),
-      ),
-      ([amt], b, a) => temp({ amount: amt as QuantityEntity }, b, a),
-    );
-  },
-  BelowZero: (s): Parser<TemperatureEntity> => {
-    return map(
-      seq(
-        Quantity.innerParser,
-        optional(s.Degrees),
-        optional(space()),
-        optional(either(s.UnitCelsius, s.UnitFahrenheit)),
-        seqNonNull(
-          skip1(space()),
-          __(
-            any(
-              ...longestFirst(english.compatibility.temperature.below).map(
-                str,
+          optional(either(s.UnitCelsius, s.UnitFahrenheit)),
+          seqNonNull(
+            skip1(space()),
+            __(
+              any(
+                ...longestFirst(english.compatibility.temperature.below).map(
+                  str,
+                ),
               ),
             ),
-          ),
-          any(
-            ...longestFirst(english.compatibility.temperature.zero).map(str),
+            any(
+              ...longestFirst(english.compatibility.temperature.zero).map(str),
+            ),
           ),
         ),
-      ),
-      ([amt, _deg, _space, unit], b, a) =>
-        temp(
-          {
-            amount: {
-              ...amt,
-              value: {
-                amount: amt.value.amount * -1,
+        ([amt, _deg, _space, unit], b, a) =>
+          temp(
+            {
+              amount: {
+                ...amt,
+                value: {
+                  amount: amt.value.amount * -1,
+                },
               },
+              unit: unit || undefined,
             },
-            unit: unit || undefined,
-          },
-          b,
-          a,
-        ),
-    );
-  },
-  Implicit: (s): Parser<TemperatureEntity> => {
-    return map(
-      seq(
-        Quantity.innerParser,
-        peekValue(
-          enumerationTail(
-            Quantity.innerParser,
-            dot(any(s.Celsius, s.Fahrenheit, s.Unspecified)),
+            b,
+            a,
+          ),
+      );
+    },
+    Implicit: (s): Parser<TemperatureEntity> => {
+      return map(
+        seq(
+          Quantity.innerParser,
+          peekValue(
+            enumerationTail(
+              Quantity.innerParser,
+              dot(any(s.Celsius, s.Fahrenheit, s.Unspecified)),
+            ),
           ),
         ),
-      ),
-      ([amount, final], b, a) => temp({ amount, unit: final.value.unit }, b, a),
-    );
-  },
-  parser: (s): Parser<TemperatureEntity> => {
-    return dot(
-      any(s.BelowZero, s.Implicit, s.Celsius, s.Fahrenheit, s.Unspecified),
-    );
-  },
-});
+        ([amount, final], b, a) =>
+          temp({ amount, unit: final.value.unit }, b, a),
+      );
+    },
+    parser: (s): Parser<TemperatureEntity> => {
+      return dot(
+        any(s.BelowZero, s.Implicit, s.Celsius, s.Fahrenheit, s.Unspecified),
+      );
+    },
+  });

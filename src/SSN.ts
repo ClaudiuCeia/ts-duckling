@@ -53,13 +53,7 @@ export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
   Parts: () =>
     guard(
       map(
-        seq(
-          IntN(3),
-          skip1(str("-")),
-          IntN(2),
-          skip1(str("-")),
-          IntN(4),
-        ),
+        seq(IntN(3), skip1(str("-")), IntN(2), skip1(str("-")), IntN(4)),
         ([area, , group, , serial]) => ({ area, group, serial }),
       ),
       ({ area, group, serial }) => {
@@ -69,7 +63,9 @@ export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
 
         // Basic SSA constraints; not exhaustive, but avoids obvious false positives.
         if (
-          !Number.isInteger(a) || !Number.isInteger(g) || !Number.isInteger(s)
+          !Number.isInteger(a) ||
+          !Number.isInteger(g) ||
+          !Number.isInteger(s)
         ) {
           return false;
         }
@@ -92,7 +88,8 @@ export const SSN: DefinedLanguage<SSNOutputs> = defineLanguage<SSNOutputs>({
         },
         b,
         a,
-      )),
+      ),
+    ),
   parser: (s) => {
     // Use dot to ensure we end on a token boundary (like other entities).
     return dot(s.Full);

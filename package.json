@@ -1,0 +1,88 @@
+{
+  "name": "@claudiu-ceia/ts-duckling",
+  "version": "0.7.1",
+  "description": "Extract typed dates, times, URLs, countries, quantities, and sensitive values from text.",
+  "keywords": [
+    "browser",
+    "bun",
+    "date-parser",
+    "deno",
+    "entity-extraction",
+    "nlp",
+    "nodejs",
+    "parser-combinators",
+    "pii-detection",
+    "sensitive-data",
+    "structured-data",
+    "text-parsing",
+    "time-parser",
+    "typescript",
+    "url-parser"
+  ],
+  "homepage": "https://claudiuceia.github.io/ts-duckling/",
+  "bugs": {
+    "url": "https://github.com/ClaudiuCeia/ts-duckling/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClaudiuCeia/ts-duckling.git"
+  },
+  "workspaces": [
+    "docs"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/mod.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mod.d.ts",
+      "import": "./dist/mod.js"
+    }
+  },
+  "scripts": {
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run metadata:check && bun run test",
+    "format": "oxfmt mod.ts src tests examples docs/examples bench scripts package.json deno.json tsconfig.json tsconfig.build.json README.md",
+    "format:check": "oxfmt --check mod.ts src tests examples docs/examples bench scripts package.json deno.json tsconfig.json tsconfig.build.json README.md",
+    "lint": "oxlint --deny-warnings mod.ts src tests examples docs/examples bench scripts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun test ./tests",
+    "examples:check": "bun test ./examples && bun test --cwd docs ./examples",
+    "metadata:check": "bun run scripts/check_metadata.ts",
+    "coverage": "bun test --coverage ./tests",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "package:check": "bun run build && bun run examples:check && publint && attw --pack . --profile esm-only",
+    "prepack": "bun run build",
+    "bench": "bun run bench/extract.bench.ts && bun run bench/vocabulary.bench.ts",
+    "bench:extract": "bun run bench/extract.bench.ts",
+    "bench:vocabulary": "bun run bench/vocabulary.bench.ts",
+    "docs:dev": "bun run --cwd docs dev",
+    "docs:build": "bun run --cwd docs build",
+    "update:data": "bun run scripts/update_data.ts",
+    "hooks:install": "ln -sf ../../scripts/pre-commit .git/hooks/pre-commit && chmod +x scripts/pre-commit",
+    "hooks:uninstall": "rm -f .git/hooks/pre-commit"
+  },
+  "dependencies": {
+    "@claudiu-ceia/combine": "0.11.2",
+    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@types/bun": "1.4.0",
+    "mitata": "1.0.34",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
+    "publint": "0.3.24",
+    "typescript": "~5.9.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "bun@1.4.0"
+}

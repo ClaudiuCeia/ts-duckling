@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, IBAN } from "../mod.ts";
 
-Deno.test("IBAN GB compact", () => {
+test("IBAN GB compact", () => {
   const res = Duckling([IBAN.parser]).extract(
     "account GB29NWBK60161331926819 ok",
   );
@@ -11,7 +12,7 @@ Deno.test("IBAN GB compact", () => {
   assertEquals(res[0].value.country, "GB");
 });
 
-Deno.test("IBAN GB grouped with spaces", () => {
+test("IBAN GB grouped with spaces", () => {
   const res = Duckling([IBAN.parser]).extract(
     "pay to GB29 NWBK 6016 1331 9268 19 please",
   );
@@ -20,7 +21,7 @@ Deno.test("IBAN GB grouped with spaces", () => {
   assertEquals(res[0].value.country, "GB");
 });
 
-Deno.test("IBAN stops before following uppercase prose", () => {
+test("IBAN stops before following uppercase prose", () => {
   const res = Duckling([IBAN.parser]).extract(
     "pay GB29 NWBK 6016 1331 9268 19 NOW",
   );
@@ -29,7 +30,7 @@ Deno.test("IBAN stops before following uppercase prose", () => {
   assertEquals(res[0].value.iban, "GB29NWBK60161331926819");
 });
 
-Deno.test("IBAN DE", () => {
+test("IBAN DE", () => {
   const res = Duckling([IBAN.parser]).extract(
     "IBAN: DE89370400440532013000 here",
   );
@@ -38,7 +39,7 @@ Deno.test("IBAN DE", () => {
   assertEquals(res[0].value.country, "DE");
 });
 
-Deno.test("IBAN FR", () => {
+test("IBAN FR", () => {
   const res = Duckling([IBAN.parser]).extract(
     "send to FR7630006000011234567890189 now",
   );
@@ -47,19 +48,19 @@ Deno.test("IBAN FR", () => {
   assertEquals(res[0].value.country, "FR");
 });
 
-Deno.test("IBAN invalid checksum rejected", () => {
+test("IBAN invalid checksum rejected", () => {
   // GB00 would be an invalid check digit
   const res = Duckling([IBAN.parser]).extract("bad GB00NWBK60161331926819 ok");
   assertEquals(res.length, 0);
 });
 
-Deno.test("IBAN wrong length rejected", () => {
+test("IBAN wrong length rejected", () => {
   // GB needs 22 chars, this is too short
   const res = Duckling([IBAN.parser]).extract("bad GB29NWBK601613 ok");
   assertEquals(res.length, 0);
 });
 
-Deno.test("IBAN in Duckling default parsers", () => {
+test("IBAN in Duckling default parsers", () => {
   const res = Duckling().extract("Wire to DE89370400440532013000 today");
   assertEquals(
     res.some((e) => e.kind === "iban"),

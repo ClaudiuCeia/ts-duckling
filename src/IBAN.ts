@@ -190,9 +190,8 @@ export const IBAN: DefinedLanguage<IBANOutputs> = defineLanguage<IBANOutputs>({
   // `many` stays at the last successful group — it does NOT consume a trailing
   // space when the next group fails (lowercase text like "please").
   BBAN: () =>
-    map(
-      many1(seq(optional(str(" ")), alphanumGroup)),
-      (parts) => parts.map(([, g]) => g).join(""),
+    map(many1(seq(optional(str(" ")), alphanumGroup)), (parts) =>
+      parts.map(([, g]) => g).join(""),
     ),
 
   // Select an exact repeat count from the country registry before parsing the
@@ -211,9 +210,8 @@ export const IBAN: DefinedLanguage<IBANOutputs> = defineLanguage<IBANOutputs>({
     );
 
     return guard(
-      map(
-        seq(s.Country, s.CheckDigits, bban),
-        (_, b, a) => b.text.substring(b.index, a.index),
+      map(seq(s.Country, s.CheckDigits, bban), (_, b, a) =>
+        b.text.substring(b.index, a.index),
       ),
       isValidIBAN,
     )(ctx);

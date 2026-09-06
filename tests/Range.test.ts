@@ -1,8 +1,9 @@
-import { assertEquals } from "@std/assert";
-import { FakeTime } from "@std/testing/time";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
+import { FakeTime } from "./time.ts";
 import { Duckling } from "../mod.ts";
 
-Deno.test("Time range", () => {
+test("Time range", () => {
   const time = new FakeTime(new Date("2022-01-01T00:00:00.000Z"));
   try {
     const res = Duckling().extract(
@@ -46,7 +47,7 @@ Deno.test("Time range", () => {
   }
 });
 
-Deno.test("Temperature range", () => {
+test("Temperature range", () => {
   const res = Duckling().extract("We expect between 10 and 12 degrees Celsius");
 
   assertEquals(res, [
@@ -97,7 +98,7 @@ Deno.test("Temperature range", () => {
   ]);
 });
 
-Deno.test("Temperature range with min as temperature", () => {
+test("Temperature range with min as temperature", () => {
   const res = Duckling().extract(
     "We expect between 10 degrees Celsius and 12 degrees Celsius",
   );
@@ -111,7 +112,7 @@ Deno.test("Temperature range with min as temperature", () => {
   assertEquals(range.value.max.text, "12 degrees Celsius");
 });
 
-Deno.test("Year range", () => {
+test("Year range", () => {
   const res = Duckling().extract(
     "Developed in the period between 2700 and 2300 BCE in Sumer",
   );
@@ -150,7 +151,7 @@ Deno.test("Year range", () => {
   ]);
 });
 
-Deno.test("Year range with dash", () => {
+test("Year range with dash", () => {
   const res = Duckling().extract(
     "Sima Qian (145–90 BC), author of the Records of the Grand Historian",
   );
@@ -165,7 +166,7 @@ Deno.test("Year range with dash", () => {
   );
 });
 
-Deno.test("Time range with dash", () => {
+test("Time range with dash", () => {
   const res = Duckling().extract(`
       Herodotus of Halicarnassus (484 BC–c. 425 BC) has
       generally been acclaimed as the "father of history"

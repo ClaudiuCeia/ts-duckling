@@ -1,108 +1,21 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@claudiu-ceia/combine@0.6.0": "0.6.0",
-    "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
-    "jsr:@deno/dnt@~0.42.3": "0.42.3",
-    "jsr:@std/assert@1.0.18": "1.0.18",
-    "jsr:@std/async@^1.1.0": "1.1.1",
-    "jsr:@std/data-structures@^1.0.10": "1.0.10",
-    "jsr:@std/fmt@1": "1.0.10",
-    "jsr:@std/fs@1": "1.0.24",
-    "jsr:@std/internal@^1.0.12": "1.0.14",
-    "jsr:@std/internal@^1.0.14": "1.0.14",
-    "jsr:@std/path@1": "1.1.6",
-    "jsr:@std/path@^1.1.5": "1.1.6",
-    "jsr:@std/testing@1.0.17": "1.0.17",
-    "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
-    "jsr:@ts-morph/common@0.27": "0.27.0"
+    "jsr:@claudiu-ceia/combine@0.11.2": "0.11.2",
+    "jsr:@std/crypto@1": "1.1.0"
   },
   "jsr": {
-    "@claudiu-ceia/combine@0.6.0": {
-      "integrity": "8eb28415f31c2e31628d98cf5e3a84b6cce4efd8be3d911fe7ed04c931905688"
+    "@claudiu-ceia/combine@0.11.2": {
+      "integrity": "c03dfb1b3e996bb0149dcd3f938e718eeac564669910903d5909bc8c43ba8c47"
     },
-    "@david/code-block-writer@13.0.3": {
-      "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
-    },
-    "@deno/dnt@0.42.3": {
-      "integrity": "62a917a0492f3c8af002dce90605bb0d41f7d29debc06aca40dba72ab65d8ae3",
-      "dependencies": [
-        "jsr:@david/code-block-writer",
-        "jsr:@std/fmt",
-        "jsr:@std/fs",
-        "jsr:@std/path@1",
-        "jsr:@ts-morph/bootstrap"
-      ]
-    },
-    "@std/assert@1.0.18": {
-      "integrity": "270245e9c2c13b446286de475131dc688ca9abcd94fc5db41d43a219b34d1c78",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.12"
-      ]
-    },
-    "@std/async@1.1.1": {
-      "integrity": "8a79beb3378cc229ce65ba2c746cfd03e4855ddd891d1eb6b9e32128e0d5339c"
-    },
-    "@std/data-structures@1.0.10": {
-      "integrity": "f574f86b0e07c69b9edc555fcc814b57d29258bad39fd5a34ba8a80ecf033cfe"
-    },
-    "@std/fmt@1.0.10": {
-      "integrity": "90dfba288802ac6de82fb31d0917eb9e4450b9925b954d5e51fc29ac07419db5"
-    },
-    "@std/fs@1.0.24": {
-      "integrity": "f3061b45b81673a2bece689da041df32d174be064c89eb6397fb5718d3fb7877",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.14",
-        "jsr:@std/path@^1.1.5"
-      ]
-    },
-    "@std/internal@1.0.12": {
-      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
-    },
-    "@std/internal@1.0.14": {
-      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
-    },
-    "@std/path@1.1.6": {
-      "integrity": "c68485c2a4dfbb5ae3cc74fae4e8c4e5d874cf8a8ed12927917235c758b46cbe",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.14"
-      ]
-    },
-    "@std/testing@1.0.17": {
-      "integrity": "87bdc2700fa98249d48a17cd72413352d3d3680dcfbdb64947fd0982d6bbf681",
-      "dependencies": [
-        "jsr:@std/async",
-        "jsr:@std/data-structures"
-      ]
-    },
-    "@ts-morph/bootstrap@0.27.0": {
-      "integrity": "b8d7bc8f7942ce853dde4161b28f9aa96769cef3d8eebafb379a81800b9e2448",
-      "dependencies": [
-        "jsr:@ts-morph/common"
-      ]
-    },
-    "@ts-morph/common@0.27.0": {
-      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052",
-      "dependencies": [
-        "jsr:@std/fs",
-        "jsr:@std/path@1"
-      ]
+    "@std/crypto@1.1.0": {
+      "integrity": "b8d6d0a6377a32b213af2661ed7bf1062d94feac0c57def5526a8e74a95c3ec8"
     }
-  },
-  "redirects": {
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@main/mod.ts": "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts"
-  },
-  "remote": {
-    "https://esm.sh/@jsr/claudiu-ceia__combine@0.2.6/denonext/claudiu-ceia__combine.mjs": "dd12f93a369e87c87b011ed7c0178a2aaffab32e7c07d66912702be3188f58cc",
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/denonext/mod.ts.mjs": "5f836821e56a3ac0b6b4113badc2f9c1c71bf77385b2233ef37f863ffbce5fba",
-    "https://esm.sh/gh/ClaudiuCeia/ts-duckling@3466bbb/mod.ts": "c58207de2fd57424550e59178ba2519cf55d7857a8444da745f5a346f609fb44"
   },
   "workspace": {
     "dependencies": [
-      "jsr:@claudiu-ceia/combine@0.6.0",
-      "jsr:@deno/dnt@~0.42.3",
-      "jsr:@std/assert@1.0.18",
-      "jsr:@std/testing@1.0.17"
+      "jsr:@claudiu-ceia/combine@0.11.2",
+      "jsr:@std/crypto@1"
     ]
   }
 }
