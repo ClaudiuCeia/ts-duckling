@@ -67,8 +67,8 @@ jobs:
 
       - name: Validate Deno and JSR package
         run: |
-          DENO_NO_PACKAGE_JSON=1 deno check --frozen-lockfile mod.ts
-          DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen-lockfile
+          DENO_NO_PACKAGE_JSON=1 deno check --frozen mod.ts
+          DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen
 
       - name: Pack npm package
         run: npm pack --silent
@@ -101,38 +101,10 @@ jobs:
           deno-version: v2.x
 
       - name: Publish to JSR
-        run: DENO_NO_PACKAGE_JSON=1 deno publish --frozen-lockfile
-
-  publish-npm:
-    needs: publish-jsr
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-          package-manager-cache: false
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Publish to npm
-        run: npm publish --access public
+        run: DENO_NO_PACKAGE_JSON=1 deno publish --frozen
 
   github-release:
-    needs: [publish-jsr, publish-npm]
+    needs: publish-jsr
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 24]
+        node-version: [24, 26]
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -118,10 +118,10 @@ jobs:
           test "${package_version}" = "${deno_version}"
 
       - name: Check Deno compatibility
-        run: DENO_NO_PACKAGE_JSON=1 deno check --frozen-lockfile mod.ts
+        run: DENO_NO_PACKAGE_JSON=1 deno check --frozen mod.ts
 
       - name: Validate JSR package
-        run: DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen-lockfile
+        run: DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen
 
   docs:
     runs-on: ubuntu-latest
