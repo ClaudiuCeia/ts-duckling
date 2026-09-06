@@ -63,5 +63,19 @@ jobs:
       - name: Validate npm package
         run: bun run package:check
 
+      - name: Smoke test packed package
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="$(realpath "$(npm pack --silent)")"
+          smoke="$(mktemp -d)"
+          cp scripts/package_smoke.mjs "${smoke}/"
+          cd "${smoke}"
+          npm init -y >/dev/null
+          npm install "${tarball}" >/dev/null
+          npm ls --all
+          bun package_smoke.mjs
+          node package_smoke.mjs
+
       - name: Publish to npm
         run: npm publish --access public
