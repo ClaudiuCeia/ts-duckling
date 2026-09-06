@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "A tiny, deterministic entity extractor for TypeScript.",
   "keywords": [
     "bun",
