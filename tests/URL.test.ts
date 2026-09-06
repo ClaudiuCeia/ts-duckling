@@ -340,6 +340,24 @@ test("URL preserves internal punctuation and unmatched opening brackets", () => 
   );
 });
 
+test("URL preserves unmatched closing brackets inside suffixes", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://example.com/a)b https://example.org/a]]b https://example.net/a).b https://example.edu/a)?b https://example.gov/a)(b https://example.io/a)]b https://example.dev/a])b",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com/a)b",
+      "https://example.org/a]]b",
+      "https://example.net/a).b",
+      "https://example.edu/a)?b",
+      "https://example.gov/a)(b",
+      "https://example.io/a)]b",
+      "https://example.dev/a])b",
+    ],
+  );
+});
+
 test("URL preserves a valid port before a terminal period", () => {
   const res = Duckling([URL.parser]).extract(
     "http://example.com:8080. http://example.org:8080... http://localhost.:8080…",
@@ -376,6 +394,20 @@ test("URL validates integer port boundaries", () => {
   }
 });
 
+test("URL accepts zero-padded ports by numeric value", () => {
+  const res = Duckling([URL.parser]).extract(
+    "http://localhost:000080/ https://example.com:000001/path",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["http://localhost:000080/", "https://example.com:000001/path"],
+  );
+
+  const port = URL.Port({ text: "000080", index: 0 });
+  assertEquals(port.success, true);
+  if (port.success) assertEquals(port.value, 80);
+});
+
 test("URL accepts trailing combining marks in Unicode labels", () => {
   for (const host of ["a\u0338.com", "\u0915\u094d.com"]) {
     const result = URL.FullHost({ text: host, index: 0 });
@@ -386,6 +418,18 @@ test("URL accepts trailing combining marks in Unicode labels", () => {
   for (const host of ["\u0338a.com", "\u094d\u0915.com"]) {
     assertEquals(URL.FullHost({ text: host, index: 0 }).success, false, host);
   }
+});
+
+test("URL validates decomposed hosts after normalization", () => {
+  const label = "e\u0301".repeat(25);
+  const input = `https://${Array(5).fill(label).join(".")}/`;
+  const longRawLabelInput = `https://${"e\u0301".repeat(32)}.com/`;
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(`${input} ${longRawLabelInput}`)
+      .map(({ text }) => text),
+    [input, longRawLabelInput],
+  );
 });
 
 test("URL recognizes Markdown and Unicode text boundaries", () => {
@@ -400,6 +444,98 @@ test("URL recognizes Markdown and Unicode text boundaries", () => {
   assertEquals(
     URL.FullHost({ text: "example.com@user", index: 0 }).success,
     false,
+  );
+});
+
+test("URL recognizes CJK and full-width text boundaries", () => {
+  const res = Duckling([URL.parser]).extract(
+    "请访问 https://example.com。谢谢 「https://example.org」 https://example.net！ https://example.edu．继续 ＂https://example.gov＂ https://example。com。谢谢",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com",
+      "https://example.org",
+      "https://example.net",
+      "https://example.edu",
+      "https://example.gov",
+      "https://example。com",
+    ],
+  );
+});
+
+test("URL accepts compatibility dots inside registered domains", () => {
+  const urls = [
+    "https://example。com/path",
+    "https://example．com/path",
+    "https://example｡com/path",
+    "https://example。invalid/path",
+    "https://www.google.com。cn/path",
+    "https://example.com。invalid/path",
+    "https://www.google.com。internal。cn/path",
+    "https://www.google.com。内部。cn/path",
+    "http://localhost。internal/path",
+    "https://127.0.0.1。example/path",
+    "https://foo.localhost。com/path",
+    "https://foo127.0.0.1。com/path",
+    "https://example.ⓒⓞⓜ/path",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
+  );
+
+  assertEquals(
+    Duckling([URL.parser]).extract("https://999。999。999。999/path"),
+    [],
+  );
+});
+
+test("URL treats terminal compatibility dots as punctuation", () => {
+  const res = Duckling([URL.parser]).extract(
+    "http://localhost。 https://example.invalid． https://[::1]｡谢谢",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["http://localhost", "https://example.invalid", "https://[::1]"],
+  );
+});
+
+test("URL preserves CJK punctuation inside suffixes", () => {
+  const urls = [
+    "https://example.com/こんにちは、世界",
+    "https://example.com/?q=你好，世界",
+    "https://example.com/a。b",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(`${urls.join(" ")} https://example.org/path。`)
+      .map(({ text }) => text),
+    [...urls, "https://example.org/path"],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://example.com/path。谢谢")
+      .map(({ text }) => text),
+    ["https://example.com/path"],
+  );
+});
+
+test("URL treats repeated periods as sentence punctuation", () => {
+  const res = Duckling([URL.parser]).extract(
+    "See https://example.com...next and https://example.org..more http://intranet...next http://LOCALHOST..more",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com",
+      "https://example.org",
+      "http://intranet",
+      "http://LOCALHOST",
+    ],
   );
 });
 
@@ -430,6 +566,41 @@ test("URL separates adjacent links and markup", () => {
   );
 });
 
+test("URL separates links used as Markdown text and destinations", () => {
+  const res = Duckling([URL.parser]).extract(
+    "[https://example.com/a](https://target.example/b)",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://example.com/a", "https://target.example/b"],
+  );
+});
+
+test("URL separates adjacent parenthesized links", () => {
+  const res = Duckling([URL.parser]).extract(
+    "(https://a.com/x)(https://b.com/y)",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://a.com/x", "https://b.com/y"],
+  );
+});
+
+test("URL separates period-delimited host-only links", () => {
+  const res = Duckling([URL.parser]).extract(
+    "http://localhost.http://example.com https://127.0.0.1.https://[::1]",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "http://localhost",
+      "http://example.com",
+      "https://127.0.0.1",
+      "https://[::1]",
+    ],
+  );
+});
+
 test("URL rejects partial matches from invalid attached authorities", () => {
   for (const text of [
     "https://user:pass@example.com/path",
@@ -437,6 +608,15 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     "https://!example.com/path",
     "https://[::1].evil",
     "https://[::1]._evil/path",
+    "http://localhost:80@evil.com",
+    "http://127.0.0.1:80@evil.com",
+    "http://[::1]:80@evil.com",
+    "http://localhost:000080。evil.com",
+    "http://[::1]:80.evil.com",
+    "http://[::1]:80。evil.com",
+    "http://[::1]:80evil.com",
+    "http://[::1]evil.com",
+    "http://[::1]example.org/path",
     "http://example.com:1.5",
     "http://example.com:65536",
   ]) {
@@ -501,5 +681,15 @@ test("URL matches canonically equivalent Unicode TLDs", () => {
       .extract(domain)
       .map(({ text }) => text),
     [domain],
+  );
+});
+
+test("URL matches compatibility-normalized bare TLDs", () => {
+  const domains = ["example.ｃｏｍ", "example.ⓓⓔ", "example.com。cn"];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(domains.join(" "))
+      .map(({ text }) => text),
+    domains,
   );
 });

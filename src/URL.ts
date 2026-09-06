@@ -1,5 +1,6 @@
 import {
   any,
+  chain,
   charWhere,
   type Context,
   defineLanguage,
@@ -18,6 +19,7 @@ import {
   regex,
   repeat,
   seq,
+  skipMany,
   skipMany1,
   space,
   str,
@@ -43,6 +45,7 @@ const protocol = map(
   longestLiteral(protocolNames, { caseInsensitive: true }),
   (_name, before, after) => before.text.substring(before.index, after.index),
 );
+const protocolStart = seq(protocol, str("://"));
 
 const tldList = tlds.values;
 const tldParser = longestLiteral(tldList, { caseInsensitive: true });
@@ -50,7 +53,7 @@ const normalizedTlds = new Set(
   tldList.map((tld) => tld.normalize("NFC").toLowerCase()),
 );
 
-const unicodeBoundaries = [
+const unicodeSuffixBoundaries = [
   "\u2013",
   "\u2014",
   "\u2018",
@@ -58,7 +61,33 @@ const unicodeBoundaries = [
   "\u201c",
   "\u201d",
   "\u2026",
+  "\u3009",
+  "\u300b",
+  "\u300d",
+  "\u300f",
+  "\u3011",
+  "\uff02",
+  "\uff07",
+  "\uff09",
+  "\uff3d",
+  "\uff5d",
 ];
+const unicodeSentencePunctuation = [
+  "\u3001",
+  "\u3002",
+  "\uff01",
+  "\uff0c",
+  "\uff0e",
+  "\uff1a",
+  "\uff1b",
+  "\uff1f",
+  "\uff61",
+];
+const unicodeHostBoundaries = [
+  ...unicodeSuffixBoundaries,
+  ...unicodeSentencePunctuation,
+];
+const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
 const textBoundaryCharacters = [
   "<",
   ",",
@@ -71,7 +100,7 @@ const textBoundaryCharacters = [
   "'",
   ">",
   "`",
-  ...unicodeBoundaries,
+  ...unicodeHostBoundaries,
 ];
 const authorityBreakCharacters = new Set([
   "/",
@@ -86,7 +115,7 @@ const authorityBreakCharacters = new Set([
   "'",
   ">",
   "`",
-  ...unicodeBoundaries,
+  ...unicodeHostBoundaries,
 ]);
 const bareLookbehindBreakCharacters = new Set([
   ...authorityBreakCharacters,
@@ -96,7 +125,19 @@ const completeUrlBreakCharacters = new Set(
   textBoundaryCharacters.filter((character) => character !== "!"),
 );
 const plainSuffixReservedCharacters = new Set([
-  ...textBoundaryCharacters,
+  "<",
+  ",",
+  ";",
+  "!",
+  ")",
+  "]",
+  "}",
+  '"',
+  "'",
+  ">",
+  "`",
+  ...unicodeSuffixBoundaries,
+  ...unicodeSentencePunctuation,
   "(",
   "[",
   "{",
@@ -109,7 +150,7 @@ const balancedGroupBreakCharacters = new Set([
   ">",
   '"',
   "`",
-  ...unicodeBoundaries,
+  ...unicodeSuffixBoundaries,
 ]);
 
 const oneOfCharacters = (characters: readonly string[]): Parser<string> =>
@@ -126,64 +167,140 @@ const nonWhitespaceCharacterExcept = (
 const atMost = <T>(count: number, parser: Parser<T>): Parser<T[]> =>
   keepNonNull(repeat(count, optional(parser)));
 
-const unicodeLetterOrNumberPattern = /[\p{L}\p{N}]/u;
-const unicodeLetterMarkOrNumberPattern = /[\p{L}\p{M}\p{N}]/u;
-const unicodeLetterOrNumber = regex(
-  unicodeLetterOrNumberPattern,
-  "Unicode letter or number",
-);
-const unicodeLetterMarkOrNumber = regex(
-  unicodeLetterMarkOrNumberPattern,
-  "Unicode letter, mark, or number",
-);
-
-const domainLabelCharacter = any(unicodeLetterMarkOrNumber, str("-"));
+const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{So}]/u;
+const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
+const asciiLetterOrNumberPattern = /[A-Za-z0-9]/;
+const domainLabelPattern = /[\p{L}\p{N}\p{So}][\p{L}\p{M}\p{N}\p{So}-]*/u;
+const domainLabelAtStartPattern =
+  /^[\p{L}\p{N}\p{So}][\p{L}\p{M}\p{N}\p{So}-]*/u;
 const domainLabel = guard(
-  map(
-    seq(
-      unicodeLetterOrNumber,
-      atMost(maxLabelLength - 1, domainLabelCharacter),
-    ),
-    ([first, rest]) => `${first}${rest.join("")}`,
-  ),
-  (label) => [...label].length <= maxLabelLength && !label.endsWith("-"),
+  regex(domainLabelPattern, "Unicode hostname label"),
+  (label) => !label.endsWith("-"),
   "valid domain label",
 );
-const dotLabel = map(
-  seq(str("."), domainLabel),
+const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
+const asciiDotLabel = map(
+  seq(str("."), not(protocolStart), domainLabel),
+  ([dot, , label]) => `${dot}${label}`,
+);
+const compatibilityDotCharacter = oneOfCharacters(compatibilityDots);
+const rawCompatibilityDotLabel = map(
+  seq(compatibilityDotCharacter, domainLabel),
   ([dot, label]) => `${dot}${label}`,
 );
-const dnsName = map(
-  seq(domainLabel, atMost(maxDomainLabels - 1, dotLabel)),
+const rawCompatibilityHostTail = map(
+  seq(
+    rawCompatibilityDotLabel,
+    atMost(maxDomainLabels - 2, any(asciiDotLabel, rawCompatibilityDotLabel)),
+  ),
   ([first, rest]) => `${first}${rest.join("")}`,
 );
+const meaningfulCompatibilityHostTail = any(
+  map(
+    seq(rawCompatibilityHostTail, peek(authorityDelimiter)),
+    ([tail]) => tail,
+  ),
+  guard(
+    rawCompatibilityHostTail,
+    (tail) => hasKnownTld(`example${tail}`),
+    "hostname tail with an IANA TLD",
+  ),
+);
+const compatibilityDot: Parser<string> = (ctx) => {
+  const mayBeProse =
+    hasNonAsciiUnknownTldLabelAfter(ctx.text, ctx.index) &&
+    (hasKnownTldLabelBefore(ctx.text, ctx.index) ||
+      hasSpecialHostImmediatelyBefore(ctx.text, ctx.index));
+  if (mayBeProse && !meaningfulCompatibilityHostTail(ctx).success) {
+    return failure(ctx, "hostname compatibility dot");
+  }
+  return compatibilityDotCharacter(ctx);
+};
+const compatibilityDotLabel = map(
+  seq(compatibilityDot, domainLabel),
+  ([dot, label]) => `${dot}${label}`,
+);
+const asciiDnsName = map(
+  seq(domainLabel, atMost(maxDomainLabels - 1, asciiDotLabel)),
+  ([first, rest]) => `${first}${rest.join("")}`,
+);
+const compatibilityDnsName = map(
+  seq(
+    domainLabel,
+    atMost(maxDomainLabels - 2, asciiDotLabel),
+    compatibilityDotLabel,
+    atMost(maxDomainLabels - 2, any(asciiDotLabel, compatibilityDotLabel)),
+  ),
+  ([first, beforeDot, dotLabel, rest]) =>
+    `${first}${beforeDot.join("")}${dotLabel}${rest.join("")}`,
+);
+const dnsName = any(compatibilityDnsName, asciiDnsName);
 
-const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
 const textBoundary = any(
   space(),
   eof(),
   oneOfCharacters(textBoundaryCharacters),
 );
-const sentencePeriod = seq(
-  regex(/[.]+/, "sentence periods"),
-  peek(textBoundary),
+const ordinaryTextBoundary = any(
+  space(),
+  eof(),
+  oneOfCharacters(
+    textBoundaryCharacters.filter(
+      (character) => !compatibilityDots.includes(character),
+    ),
+  ),
+);
+const repeatedSentencePeriods = map(
+  seq(str("."), mapJoin(many1(str(".")))),
+  ([first, rest]) => `${first}${rest}`,
+);
+const singleSentencePeriod = seq(str("."), peek(textBoundary));
+const sentencePeriod = any(repeatedSentencePeriods, singleSentencePeriod);
+const terminalCompatibilityDot = seq(
+  compatibilityDotCharacter,
+  not(domainLabel),
 );
 const sentenceColon = seq(str(":"), peek(textBoundary));
 const emptySuffixDelimiter = seq(
   oneOfCharacters(["?", "#"]),
   peek(textBoundary),
 );
-const hostBoundary = peek(
-  any(authorityDelimiter, textBoundary, sentencePeriod),
-);
-const portBoundary = peek(
-  any(oneOfCharacters(["/", "?", "#"]), textBoundary, sentencePeriod),
-);
-
-const protocolStart = seq(protocol, str("://"));
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters([".", ",", ";", "!"])),
   peek(protocolStart),
+);
+const hostBoundary = peek(
+  any(
+    authorityDelimiter,
+    textBoundary,
+    sentencePeriod,
+    adjacentProtocolBoundary,
+  ),
+);
+const ordinaryHostBoundary = peek(
+  any(
+    authorityDelimiter,
+    ordinaryTextBoundary,
+    terminalCompatibilityDot,
+    singleSentencePeriod,
+    adjacentProtocolBoundary,
+  ),
+);
+const registeredHostBoundary = peek(
+  any(
+    authorityDelimiter,
+    textBoundary,
+    singleSentencePeriod,
+    adjacentProtocolBoundary,
+  ),
+);
+const portBoundary = peek(
+  any(
+    oneOfCharacters(["/", "?", "#"]),
+    ordinaryTextBoundary,
+    terminalCompatibilityDot,
+    sentencePeriod,
+  ),
 );
 const completeEntityBoundary = peek(
   any(
@@ -207,6 +324,43 @@ const internalSuffixPunctuation = map(
     peek(suffixPartStart),
   ),
   ([punctuation]) => punctuation,
+);
+const internalUnicodeSuffixPunctuationValue = map(
+  seq(
+    mapJoin(many1(oneOfCharacters(unicodeSentencePunctuation))),
+    not(protocolStart),
+    peek(suffixPartStart),
+  ),
+  ([punctuation]) => punctuation,
+);
+const internalUnicodeSuffixPunctuation: Parser<string> = (ctx) => {
+  const result = internalUnicodeSuffixPunctuationValue(ctx);
+  if (!result.success) return result;
+  return isUnicodeProseBoundary(ctx.text, ctx.index, result.ctx.index)
+    ? failure(ctx, "Unicode URL punctuation")
+    : result;
+};
+const internalClosingPunctuation = any(
+  map(
+    seq(
+      mapJoin(many1(oneOfCharacters([")", "]", "}"]))),
+      peek(
+        any(
+          plainSuffixPart,
+          internalSuffixPunctuation,
+          internalUnicodeSuffixPunctuation,
+        ),
+      ),
+    ),
+    ([punctuation]) => punctuation,
+  ),
+  map(
+    seq(
+      mapJoin(many1(str(")"))),
+      peek(any(seq(str("("), not(protocolStart)), str("{"))),
+    ),
+    ([punctuation]) => punctuation,
+  ),
 );
 
 const balancedGroup = (open: string, close: string): Parser<string> => {
@@ -233,6 +387,8 @@ const suffixPart = any(
   balancedSuffixPart,
   plainSuffixPart,
   internalSuffixPunctuation,
+  internalUnicodeSuffixPunctuation,
+  internalClosingPunctuation,
   oneOfCharacters(["(", "[", "{"]),
 );
 const slashSuffix = map(
@@ -244,29 +400,33 @@ const queryOrFragmentSuffix = map(
   ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
 );
 
-function isValidDnsName(host: string): boolean {
-  if (host.length === 0 || host.length > maxDomainLength) return false;
-
+function normalizeDnsName(host: string): string | null {
   try {
-    const normalized = new globalThis.URL(`http://${host}/`).hostname;
-    return (
-      normalized.length <= maxDomainLength &&
-      normalized.split(".").every((label) => label.length <= maxLabelLength)
-    );
+    return new globalThis.URL(`http://${host}/`).hostname;
   } catch {
-    return false;
+    return null;
   }
 }
 
-function hasKnownTld(host: string): boolean {
-  const separator = host.lastIndexOf(".");
-  if (separator <= 0) return false;
-  return normalizedTlds.has(
-    host
-      .slice(separator + 1)
-      .normalize("NFC")
-      .toLowerCase(),
+function isValidDnsName(host: string): boolean {
+  const normalized = normalizeDnsName(host);
+  return (
+    normalized !== null &&
+    normalized.length <= maxDomainLength &&
+    normalized.split(".").every((label) => label.length <= maxLabelLength)
   );
+}
+
+function hasKnownTld(host: string): boolean {
+  const normalized = normalizeDnsName(host);
+  if (normalized === null) return false;
+
+  const canonical = normalized.endsWith(".")
+    ? normalized.slice(0, -1)
+    : normalized;
+  const separator = canonical.lastIndexOf(".");
+  if (separator <= 0) return false;
+  return normalizedTlds.has(canonical.slice(separator + 1).toLowerCase());
 }
 
 function isValidBracketedHost(host: string): boolean {
@@ -292,6 +452,84 @@ function previousCharacter(text: string, index: number): string {
   }
 
   return text[index - 1] ?? "";
+}
+
+function isDomainLabelCharacter(character: string): boolean {
+  return unicodeDomainCharacterPattern.test(character) || character === "-";
+}
+
+function isKnownTldLabel(label: string): boolean {
+  return label.length > 0 && hasKnownTld(`example.${label}`);
+}
+
+function domainLabelAfter(text: string, index: number): string {
+  return domainLabelAtStartPattern.exec(text.slice(index + 1))?.[0] ?? "";
+}
+
+function hasKnownTldLabelBefore(text: string, index: number): boolean {
+  let start = index;
+  while (start > 0) {
+    const character = previousCharacter(text, start);
+    if (!isDomainLabelCharacter(character)) break;
+    start -= character.length;
+  }
+
+  return isKnownTldLabel(text.substring(start, index));
+}
+
+function hasNonAsciiUnknownTldLabelAfter(text: string, index: number): boolean {
+  const label = domainLabelAfter(text, index);
+  const firstCodePoint = label.codePointAt(0);
+  if (firstCodePoint === undefined) return false;
+
+  const first = String.fromCodePoint(firstCodePoint);
+  return !asciiLetterOrNumberPattern.test(first) && !isKnownTldLabel(label);
+}
+
+function isIpv4Host(host: string): boolean {
+  const parts = host.split(".");
+  return (
+    parts.length === 4 &&
+    parts.every((part) => {
+      const value = Number(part);
+      return part.length > 0 && Number.isInteger(value) && value <= 255;
+    })
+  );
+}
+
+function isSpecialHost(host: string): boolean {
+  const canonical = host.endsWith(".") ? host.slice(0, -1) : host;
+  return (
+    canonical.toLowerCase() === "localhost" ||
+    canonical.startsWith("[") ||
+    isIpv4Host(canonical)
+  );
+}
+
+function hasSpecialHostImmediatelyBefore(text: string, index: number): boolean {
+  const earliest = Math.max(2, index - 15);
+  for (let start = earliest; start < index; start += 1) {
+    if (text[start - 2] !== "/" || text[start - 1] !== "/") continue;
+    return isSpecialHost(text.slice(start, index));
+  }
+  return false;
+}
+
+function isUnicodeProseBoundary(
+  text: string,
+  punctuationStart: number,
+  punctuationEnd: number,
+): boolean {
+  const previous = previousCharacter(text, punctuationStart);
+  const nextCodePoint = text.codePointAt(punctuationEnd);
+  if (nextCodePoint === undefined) return false;
+
+  const next = String.fromCodePoint(nextCodePoint);
+  return (
+    asciiLetterOrNumberPattern.test(previous) &&
+    unicodeWordCharacterPattern.test(next) &&
+    !asciiLetterOrNumberPattern.test(next)
+  );
 }
 
 function containsBreakCharacter(
@@ -339,11 +577,40 @@ function hasCompleteUrlBefore(text: string, index: number): boolean {
   }
 }
 
+function hasPortInUrlBefore(text: string, index: number): boolean {
+  const prefix = text.substring(
+    Math.max(0, index - maxDomainLength - 16),
+    index,
+  );
+  const start = lastProtocolStart(prefix);
+  if (start === null) return false;
+
+  const remainder = prefix.slice(start.index + start.length);
+  let authorityEnd = remainder.length;
+  for (const delimiter of ["/", "?", "#"]) {
+    const delimiterIndex = remainder.indexOf(delimiter);
+    if (delimiterIndex >= 0)
+      authorityEnd = Math.min(authorityEnd, delimiterIndex);
+  }
+  const authority = remainder.slice(0, authorityEnd);
+  return authority.startsWith("[")
+    ? authority.includes("]:")
+    : authority.includes(":");
+}
+
 function hasAttachedScheme(prefix: string): boolean {
   const start = lastProtocolStart(prefix);
   if (start === null) return false;
 
   const authority = prefix.slice(start.index + start.length);
+  if (authority.startsWith("[")) {
+    const close = authority.indexOf("]");
+    if (close < 0) return true;
+    return !containsBreakCharacter(
+      authority.slice(close + 1),
+      authorityBreakCharacters,
+    );
+  }
   return !containsBreakCharacter(authority, authorityBreakCharacters);
 }
 
@@ -353,14 +620,29 @@ function hasInvalidBareStart(ctx: Context): boolean {
 
   const previous = previousCharacter(ctx.text, ctx.index);
   if (
-    unicodeLetterMarkOrNumberPattern.test(previous) ||
+    unicodeWordCharacterPattern.test(previous) ||
     "_@/%-".includes(previous)
   ) {
     return true;
   }
   if (previous === "." && ctx.text[ctx.index - 2] !== ".") return true;
+  if (previous === "]") {
+    const start = Math.max(0, ctx.index - maxDomainLength - 48);
+    if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
+  }
   if (previous === "!" && hasCompleteUrlBefore(ctx.text, ctx.index - 1)) {
     return false;
+  }
+  if (compatibilityDots.includes(previous)) {
+    const punctuationIndex = ctx.index - previous.length;
+    const start = Math.max(0, ctx.index - maxDomainLength - 16);
+    const prefix = ctx.text.substring(start, punctuationIndex);
+    if (hasAttachedScheme(prefix)) {
+      return (
+        !hasCompleteUrlBefore(ctx.text, punctuationIndex) ||
+        hasPortInUrlBefore(ctx.text, punctuationIndex)
+      );
+    }
   }
   if (isWhitespace(previous) || bareLookbehindBreakCharacters.has(previous)) {
     return false;
@@ -401,18 +683,24 @@ const bracketedHost = guard(
   isValidBracketedHost,
   "valid IPv6 host",
 );
-const fullHost = map(
-  seq(
-    any(
-      bracketedHost,
-      map(
-        seq(validDnsName, optional(rootDot)),
-        ([host, dot]) => `${host}${dot ?? ""}`,
-      ),
-    ),
-    hostBoundary,
+const hostValue = any(
+  bracketedHost,
+  map(
+    seq(validDnsName, optional(rootDot)),
+    ([host, dot]) => `${host}${dot ?? ""}`,
   ),
-  ([host]) => host,
+);
+const fullHost = chain(hostValue, (host) =>
+  map(
+    hasKnownTld(host) || isSpecialHost(host)
+      ? registeredHostBoundary
+      : ordinaryHostBoundary,
+    () => host,
+  ),
+);
+const fullEntityHost = any(
+  fullHost,
+  map(seq(hostValue, peek(repeatedSentencePeriods)), ([host]) => host),
 );
 const bareDnsName = guard(
   validDnsName,
@@ -429,8 +717,20 @@ const bareDomain = withStartBoundary(
 );
 const portNumber = guard(
   map(
-    guard(atMost(5, digit()), (digits) => digits.length > 0, "port digits"),
-    (digits) => digits.reduce((port, value) => port * 10 + value, 0),
+    seq(
+      skipMany(str("0")),
+      optional(
+        map(
+          seq(
+            guard(digit(), (value) => value > 0, "non-zero port digit"),
+            atMost(4, digit()),
+          ),
+          ([first, rest]) =>
+            rest.reduce((port, digit) => port * 10 + digit, first),
+        ),
+      ),
+    ),
+    ([, port]) => port ?? 0,
   ),
   (port) => port >= 1 && port <= 65535,
   "port 1-65535",
@@ -485,7 +785,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
         seq(
           symbol.Protocol,
           str("://"),
-          symbol.FullHost,
+          fullEntityHost,
           optional(
             map(
               seq(str(":"), symbol.Port),
@@ -504,7 +804,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       ),
       (ctx) =>
         ctx.index > 0 &&
-        unicodeLetterMarkOrNumberPattern.test(
+        unicodeWordCharacterPattern.test(
           previousCharacter(ctx.text, ctx.index),
         ),
       "URL boundary",
