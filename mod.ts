@@ -94,11 +94,11 @@ const DefaultParsers: [Parser<AnyEntity>, ...Parser<AnyEntity>[]] = [
 ];
 
 /**
- * Union of entity types considered Personally Identifiable Information (PII).
+ * Union of sensitive value and identifier entity types.
  *
  * Covers: email addresses, phone numbers, IP addresses, Social Security
  * Numbers, credit card numbers, UUIDs, API keys, IBANs, MAC addresses,
- * JWTs, and cryptocurrency wallet addresses.
+ * JWTs, cryptocurrency wallet addresses, and BIC/SWIFT identifiers.
  */
 export type PIIEntity =
   | EmailEntity
@@ -115,7 +115,7 @@ export type PIIEntity =
   | BICEntity;
 
 /**
- * Pre-built parser tuple targeting PII entities.
+ * Pre-built parser tuple targeting sensitive values and identifiers.
  *
  * Pass this to {@link Duckling} for a quick redaction pipeline:
  *
