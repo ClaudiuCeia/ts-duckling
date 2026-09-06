@@ -301,6 +301,37 @@ test("URL preserves a trailing slash before sentence punctuation", () => {
   assertEquals(URL.Suffix({ text: "#", index: 0 }).success, false);
 });
 
+test("URL leaves empty query and fragment delimiters as punctuation", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://example.com? https://example.org/path# https://example.net/? https://example.edu/#",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com",
+      "https://example.org/path",
+      "https://example.net/",
+      "https://example.edu/",
+    ],
+  );
+});
+
+test("URL preserves internal punctuation and unmatched opening brackets", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://example.com/a..b https://example.org/a?!b https://example.net/a(b https://example.edu/a(b)c https://en.wikipedia.org/wiki/Function_((mathematics))",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com/a..b",
+      "https://example.org/a?!b",
+      "https://example.net/a(b",
+      "https://example.edu/a(b)c",
+      "https://en.wikipedia.org/wiki/Function_((mathematics))",
+    ],
+  );
+});
+
 test("URL preserves a valid port before a terminal period", () => {
   const res = Duckling([URL.parser]).extract(
     "http://example.com:8080. http://example.org:8080... http://localhost.:8080…",
@@ -394,6 +425,11 @@ test("URL rejects partial matches from invalid attached authorities", () => {
   ]) {
     assertEquals(Duckling([URL.parser]).extract(text), [], text);
   }
+
+  for (const separator of ["%", ":", "+", "&", "=", "(", "["]) {
+    const text = `https://${"x".repeat(300)}${separator}example.com/path`;
+    assertEquals(Duckling([URL.parser]).extract(text), [], text);
+  }
 });
 
 test("URL accepts a terminal DNS root dot before authority delimiters", () => {
@@ -414,11 +450,20 @@ test("URL accepts a terminal DNS root dot before authority delimiters", () => {
 
 test("URL accepts ordinary punctuation before bare domains", () => {
   const res = Duckling([URL.parser]).extract(
-    "Website:example.com See...example.org/path https://localhost,example.net",
+    "Website:example.com See...example.org/path https://localhost,example.net https://localhost!example.edu https://localhost<example.gov",
   );
   assertEquals(
     res.map(({ text }) => text),
-    ["example.com", "example.org/path", "https://localhost", "example.net"],
+    [
+      "example.com",
+      "example.org/path",
+      "https://localhost",
+      "example.net",
+      "https://localhost",
+      "example.edu",
+      "https://localhost",
+      "example.gov",
+    ],
   );
 });
 
