@@ -81,10 +81,7 @@ type JWTOutputs = {
 export const JWT: DefinedLanguage<JWTOutputs> = defineLanguage<JWTOutputs>({
   // Header: must begin with "eyJ" (base64url for '{"'), followed by more base64url chars
   Header: () =>
-    map(
-      seq(str("eyJ"), b64urlChars),
-      ([prefix, rest]) => `${prefix}${rest}`,
-    ),
+    map(seq(str("eyJ"), b64urlChars), ([prefix, rest]) => `${prefix}${rest}`),
 
   // Payload or signature: at least 2 base64url characters
   Segment: () => guard(b64urlChars, (s) => s.length >= 2),

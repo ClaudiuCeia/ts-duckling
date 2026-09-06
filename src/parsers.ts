@@ -58,9 +58,10 @@ export const longestLiteral = (
       }
 
       const input = ctx.text.substring(ctx.index, index).toLowerCase();
-      const candidate = candidates.find((literal) =>
-        literal.length === index - ctx.index &&
-        literal.toLowerCase() === input
+      const candidate = candidates.find(
+        (literal) =>
+          literal.length === index - ctx.index &&
+          literal.toLowerCase() === input,
       );
       if (candidate !== undefined) {
         matchedLiteral = candidate;
@@ -98,7 +99,7 @@ export const fuzzyCase = (match: string): Parser<string> => {
     const endIdx = ctx.index + match.length;
     if (
       ctx.text.substring(ctx.index, endIdx).toLowerCase() ===
-        match.toLowerCase()
+      match.toLowerCase()
     ) {
       return success({ ...ctx, index: endIdx }, match);
     } else {
@@ -139,11 +140,7 @@ export const enumerationTail = <T, U>(
       any(fuzzyCase("and"), fuzzyCase("or")),
       skip1(space()),
     ),
-    seq(
-      skip1(space()),
-      any(fuzzyCase("and"), fuzzyCase("or")),
-      skip1(space()),
-    ),
+    seq(skip1(space()), any(fuzzyCase("and"), fuzzyCase("or")), skip1(space())),
   );
   const separator = seq(str(","), optional(space()));
 

@@ -17,7 +17,7 @@ import type {
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { longestLiteral } from "./parsers.ts";
-import tlds from "@data/tlds" with { type: "json" };
+import tlds from "../data/tlds.json" with { type: "json" };
 
 const tldList = tlds.values;
 const tldParser = longestLiteral(tldList);
@@ -84,10 +84,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
           ),
           (parts) => parts.join(""),
         ),
-        map(
-          s.TLD,
-          (tld) => tld,
-        ),
+        map(s.TLD, (tld) => tld),
       ),
       (parts) => parts.join(""),
     );
@@ -115,11 +112,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
   },
   Bare: (s): Parser<URLEntity> => {
     return map(
-      seq(
-        s.Domain,
-        optional(seq(str(":"), s.Port)),
-        optional(s.Suffix),
-      ),
+      seq(s.Domain, optional(seq(str(":"), s.Port)), optional(s.Suffix)),
       ([domain, maybePort, maybeSuffix], b, a) =>
         url(
           {

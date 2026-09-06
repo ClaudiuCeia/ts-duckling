@@ -10,6 +10,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
@@ -17,10 +21,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          deno-version: v2.x
+          bun-version: 1.4.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -29,24 +33,35 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
-      - name: Verify tag matches deno.json version
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release versions
         if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
-          version="${tag#v}"
+          if [[ ! "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag '${tag}' is not a stable semantic version."
+            exit 1
+          fi
+          package_version="$(node -p "require('./package.json').version")"
           deno_version="$(node -p "require('./deno.json').version")"
-          if [[ "${deno_version}" != "${version}" ]]; then
-            echo "Tag '${tag}' does not match deno.json version '${deno_version}'."
+          if [[ "${package_version}" != "${deno_version}" ]]; then
+            echo "package.json version '${package_version}' does not match deno.json version '${deno_version}'."
+            exit 1
+          fi
+          if [[ "${tag}" != "v${package_version}" ]]; then
+            echo "Tag '${tag}' does not match package version '${package_version}'."
             exit 1
           fi
 
-      - name: Validate package
-        run: deno task check
+      - name: Run Bun checks
+        run: bun run check
 
-      - name: Build npm package
-        run: deno task build:npm
+      - name: Validate npm package
+        run: bun run package:check
 
       - name: Publish to npm
-        run: npm publish ./npm --access public
+        run: npm publish --access public

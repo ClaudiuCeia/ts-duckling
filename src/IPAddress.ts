@@ -84,61 +84,60 @@ const mkIP = (version: 4 | 6, b: Context, a: Context): IPAddressEntity => {
  * - IPv6 full form: `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
  * - IPv6 compressed: `::1`, `2001:db8::1`, `fe80::1`, `::`
  */
-export const IPAddress: DefinedLanguage<IPAddressOutputs> = defineLanguage<
-  IPAddressOutputs
->({
-  // Four octets separated by dots
-  IPv4: () =>
-    map(
-      seq(
-        octet,
-        skip1(str(".")),
-        octet,
-        skip1(str(".")),
-        octet,
-        skip1(str(".")),
-        octet,
-      ),
-      ([a, , b, , c, , d]) => `${a}.${b}.${c}.${d}`,
-    ),
-
-  // Full form: exactly 8 hex groups separated by colons
-  IPv6Full: () =>
-    map(
-      seq(hexGroup, repeat(7, seq(skip1(str(":")), hexGroup))),
-      ([first, rest]) => [first, ...rest.map(([, g]) => g)].join(":"),
-    ),
-
-  // Compressed form with :: — structural parse then semantic validation.
-  // The hex chain on each side of "::" is a leaf token (colon-separated hex
-  // groups are character-level). The "::" itself is the structural separator,
-  // expressed with combinators. Guard validates total group count ≤ 7.
-  IPv6Compressed: () =>
-    guard(
+export const IPAddress: DefinedLanguage<IPAddressOutputs> =
+  defineLanguage<IPAddressOutputs>({
+    // Four octets separated by dots
+    IPv4: () =>
       map(
-        seq(optional(hexChain), str("::"), optional(hexChain)),
-        ([left, , right]) => {
-          const l = left ?? "";
-          const r = right ?? "";
-          if (l && r) return `${l}::${r}`;
-          if (l) return `${l}::`;
-          if (r) return `::${r}`;
-          return "::";
+        seq(
+          octet,
+          skip1(str(".")),
+          octet,
+          skip1(str(".")),
+          octet,
+          skip1(str(".")),
+          octet,
+        ),
+        ([a, , b, , c, , d]) => `${a}.${b}.${c}.${d}`,
+      ),
+
+    // Full form: exactly 8 hex groups separated by colons
+    IPv6Full: () =>
+      map(
+        seq(hexGroup, repeat(7, seq(skip1(str(":")), hexGroup))),
+        ([first, rest]) => [first, ...rest.map(([, g]) => g)].join(":"),
+      ),
+
+    // Compressed form with :: — structural parse then semantic validation.
+    // The hex chain on each side of "::" is a leaf token (colon-separated hex
+    // groups are character-level). The "::" itself is the structural separator,
+    // expressed with combinators. Guard validates total group count ≤ 7.
+    IPv6Compressed: () =>
+      guard(
+        map(
+          seq(optional(hexChain), str("::"), optional(hexChain)),
+          ([left, , right]) => {
+            const l = left ?? "";
+            const r = right ?? "";
+            if (l && r) return `${l}::${r}`;
+            if (l) return `${l}::`;
+            if (r) return `::${r}`;
+            return "::";
+          },
+        ),
+        (addr) => {
+          const parts = addr.split("::");
+          if (parts.length !== 2) return false;
+          const left = parts[0] === "" ? [] : parts[0].split(":");
+          const right = parts[1] === "" ? [] : parts[1].split(":");
+          const total = left.length + right.length;
+          if (total > 7) return false;
+          return [...left, ...right].every((g) => /^[0-9a-fA-F]{1,4}$/.test(g));
         },
       ),
-      (addr) => {
-        const parts = addr.split("::");
-        if (parts.length !== 2) return false;
-        const left = parts[0] === "" ? [] : parts[0].split(":");
-        const right = parts[1] === "" ? [] : parts[1].split(":");
-        const total = left.length + right.length;
-        if (total > 7) return false;
-        return [...left, ...right].every((g) => /^[0-9a-fA-F]{1,4}$/.test(g));
-      },
-    ),
 
-  Full4: (s) => map(s.IPv4, (_, b, a) => mkIP(4, b, a)),
-  Full6: (s) => map(s.IPv6Full, (_, b, a) => mkIP(6, b, a)),
-  Full6c: (s) => map(s.IPv6Compressed, (_, b, a) => mkIP(6, b, a)),
-  parser: (s) => dot(any(s.Full4, s.Full6, s.Full6c)),
-});
+    Full4: (s) => map(s.IPv4, (_, b, a) => mkIP(4, b, a)),
+    Full6: (s) => map(s.IPv6Full, (_, b, a) => mkIP(6, b, a)),
+    Full6c: (s) => map(s.IPv6Compressed, (_, b, a) => mkIP(6, b, a)),
+    parser: (s) => dot(any(s.Full4, s.Full6, s.Full6c)),
+  });

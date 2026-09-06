@@ -1,10 +1,9 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling } from "../mod.ts";
 
-Deno.test("UUID", () => {
-  const res = Duckling().extract(
-    "id 550e8400-e29b-41d4-a716-446655440000 ok",
-  );
+test("UUID", () => {
+  const res = Duckling().extract("id 550e8400-e29b-41d4-a716-446655440000 ok");
 
   assertEquals(res, [
     {

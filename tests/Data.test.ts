@@ -1,8 +1,9 @@
-import { assert, assertEquals } from "@std/assert";
-import countries from "@data/countries-en-us" with { type: "json" };
-import languages from "@data/languages-en" with { type: "json" };
-import parserVocabulary from "@data/parser-en" with { type: "json" };
-import tlds from "@data/tlds" with { type: "json" };
+import { test } from "bun:test";
+import countries from "../data/countries-en-us.json" with { type: "json" };
+import languages from "../data/languages-en.json" with { type: "json" };
+import parserVocabulary from "../data/parser-en.json" with { type: "json" };
+import tlds from "../data/tlds.json" with { type: "json" };
+import { assert, assertEquals } from "./assert.ts";
 
 type CldrData = {
   _meta: {
@@ -72,22 +73,22 @@ const parserData = parserVocabulary as ParserData;
 const tldData = tlds as TldData;
 
 const assertSorted = (values: string[]) => {
-  assertEquals(values, values.toSorted((a, b) => a.localeCompare(b)));
+  assertEquals(
+    values,
+    [...values].sort((a, b) => a.localeCompare(b)),
+  );
 };
 
-Deno.test("CLDR data has pinned provenance and deterministic ordering", () => {
+test("CLDR data has pinned provenance and deterministic ordering", () => {
   for (const data of [countryData, languageData]) {
     assertEquals(data._meta.source, "unicode-org/cldr-json");
     assertEquals(data._meta.release, "48.2.0");
     assertEquals(data._meta.cldrVersion, "48");
     assertEquals(data._meta.locale, "en");
-    assertEquals(Object.keys(data.names), Object.keys(data.names).toSorted());
-    assertEquals(
-      Object.keys(data.aliases),
-      Object.keys(data.aliases).toSorted(),
-    );
+    assertEquals(Object.keys(data.names), Object.keys(data.names).sort());
+    assertEquals(Object.keys(data.aliases), Object.keys(data.aliases).sort());
     for (const aliases of Object.values(data.aliases)) {
-      assertEquals(aliases, aliases.toSorted());
+      assertEquals(aliases, [...aliases].sort());
     }
   }
 
@@ -100,7 +101,7 @@ Deno.test("CLDR data has pinned provenance and deterministic ordering", () => {
   ]);
 });
 
-Deno.test("CLDR territories contain exactly the ISO alpha-2 set", () => {
+test("CLDR territories contain exactly the ISO alpha-2 set", () => {
   assertEquals(Object.keys(countryData.names).length, 249);
   assertEquals(
     Object.keys(countryData.names).every((code) => /^[A-Z]{2}$/.test(code)),
@@ -114,26 +115,26 @@ Deno.test("CLDR territories contain exactly the ISO alpha-2 set", () => {
   }
 });
 
-Deno.test("CLDR language aliases map to canonical codes", () => {
+test("CLDR language aliases map to canonical codes", () => {
   assertEquals(Object.keys(languageData.names).length, 660);
   assertEquals(languageData.names.az, "Azerbaijani");
   assertEquals(languageData.aliases.az, ["Azeri"]);
   assertEquals(languageData.names["en-US"], "American English");
   assertEquals(
-    Object.keys(languageData.names).some((code) =>
-      code.includes("-alt-") || code.includes("-menu-")
+    Object.keys(languageData.names).some(
+      (code) => code.includes("-alt-") || code.includes("-menu-"),
     ),
     false,
   );
   assertEquals(
-    Object.keys(languageData.aliases).every((code) =>
-      languageData.names[code] !== undefined
+    Object.keys(languageData.aliases).every(
+      (code) => languageData.names[code] !== undefined,
     ),
     true,
   );
 });
 
-Deno.test("English parser data has pinned compact provenance and shape", () => {
+test("English parser data has pinned compact provenance and shape", () => {
   assertEquals(parserData._meta, {
     source: "unicode-org/cldr-json",
     release: "48.2.0",
@@ -170,36 +171,32 @@ Deno.test("English parser data has pinned compact provenance and shape", () => {
   ]);
 });
 
-Deno.test("English parser data is deterministically ordered", () => {
-  for (
-    const record of [
-      parserData.time.months,
-      parserData.time.relativeDays,
-      parserData.time.dayPeriods,
-      parserData.time.grains,
-      parserData.temperature.units,
-      parserData.compatibility.time.grainAbbreviations,
-      parserData.compatibility.time.relative,
-      parserData.compatibility.temperature.units,
-    ]
-  ) {
+test("English parser data is deterministically ordered", () => {
+  for (const record of [
+    parserData.time.months,
+    parserData.time.relativeDays,
+    parserData.time.dayPeriods,
+    parserData.time.grains,
+    parserData.temperature.units,
+    parserData.compatibility.time.grainAbbreviations,
+    parserData.compatibility.time.relative,
+    parserData.compatibility.temperature.units,
+  ]) {
     assertSorted(Object.keys(record));
   }
-  for (
-    const values of [
-      parserData.time.weekdays,
-      parserData.time.eras,
-      ...Object.values(parserData.time.grains),
-      parserData.compatibility.time.common,
-      parserData.compatibility.time.eras,
-      ...Object.values(parserData.compatibility.time.grainAbbreviations),
-      ...Object.values(parserData.compatibility.time.relative),
-      parserData.compatibility.quantity.under,
-      parserData.compatibility.temperature.below,
-      ...Object.values(parserData.compatibility.temperature.units),
-      parserData.compatibility.temperature.zero,
-    ]
-  ) {
+  for (const values of [
+    parserData.time.weekdays,
+    parserData.time.eras,
+    ...Object.values(parserData.time.grains),
+    parserData.compatibility.time.common,
+    parserData.compatibility.time.eras,
+    ...Object.values(parserData.compatibility.time.grainAbbreviations),
+    ...Object.values(parserData.compatibility.time.relative),
+    parserData.compatibility.quantity.under,
+    parserData.compatibility.temperature.below,
+    ...Object.values(parserData.compatibility.temperature.units),
+    parserData.compatibility.temperature.zero,
+  ]) {
     assertSorted(values);
     assertEquals(new Set(values).size, values.length);
   }
@@ -216,7 +213,7 @@ Deno.test("English parser data is deterministically ordered", () => {
   }
 });
 
-Deno.test("English parser data contains CLDR and compatibility sentinels", () => {
+test("English parser data contains CLDR and compatibility sentinels", () => {
   assertEquals(parserData.time.months.January, 1);
   assert(parserData.time.weekdays.includes("Wednesday"));
   assertEquals(parserData.time.eras, ["AD", "BC"]);
@@ -263,13 +260,13 @@ Deno.test("English parser data contains CLDR and compatibility sentinels", () =>
   assertEquals(parserData.compatibility.temperature.units.Celsius, ["C"]);
 });
 
-Deno.test("IANA TLD data has provenance and deterministic parser values", () => {
+test("IANA TLD data has provenance and deterministic parser values", () => {
   assertEquals(
     tldData._meta.source,
     "https://data.iana.org/TLD/tlds-alpha-by-domain.txt",
   );
   assert(/^\d{10}$/.test(tldData._meta.version));
-  assertEquals(tldData.values, tldData.values.toSorted());
+  assertEquals(tldData.values, [...tldData.values].sort());
   assertEquals(new Set(tldData.values).size, tldData.values.length);
   assert(tldData.values.every((value) => value === value.toLowerCase()));
 

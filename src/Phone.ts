@@ -89,81 +89,71 @@ const mkPhone = (b: Context, a: Context): PhoneEntity => {
  * - International formatted: `+1 (415) 555-2671`, `+1-415-555-2671`, `+44 20 7123 4567`
  * - US/NANP local: `(415) 555-2671`, `415-555-2671`, `415.555.2671`
  */
-export const Phone: DefinedLanguage<PhoneOutputs> = defineLanguage<
-  PhoneOutputs
->({
-  // +<8-15 digits> — strict E.164, no separators
-  E164: () =>
-    map(
-      seq(str("+"), digits(8, 15)),
-      ([plus, d]) => `${plus}${d}`,
-    ),
+export const Phone: DefinedLanguage<PhoneOutputs> =
+  defineLanguage<PhoneOutputs>({
+    // +<8-15 digits> — strict E.164, no separators
+    E164: () => map(seq(str("+"), digits(8, 15)), ([plus, d]) => `${plus}${d}`),
 
-  // (NNN) with optional trailing separator
-  ParenArea: () =>
-    map(
-      seq(str("("), digits(1, 5), str(")"), optional(horizontalWhitespace)),
-      ([, d]) => d,
-    ),
+    // (NNN) with optional trailing separator
+    ParenArea: () =>
+      map(
+        seq(str("("), digits(1, 5), str(")"), optional(horizontalWhitespace)),
+        ([, d]) => d,
+      ),
 
-  // NNN followed by - or .
-  SepArea: () =>
-    map(
-      seq(digits(3, 3), digitsSep),
-      ([d]) => d,
-    ),
+    // NNN followed by - or .
+    SepArea: () => map(seq(digits(3, 3), digitsSep), ([d]) => d),
 
-  // International: + countrycode separator groups...
-  // +1 (415) 555-2671, +44 20 7123 4567, +49-172-1234567
-  //
-  // Structure: separator comes BEFORE each subsequent group (not after).
-  // This prevents `many` from consuming the trailing word-boundary space.
-  // When `seq(sep, group)` fails (sep matches but group doesn't), `many`
-  // stays at the position before the failed seq — before the separator.
-  IntlFormatted: () => {
-    const justDigits = digits(1, 12);
-    const parenGroup = map(
-      seq(str("("), digits(1, 5), str(")")),
-      ([, d]) => d,
-    );
-    const bodyGroup = any(justDigits, parenGroup);
+    // International: + countrycode separator groups...
+    // +1 (415) 555-2671, +44 20 7123 4567, +49-172-1234567
+    //
+    // Structure: separator comes BEFORE each subsequent group (not after).
+    // This prevents `many` from consuming the trailing word-boundary space.
+    // When `seq(sep, group)` fails (sep matches but group doesn't), `many`
+    // stays at the position before the failed seq — before the separator.
+    IntlFormatted: () => {
+      const justDigits = digits(1, 12);
+      const parenGroup = map(
+        seq(str("("), digits(1, 5), str(")")),
+        ([, d]) => d,
+      );
+      const bodyGroup = any(justDigits, parenGroup);
 
-    return guard(
+      return guard(
+        map(
+          seq(
+            str("+"),
+            digits(1, 3),
+            digitsSep,
+            bodyGroup,
+            many(seq(digitsSep, bodyGroup)),
+          ),
+          (_, b, a) => b.text.substring(b.index, a.index),
+        ),
+        isValidPhone,
+      );
+    },
+
+    // US/NANP local:
+    //   (415) 555-2671
+    //   (415)555-2671
+    //   415-555-2671
+    //   415.555.2671
+    USFormatted: (s) =>
       map(
         seq(
-          str("+"),
-          digits(1, 3),
-          digitsSep,
-          bodyGroup,
-          many(seq(digitsSep, bodyGroup)),
+          any(s.ParenArea, s.SepArea),
+          digits(3, 3),
+          optional(digitsSep),
+          digits(4, 4),
         ),
-        (_, b, a) => b.text.substring(b.index, a.index),
+        () => "", // value unused, we reconstruct from span
       ),
-      isValidPhone,
-    );
-  },
 
-  // US/NANP local:
-  //   (415) 555-2671
-  //   (415)555-2671
-  //   415-555-2671
-  //   415.555.2671
-  USFormatted: (s) =>
-    map(
-      seq(
-        any(s.ParenArea, s.SepArea),
-        digits(3, 3),
-        optional(digitsSep),
-        digits(4, 4),
+    Full: (s) =>
+      map(any(s.E164, s.IntlFormatted, s.USFormatted), (_, b, a) =>
+        mkPhone(b, a),
       ),
-      () => "", // value unused, we reconstruct from span
-    ),
 
-  Full: (s) =>
-    map(
-      any(s.E164, s.IntlFormatted, s.USFormatted),
-      (_, b, a) => mkPhone(b, a),
-    ),
-
-  parser: (s) => dot(s.Full),
-});
+    parser: (s) => dot(s.Full),
+  });

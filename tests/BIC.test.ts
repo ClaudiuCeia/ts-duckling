@@ -1,8 +1,9 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { BIC } from "../src/BIC.ts";
 import { Duckling } from "../mod.ts";
 
-Deno.test("BIC 8-char (head office)", () => {
+test("BIC 8-char (head office)", () => {
   const res = Duckling([BIC.parser]).extract("Send via DEUTDEFF please");
   assertEquals(res.length, 1);
   assertEquals(res[0].kind, "bic");
@@ -16,7 +17,7 @@ Deno.test("BIC 8-char (head office)", () => {
   });
 });
 
-Deno.test("BIC 11-char (with branch)", () => {
+test("BIC 11-char (with branch)", () => {
   const res = Duckling([BIC.parser]).extract("Wire to BOFAUS3NXXX now");
   assertEquals(res.length, 1);
   assertEquals(res[0].kind, "bic");
@@ -30,14 +31,14 @@ Deno.test("BIC 11-char (with branch)", () => {
   });
 });
 
-Deno.test("BIC HSBC UK", () => {
+test("BIC HSBC UK", () => {
   const res = Duckling([BIC.parser]).extract("Use HBUKGB4B for HSBC");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.bank, "HBUK");
   assertEquals(res[0].value.country, "GB");
 });
 
-Deno.test("BIC with numeric location", () => {
+test("BIC with numeric location", () => {
   const res = Duckling([BIC.parser]).extract("Code: BNPAFRPP ok");
   assertEquals(res.length, 1);
   assertEquals(res[0].value, {
@@ -49,23 +50,23 @@ Deno.test("BIC with numeric location", () => {
   });
 });
 
-Deno.test("BIC invalid country rejected", () => {
+test("BIC invalid country rejected", () => {
   // ZZ is not a valid ISO 3166-1 country code
   const res = Duckling([BIC.parser]).extract("code AAAAZZBB ok");
   assertEquals(res.length, 0);
 });
 
-Deno.test("BIC rejects CLDR regions outside ISO 3166-1", () => {
+test("BIC rejects CLDR regions outside ISO 3166-1", () => {
   const res = Duckling([BIC.parser]).extract("code AAAAEUBB ok");
   assertEquals(res.length, 0);
 });
 
-Deno.test("BIC too short rejected (7 chars)", () => {
+test("BIC too short rejected (7 chars)", () => {
   const res = Duckling([BIC.parser]).extract("code DEUTDEF ok");
   assertEquals(res.length, 0);
 });
 
-Deno.test("BIC 9 chars rejected (not 8 or 11)", () => {
+test("BIC 9 chars rejected (not 8 or 11)", () => {
   // 9 chars is neither a valid 8-char nor 11-char BIC
   const res = Duckling([BIC.parser]).extract("code DEUTDEFFA ok");
   // The parser will match DEUTDEFF (8) and leave the A, which is fine
@@ -74,7 +75,7 @@ Deno.test("BIC 9 chars rejected (not 8 or 11)", () => {
   assertEquals(res.length, 0);
 });
 
-Deno.test("BIC in default parsers", () => {
+test("BIC in default parsers", () => {
   const res = Duckling().extract("Wire to DEUTDEFF please");
   assertEquals(
     res.some((e) => e.kind === "bic"),
@@ -82,7 +83,7 @@ Deno.test("BIC in default parsers", () => {
   );
 });
 
-Deno.test("BIC with branch digits", () => {
+test("BIC with branch digits", () => {
   const res = Duckling([BIC.parser]).extract("SWIFT: COBADEFF100 here");
   assertEquals(res.length, 1);
   assertEquals(res[0].value, {
@@ -94,7 +95,7 @@ Deno.test("BIC with branch digits", () => {
   });
 });
 
-Deno.test("BIC supports Kosovo operational code", () => {
+test("BIC supports Kosovo operational code", () => {
   const res = Duckling([BIC.parser]).extract("Send via RBKOXKPR please");
   assertEquals(res.length, 1);
   assertEquals(res[0].value.country, "XK");

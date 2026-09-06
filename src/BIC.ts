@@ -10,7 +10,7 @@ import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
-import countries from "@data/countries-en-us" with { type: "json" };
+import countries from "../data/countries-en-us.json" with { type: "json" };
 
 const countryCodes = new Set(
   Object.keys((countries as { names: Record<string, string> }).names),

@@ -19,7 +19,7 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language as DefinedLanguage } from "@claudiu-ceia/combine";
-import parserData from "@data/parser-en" with { type: "json" };
+import parserData from "../data/parser-en.json" with { type: "json" };
 import { __, dot, nonWord } from "./common.ts";
 import { ent } from "./Entity.ts";
 import { safe } from "./guard.ts";
@@ -52,15 +52,15 @@ type EnglishTimeData = {
 
 const english = parserData as EnglishTimeData;
 const longestFirst = (tokens: string[]) =>
-  [...new Set(tokens)].sort((a, b) =>
-    b.length - a.length || a.localeCompare(b)
+  [...new Set(tokens)].sort(
+    (a, b) => b.length - a.length || a.localeCompare(b),
   );
 const escapeRegex = (token: string) =>
   token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const caseInsensitiveTokens = (tokens: string[]): Parser<string> =>
   any(
     ...longestFirst(tokens).map((token) =>
-      regex(new RegExp(escapeRegex(token), "i"), token)
+      regex(new RegExp(escapeRegex(token), "i"), token),
     ),
   );
 const grainNames = Object.values(english.time.grains).flat();
@@ -178,25 +178,26 @@ const isoDateTime = (raw: string): string => {
   if (!parts) throw new RangeError("invalid ISO datetime");
   calendarDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
 
-  const date = new Date(
-    /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw) ? raw : `${raw}Z`,
-  );
+  const date = new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(raw) ? raw : `${raw}Z`);
   if (Number.isNaN(date.getTime())) {
     throw new RangeError("invalid ISO datetime");
   }
   return date.toISOString();
 };
 
-const numericDateStart = <T>(parser: Parser<T>): Parser<T> => (ctx) => {
-  const previous = ctx.text[ctx.index - 1];
-  const beforePrevious = ctx.text[ctx.index - 2];
-  const continuesDate = previous && (
-    /\d/.test(previous) ||
-    (/[\/.-]/.test(previous) && Boolean(beforePrevious) &&
-      /\d/.test(beforePrevious))
-  );
-  return continuesDate ? failure(ctx, "start of numeric date") : parser(ctx);
-};
+const numericDateStart =
+  <T>(parser: Parser<T>): Parser<T> =>
+  (ctx) => {
+    const previous = ctx.text[ctx.index - 1];
+    const beforePrevious = ctx.text[ctx.index - 2];
+    const continuesDate =
+      previous &&
+      (/\d/.test(previous) ||
+        (/[/.-]/.test(previous) &&
+          Boolean(beforePrevious) &&
+          /\d/.test(beforePrevious)));
+    return continuesDate ? failure(ctx, "start of numeric date") : parser(ctx);
+  };
 
 type TimeOutputs = {
   ISODateTimeZ: TimeEntity;
@@ -236,10 +237,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     // Example: 2004-07-12T22:18:09Z
     return safe(
       map(
-        regex(
-          /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i,
-          "iso-datetime-z",
-        ),
+        regex(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/i, "iso-datetime-z"),
         (raw, b, a) =>
           time(
             {
@@ -279,19 +277,16 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     return caseInsensitiveTokens([...grainNames, ...grainAbbreviations]);
   },
   UnspecifiedGrainAmount(_s) {
-    return map(
-      caseInsensitiveTokens(grainNames),
-      (grain, b, a) => {
-        return time(
-          {
-            when: { type: "label", value: grain },
-            grain: grain as TimeGranularity,
-          },
-          b,
-          a,
-        );
-      },
-    );
+    return map(caseInsensitiveTokens(grainNames), (grain, b, a) => {
+      return time(
+        {
+          when: { type: "label", value: grain },
+          grain: grain as TimeGranularity,
+        },
+        b,
+        a,
+      );
+    });
   },
   DayOfWeek(_s) {
     return map(
@@ -337,25 +332,17 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
         }),
     );
     const common = english.compatibility.time.common.map((name) =>
-      map(
-        fuzzyCase(name),
-        (_res, b, a) =>
-          time({ when: { type: "label", value: name }, grain: "week" }, b, a),
-      )
+      map(fuzzyCase(name), (_res, b, a) =>
+        time({ when: { type: "label", value: name }, grain: "week" }, b, a),
+      ),
     );
     const dayPeriods = Object.entries(english.time.dayPeriods).map(
       ([name, when]) =>
-        map(
-          fuzzyCase(name),
-          (_res, b, a) =>
-            time({ when: { type: "clock", time: when }, grain: "hour" }, b, a),
+        map(fuzzyCase(name), (_res, b, a) =>
+          time({ when: { type: "clock", time: when }, grain: "hour" }, b, a),
         ),
     );
-    return any(
-      ...relativeDays,
-      ...common,
-      ...dayPeriods,
-    );
+    return any(...relativeDays, ...common, ...dayPeriods);
   },
   GrainQuantity(s) {
     return map(
@@ -466,30 +453,25 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
   },
   Day(_s) {
     return any(
-      map(
-        seq(any(str("0"), str("1"), str("2")), digit()),
-        ([lead, tail]) => parseInt(`${lead}${tail}`),
+      map(seq(any(str("0"), str("1"), str("2")), digit()), ([lead, tail]) =>
+        parseInt(`${lead}${tail}`),
       ),
-      map(
-        seq(str("3"), either(str("0"), str("1"))),
-        ([lead, tail]) => parseInt(`${lead}${tail}`),
+      map(seq(str("3"), either(str("0"), str("1"))), ([lead, tail]) =>
+        parseInt(`${lead}${tail}`),
       ),
       digit(),
     );
   },
   Year(_s) {
     return any(
-      map(
-        repeat(4, digit()),
-        (digits) => parseInt(digits.reduce((acc, d) => `${acc}${d}`, "")),
+      map(repeat(4, digit()), (digits) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, "")),
       ),
-      map(
-        repeat(2, digit()),
-        (digits) => parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19")),
+      map(repeat(2, digit()), (digits) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19")),
       ),
-      map(
-        seq(str("'"), repeat(2, digit())),
-        ([, digits]) => parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19")),
+      map(seq(str("'"), repeat(2, digit())), ([, digits]) =>
+        parseInt(digits.reduce((acc, d) => `${acc}${d}`, "19")),
       ),
     );
   },
@@ -500,9 +482,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     return safe(
       map(
         any(
-          numericDateStart(
-            seq(s.NumericMonth, s.DateSeparator, s.Year),
-          ),
+          numericDateStart(seq(s.NumericMonth, s.DateSeparator, s.Year)),
           seq(s.LiteralMonth, s.DateSeparator, s.Year),
         ),
         ([month, , year], b, a) => {
@@ -521,12 +501,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
   },
   QualifiedDay(s) {
     return map(
-      __(
-        seq(
-          s.Day,
-          optional(any(str("st"), str("nd"), str("rd"), str("th"))),
-        ),
-      ),
+      __(seq(s.Day, optional(any(str("st"), str("nd"), str("rd"), str("th"))))),
       ([day]) => day,
     );
   },
@@ -566,10 +541,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     );
 
     return map(
-      seq(
-        ordinal,
-        peekValue(enumerationTail(ordinal, dot(s.QualifiedGrain))),
-      ),
+      seq(ordinal, peekValue(enumerationTail(ordinal, dot(s.QualifiedGrain)))),
       ([current, final], b, a) =>
         time(
           {
@@ -605,13 +577,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
     // YYYY-MM-DD (and optional time HH:MM[:SS])
     return safe(
       map(
-        seq(
-          s.Year,
-          str("-"),
-          s.NumericMonth,
-          str("-"),
-          s.Day,
-        ),
+        seq(s.Year, str("-"), s.NumericMonth, str("-"), s.Day),
         ([year, , month, , day], b, a) => {
           return time(
             {
@@ -707,11 +673,7 @@ export const Time: DefinedLanguage<TimeOutputs> = defineLanguage<TimeOutputs>({
             s.Year,
           ),
           ([day, , month, , year], b, a) =>
-            time(
-              { when: calendarDate(year, month, day), grain: "day" },
-              b,
-              a,
-            ),
+            time({ when: calendarDate(year, month, day), grain: "day" }, b, a),
         ),
         "valid date",
       ),

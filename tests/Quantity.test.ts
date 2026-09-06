@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import { Duckling, Quantity } from "../mod.ts";
 
-Deno.test("Quantity", () => {
+test("Quantity", () => {
   const res = Duckling().extract(
     "How many did you get? more than 3 or less than 171176?",
   );
@@ -28,7 +29,7 @@ Deno.test("Quantity", () => {
   ]);
 });
 
-Deno.test("CommaSeparated", () => {
+test("CommaSeparated", () => {
   const res = Duckling().extract(
     "Among the cities with a population over 100,000 people",
   );
@@ -46,7 +47,7 @@ Deno.test("CommaSeparated", () => {
   ]);
 });
 
-Deno.test("FractionalComma", () => {
+test("FractionalComma", () => {
   const res = Duckling().extract("There are at least 100,000.24 things");
 
   assertEquals(res, [
@@ -62,7 +63,7 @@ Deno.test("FractionalComma", () => {
   ]);
 });
 
-Deno.test("Literal quantity", () => {
+test("Literal quantity", () => {
   const res = Quantity.innerParser({
     text: `10 million`,
     index: 0,
@@ -83,7 +84,7 @@ Deno.test("Literal quantity", () => {
   }
 });
 
-Deno.test("Literal quantity no false positive", () => {
+test("Literal quantity no false positive", () => {
   const res = Duckling().extract("10 BCE");
 
   assertEquals(
@@ -92,7 +93,7 @@ Deno.test("Literal quantity no false positive", () => {
   );
 });
 
-Deno.test("Just literal", () => {
+test("Just literal", () => {
   const res = Duckling().extract("I have a thousand questions");
 
   assertEquals(res, [
@@ -108,7 +109,7 @@ Deno.test("Just literal", () => {
   ]);
 });
 
-Deno.test("Short literal", () => {
+test("Short literal", () => {
   const res = Duckling().extract("I have a 1K questions");
 
   assertEquals(res, [
@@ -124,7 +125,7 @@ Deno.test("Short literal", () => {
   ]);
 });
 
-Deno.test("CLDR compact multipliers cover every long and short tier", () => {
+test("CLDR compact multipliers cover every long and short tier", () => {
   const cases: [string, number][] = [
     ["1 thousand", 1e3],
     ["2 million", 2e6],
@@ -142,7 +143,7 @@ Deno.test("CLDR compact multipliers cover every long and short tier", () => {
   }
 });
 
-Deno.test("CLDR numeric symbols and plus-minus compatibility are preserved", () => {
+test("CLDR numeric symbols and plus-minus compatibility are preserved", () => {
   const cases: [string, number][] = [
     ["1,234.5", 1234.5],
     ["+12", 12],
@@ -156,7 +157,7 @@ Deno.test("CLDR numeric symbols and plus-minus compatibility are preserved", () 
   }
 });
 
-Deno.test("legacy quantity multiplier spellings remain compatible", () => {
+test("legacy quantity multiplier spellings remain compatible", () => {
   const cases: [string, number][] = [
     ["hundred", 1e2],
     ["hundreds", 1e2],
