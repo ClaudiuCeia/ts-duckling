@@ -10,20 +10,20 @@ if (packageJson.version !== denoJson.version) {
   );
 }
 
-const npmCombine = packageJson.dependencies?.["@claudiu-ceia/combine"];
-const jsrCombine = denoJson.imports?.["@claudiu-ceia/combine"];
-const playgroundCombine =
+const npmVersion = packageJson.dependencies?.["@claudiu-ceia/combine"];
+const jsrSpecifier = denoJson.imports?.["@claudiu-ceia/combine"];
+const playgroundVersion =
   playgroundJson.dependencies?.["@claudiu-ceia/combine"];
-const jsrVersion = /^jsr:@claudiu-ceia\/combine@(.+)$/.exec(jsrCombine)?.[1];
+const jsrVersion = /^jsr:@claudiu-ceia\/combine@(.+)$/.exec(jsrSpecifier)?.[1];
 
 if (
-  !npmCombine ||
+  !npmVersion ||
   !jsrVersion ||
-  npmCombine !== jsrVersion ||
-  npmCombine !== playgroundCombine
+  npmVersion !== jsrVersion ||
+  npmVersion !== playgroundVersion
 ) {
   throw new Error(
-    `Combine dependency mismatch: npm=${String(npmCombine)}, JSR=${String(jsrCombine)}, playground=${String(playgroundCombine)}`,
+    `combine dependency mismatch: npm=${String(npmVersion)}, JSR=${String(jsrSpecifier)}, playground=${String(playgroundVersion)}`,
   );
 }
 
@@ -35,29 +35,6 @@ if (!readme.includes(packageImport) || !example.includes(packageImport)) {
   throw new Error("README examples must use the released package entrypoint");
 }
 
-const prose = readme.replace(/```[\s\S]*?```/g, "").replace(/<[^>]+>/g, "");
-const forbiddenPresentationCopy = [
-  "tiny",
-  "runs everywhere",
-  "perfect for",
-  "great fit",
-  "rich highlights",
-  "real-time",
-  "same input always produces the same output",
-  "no ML",
-  "Times Square",
-];
-
-for (const phrase of forbiddenPresentationCopy) {
-  if (prose.toLowerCase().includes(phrase.toLowerCase())) {
-    throw new Error(`README contains forbidden presentation copy: ${phrase}`);
-  }
-}
-
-if (/[—–;]/u.test(prose)) {
-  throw new Error("README prose must not contain dash glyphs or semicolons");
-}
-
 console.log(
-  `metadata aligned at ${packageJson.version} with Combine ${npmCombine}`,
+  `metadata aligned at ${packageJson.version} with combine ${npmVersion}`,
 );

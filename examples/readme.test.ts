@@ -14,9 +14,9 @@ const primaryText =
   "The review is on May 18, 2024. Notes are at https://example.com/brief and contact alex@company.io";
 
 const primaryOutput = [
-  'time May 18, 2024 {"when":{"type":"date","year":2024,"month":5,"day":18},"grain":"day","era":"CE"}',
-  'url https://example.com/brief {"url":"https://example.com/brief"}',
-  'email alex@company.io {"email":"alex@company.io"}',
+  'time [17, 29) May 18, 2024 {"when":{"type":"date","year":2024,"month":5,"day":18},"grain":"day","era":"CE"}',
+  'url [44, 69) https://example.com/brief {"url":"https://example.com/brief"}',
+  'email [82, 97) alex@company.io {"email":"alex@company.io"}',
 ].join("\n");
 
 test("primary extraction example and documented output", async () => {
@@ -26,7 +26,7 @@ test("primary extraction example and documented output", async () => {
   const output = entities
     .map(
       (entity) =>
-        `${entity.kind} ${entity.text} ${JSON.stringify(entity.value)}`,
+        `${entity.kind} [${entity.start}, ${entity.end}) ${entity.text} ${JSON.stringify(entity.value)}`,
     )
     .join("\n");
 

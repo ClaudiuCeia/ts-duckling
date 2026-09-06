@@ -1,12 +1,12 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@claudiu-ceia/combine@0.8.1": "0.8.1",
+    "jsr:@claudiu-ceia/combine@0.11.2": "0.11.2",
     "jsr:@std/crypto@1": "1.1.0"
   },
   "jsr": {
-    "@claudiu-ceia/combine@0.8.1": {
-      "integrity": "466d0ae52cb70d3136ed6fb4f9f0a1fee384f5513a221a05282183e3ed77b9b1"
+    "@claudiu-ceia/combine@0.11.2": {
+      "integrity": "c03dfb1b3e996bb0149dcd3f938e718eeac564669910903d5909bc8c43ba8c47"
     },
     "@std/crypto@1.1.0": {
       "integrity": "b8d6d0a6377a32b213af2661ed7bf1062d94feac0c57def5526a8e74a95c3ec8"
@@ -14,7 +14,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@claudiu-ceia/combine@0.8.1",
+      "jsr:@claudiu-ceia/combine@0.11.2",
       "jsr:@std/crypto@1"
     ]
   }

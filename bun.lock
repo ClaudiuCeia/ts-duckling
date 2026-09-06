@@ -5,7 +5,7 @@
     "": {
       "name": "@claudiu-ceia/ts-duckling",
       "dependencies": {
-        "@claudiu-ceia/combine": "0.8.1",
+        "@claudiu-ceia/combine": "0.11.2",
         "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz",
       },
       "devDependencies": {
@@ -22,7 +22,7 @@
       "name": "@claudiu-ceia/ts-duckling-playground",
       "version": "1.0.0",
       "dependencies": {
-        "@claudiu-ceia/combine": "0.8.1",
+        "@claudiu-ceia/combine": "0.11.2",
         "@mozilla/readability": "^0.6.0",
         "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz",
         "react": "^19.2.8",
@@ -49,7 +49,7 @@
 
     "@braidai/lang": ["@braidai/lang@1.1.2", "", {}, "sha512-qBcknbBufNHlui137Hft8xauQMTZDKdophmLFv05r2eNmdIv/MlPuP4TdUknHG68UdWLgVZwgxVe735HzJNIwA=="],
 
-    "@claudiu-ceia/combine": ["@claudiu-ceia/combine@0.8.1", "", {}, "sha512-o/gLgpJ9vSzfXiDdUxGNOp1gb85YF99/16eUJ0jUtMs937sPQ83GtwGMBsxngfZblVc0iyF2X014C75FLEOh3g=="],
+    "@claudiu-ceia/combine": ["@claudiu-ceia/combine@0.11.2", "", {}, "sha512-kSf/eEW1ej1ia5jWtGaINnRv3RH0ix4HRUMRt0iF4Equr+OTZZPGwpQPg/40FfrIoSso+Fe/wqADPww+sZcB6w=="],
 
     "@claudiu-ceia/ts-duckling-playground": ["@claudiu-ceia/ts-duckling-playground@workspace:docs"],
 

@@ -31,16 +31,21 @@ const entities = duckling.extract(
 );
 
 for (const entity of entities) {
-  console.log(entity.kind, entity.text, JSON.stringify(entity.value));
+  console.log(
+    entity.kind,
+    `[${entity.start}, ${entity.end})`,
+    entity.text,
+    JSON.stringify(entity.value),
+  );
 }
 ```
 
 Output:
 
 ```text
-time May 18, 2024 {"when":{"type":"date","year":2024,"month":5,"day":18},"grain":"day","era":"CE"}
-url https://example.com/brief {"url":"https://example.com/brief"}
-email alex@company.io {"email":"alex@company.io"}
+time [17, 29) May 18, 2024 {"when":{"type":"date","year":2024,"month":5,"day":18},"grain":"day","era":"CE"}
+url [44, 69) https://example.com/brief {"url":"https://example.com/brief"}
+email [82, 97) alex@company.io {"email":"alex@company.io"}
 ```
 
 Passing an explicit parser list controls what Duckling looks for and narrows
@@ -167,8 +172,7 @@ callback receives the entity and the already-rendered text for its span.
 `PIIParsers` detects configured sensitive formats and `.redact()` provides
 basic span replacement. Use
 [`@claudiu-ceia/pii-mask`](https://github.com/ClaudiuCeia/pii-mask) for nested
-object traversal, reusable masking policies, caching, and Pino or Winston
-integration.
+object traversal, reusable masking policies, and Pino or Winston integration.
 
 ```ts
 import { Duckling, PIIParsers } from "@claudiu-ceia/ts-duckling";
@@ -187,8 +191,15 @@ identifiers rather than universally defined PII.
 
 ## Custom entities
 
-Any Combine parser that returns an `Entity` can be used alongside the built-in
+Any combine parser that returns an `Entity` can be used alongside the built-in
 parsers.
+
+Custom entity definitions use combine directly, so add it as an application
+dependency:
+
+```sh
+bun add @claudiu-ceia/combine
+```
 
 ```ts
 import { defineLanguage, map, regex } from "@claudiu-ceia/combine";
@@ -210,7 +221,7 @@ const Hashtag = defineLanguage<{
 const entities = Duckling([Hashtag.parser]).extract("Ship #duckling");
 ```
 
-See [Combine](https://github.com/ClaudiuCeia/combine) for grammar construction.
+See [combine](https://github.com/ClaudiuCeia/combine) for grammar construction.
 
 ## Scope and accuracy
 
@@ -226,15 +237,21 @@ See [Combine](https://github.com/ClaudiuCeia/combine) for grammar construction.
 Use a narrow parser list and test against representative input. Do not enable
 entity categories that the application does not need.
 
+## Relationship to Duckling
+
+ts-duckling was inspired by Meta's Duckling, but it is not a TypeScript port.
+It has its own API, grammars, supported entity set, and language scope.
+
 ## Runtime support
 
 The published package is runtime-neutral TypeScript and ESM.
 
 Bun is the primary development toolchain. npm packages are tested on Bun and
 supported Node versions. The same source is published to JSR and checked with
-Deno. Browser support is exercised through the playground build.
+Deno. The playground bundles the package for the browser and is built in CI.
 
-CI pins Bun 1.4.0, tests Node 24 and 26, and checks the JSR source with Deno 2.x.
+CI pins Bun 1.4.0, tests Node 22, 24, and 26, and checks the JSR source with Deno
+2.x.
 
 The playground is part of the Bun workspace. Its source remains under `docs/`
 because GitHub Pages publishes that directory.

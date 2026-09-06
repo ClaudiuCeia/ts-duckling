@@ -69,7 +69,7 @@
     "hooks:uninstall": "rm -f .git/hooks/pre-commit"
   },
   "dependencies": {
-    "@claudiu-ceia/combine": "0.8.1",
+    "@claudiu-ceia/combine": "0.11.2",
     "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz"
   },
   "devDependencies": {
@@ -82,7 +82,7 @@
     "typescript": "~5.9.0"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "packageManager": "bun@1.4.0"
 }

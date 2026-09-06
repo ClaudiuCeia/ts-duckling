@@ -27,7 +27,7 @@
     ]
   },
   "imports": {
-    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.8.1",
+    "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.11.2",
     "@std/crypto": "jsr:@std/crypto@1"
   }
 }
