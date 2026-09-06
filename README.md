@@ -300,8 +300,8 @@ Run the playground with `bun run docs:dev` and build it with
 Deno remains part of compatibility and JSR validation:
 
 ```sh
-DENO_NO_PACKAGE_JSON=1 deno check --frozen-lockfile mod.ts
-DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen-lockfile
+DENO_NO_PACKAGE_JSON=1 deno check --frozen mod.ts
+DENO_NO_PACKAGE_JSON=1 deno publish --dry-run --frozen
 ```
 
 ## License
