@@ -52,6 +52,14 @@ test("URL ftp", () => {
   ]);
 });
 
+test("URL protocol parser preserves source casing", () => {
+  for (const protocol of ["HTTP", "HTTPS", "FTP", "FTPS"]) {
+    const result = URL.Protocol({ text: protocol, index: 0 });
+    assertEquals(result.success, true, protocol);
+    if (result.success) assertEquals(result.value, protocol);
+  }
+});
+
 test("URL with path + fragment (Wikipedia)", () => {
   const text =
     "See https://en.wikipedia.org/wiki/Master_Juba#England_tour,_1848 for more";
@@ -393,6 +401,15 @@ test("URL recognizes Markdown and Unicode text boundaries", () => {
     URL.FullHost({ text: "example.com@user", index: 0 }).success,
     false,
   );
+});
+
+test("URL rejects starts attached to astral Unicode words", () => {
+  for (const text of [
+    "\u{10400}https://example.com",
+    "\u{1e800}https://example.com",
+  ]) {
+    assertEquals(Duckling([URL.parser]).extract(text), [], text);
+  }
 });
 
 test("URL separates adjacent links and markup", () => {

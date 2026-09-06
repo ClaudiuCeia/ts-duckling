@@ -1,18 +1,27 @@
 import {
   any,
+  charWhere,
   type Context,
   defineLanguage,
+  digit,
   eof,
   failure,
+  hexDigit,
+  keepNonNull,
   many,
+  many1,
   map,
+  mapJoin,
   not,
   optional,
   peek,
   regex,
+  repeat,
   seq,
+  skipMany1,
   space,
   str,
+  trie,
 } from "@claudiu-ceia/combine";
 import type {
   Language as DefinedLanguage,
@@ -24,62 +33,157 @@ import { guard } from "./guard.ts";
 import { longestLiteral } from "./parsers.ts";
 import tlds from "../data/tlds.json" with { type: "json" };
 
+const maxDomainLength = 253;
+const maxLabelLength = 63;
+const maxDomainLabels = Math.ceil(maxDomainLength / 2);
+
+const protocolNames = ["https", "http", "ftps", "ftp"];
+const protocolsWithSeparator = protocolNames.map((name) => `${name}://`);
+const protocol = map(
+  longestLiteral(protocolNames, { caseInsensitive: true }),
+  (_name, before, after) => before.text.substring(before.index, after.index),
+);
+
 const tldList = tlds.values;
 const tldParser = longestLiteral(tldList, { caseInsensitive: true });
 const normalizedTlds = new Set(
   tldList.map((tld) => tld.normalize("NFC").toLowerCase()),
 );
 
-const maxDomainLength = 253;
-const maxLabelLength = 63;
-const domainLabel = regex(
-  /[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}-]{0,61}[\p{L}\p{M}\p{N}])?/u,
-  "domain label",
+const unicodeBoundaries = [
+  "\u2013",
+  "\u2014",
+  "\u2018",
+  "\u2019",
+  "\u201c",
+  "\u201d",
+  "\u2026",
+];
+const textBoundaryCharacters = [
+  "<",
+  ",",
+  ";",
+  "!",
+  ")",
+  "]",
+  "}",
+  '"',
+  "'",
+  ">",
+  "`",
+  ...unicodeBoundaries,
+];
+const authorityBreakCharacters = new Set([
+  "/",
+  "?",
+  "#",
+  ",",
+  ";",
+  ")",
+  "]",
+  "}",
+  '"',
+  "'",
+  ">",
+  "`",
+  ...unicodeBoundaries,
+]);
+const bareLookbehindBreakCharacters = new Set([
+  ...authorityBreakCharacters,
+  "<",
+]);
+const completeUrlBreakCharacters = new Set(
+  textBoundaryCharacters.filter((character) => character !== "!"),
+);
+const plainSuffixReservedCharacters = new Set([
+  ...textBoundaryCharacters,
+  "(",
+  "[",
+  "{",
+  ".",
+  "?",
+  "#",
+]);
+const balancedGroupBreakCharacters = new Set([
+  "<",
+  ">",
+  '"',
+  "`",
+  ...unicodeBoundaries,
+]);
+
+const oneOfCharacters = (characters: readonly string[]): Parser<string> =>
+  trie([...characters]);
+
+const nonWhitespaceCharacterExcept = (
+  excluded: ReadonlySet<string>,
+): Parser<string> =>
+  charWhere((code) => {
+    const character = String.fromCharCode(code);
+    return !isWhitespace(character) && !excluded.has(character);
+  });
+
+const atMost = <T>(count: number, parser: Parser<T>): Parser<T[]> =>
+  keepNonNull(repeat(count, optional(parser)));
+
+const unicodeLetterOrNumberPattern = /[\p{L}\p{N}]/u;
+const unicodeLetterMarkOrNumberPattern = /[\p{L}\p{M}\p{N}]/u;
+const unicodeLetterOrNumber = regex(
+  unicodeLetterOrNumberPattern,
+  "Unicode letter or number",
+);
+const unicodeLetterMarkOrNumber = regex(
+  unicodeLetterMarkOrNumberPattern,
+  "Unicode letter, mark, or number",
+);
+
+const domainLabelCharacter = any(unicodeLetterMarkOrNumber, str("-"));
+const domainLabel = guard(
+  map(
+    seq(
+      unicodeLetterOrNumber,
+      atMost(maxLabelLength - 1, domainLabelCharacter),
+    ),
+    ([first, rest]) => `${first}${rest.join("")}`,
+  ),
+  (label) => [...label].length <= maxLabelLength && !label.endsWith("-"),
+  "valid domain label",
 );
 const dotLabel = map(
   seq(str("."), domainLabel),
   ([dot, label]) => `${dot}${label}`,
 );
 const dnsName = map(
-  seq(domainLabel, many(dotLabel)),
+  seq(domainLabel, atMost(maxDomainLabels - 1, dotLabel)),
   ([first, rest]) => `${first}${rest.join("")}`,
 );
 
-const authorityDelimiter = any(str(":"), str("/"), str("?"), str("#"));
+const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
 const textBoundary = any(
   space(),
   eof(),
-  regex(
-    /[<,;!)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]/u,
-    "URL text boundary",
-  ),
+  oneOfCharacters(textBoundaryCharacters),
 );
-const sentencePeriod = regex(
-  /\.+(?=$|\s|[<,;!)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026])/u,
-  "terminal period",
+const sentencePeriod = seq(
+  regex(/[.]+/, "sentence periods"),
+  peek(textBoundary),
 );
-const sentenceColon = map(
-  seq(str(":"), peek(textBoundary)),
-  ([colon]) => colon,
-);
-const emptySuffixDelimiter = map(
-  seq(any(str("?"), str("#")), peek(textBoundary)),
-  ([delimiter]) => delimiter,
+const sentenceColon = seq(str(":"), peek(textBoundary));
+const emptySuffixDelimiter = seq(
+  oneOfCharacters(["?", "#"]),
+  peek(textBoundary),
 );
 const hostBoundary = peek(
   any(authorityDelimiter, textBoundary, sentencePeriod),
 );
 const portBoundary = peek(
-  any(str("/"), str("?"), str("#"), textBoundary, sentencePeriod),
+  any(oneOfCharacters(["/", "?", "#"]), textBoundary, sentencePeriod),
 );
 
-const protocolStart = seq(
-  any(regex(/https?/i, "http"), regex(/ftps?/i, "ftp")),
-  str("://"),
-);
-const adjacentProtocolBoundary = map(
-  seq(regex(/[.,;!]+/, "URL separator"), peek(protocolStart)),
-  ([separator]) => separator,
+const protocolStart = seq(protocol, str("://"));
+const adjacentProtocolBoundary = seq(
+  skipMany1(oneOfCharacters([".", ",", ";", "!"])),
+  peek(protocolStart),
 );
 const completeEntityBoundary = peek(
   any(
@@ -91,46 +195,52 @@ const completeEntityBoundary = peek(
   ),
 );
 
-const plainSuffixPart = regex(
-  /[^\s<>"'`()\x5b\x5d{},.;!?\u2013\u2014\u2018\u2019\u201c\u201d\u2026#]+/u,
-  "URL suffix part",
+const plainSuffixCharacter = nonWhitespaceCharacterExcept(
+  plainSuffixReservedCharacters,
 );
-const suffixPartStart = any(plainSuffixPart, str("("), str("["), str("{"));
+const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
+const suffixPartStart = any(plainSuffixPart, oneOfCharacters(["(", "[", "{"]));
 const internalSuffixPunctuation = map(
   seq(
-    regex(/[.,;!?'#]+/u, "internal URL punctuation"),
+    mapJoin(many1(oneOfCharacters([".", ",", ";", "!", "?", "'", "#"]))),
     not(protocolStart),
     peek(suffixPartStart),
   ),
   ([punctuation]) => punctuation,
 );
-const unmatchedOpening = any(str("("), str("["), str("{"));
+
+const balancedGroup = (open: string, close: string): Parser<string> => {
+  const bodyCharacter = nonWhitespaceCharacterExcept(
+    new Set([...balancedGroupBreakCharacters, open, close]),
+  );
+  const simpleGroup = map(
+    seq(str(open), many(bodyCharacter), str(close)),
+    ([open, body, close]) => `${open}${body.join("")}${close}`,
+  );
+
+  return map(
+    seq(str(open), many(any(simpleGroup, bodyCharacter)), str(close)),
+    ([open, body, close]) => `${open}${body.join("")}${close}`,
+  );
+};
+
 const balancedSuffixPart = any(
-  regex(
-    /\((?:[^()\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]|\([^()\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]*\))*\)/u,
-    "parenthesized URL part",
-  ),
-  regex(
-    /\[(?:[^\x5b\x5d\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]|\[[^\x5b\x5d\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]*\])*\]/u,
-    "bracketed URL part",
-  ),
-  regex(
-    /\{(?:[^{}\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]|\{[^{}\s<>"`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]*\})*\}/u,
-    "braced URL part",
-  ),
+  balancedGroup("(", ")"),
+  balancedGroup("[", "]"),
+  balancedGroup("{", "}"),
 );
 const suffixPart = any(
   balancedSuffixPart,
   plainSuffixPart,
   internalSuffixPunctuation,
-  unmatchedOpening,
+  oneOfCharacters(["(", "[", "{"]),
 );
 const slashSuffix = map(
   seq(str("/"), many(suffixPart)),
   ([slash, parts]) => `${slash}${parts.join("")}`,
 );
 const queryOrFragmentSuffix = map(
-  seq(any(str("?"), str("#")), suffixPart, many(suffixPart)),
+  seq(oneOfCharacters(["?", "#"]), suffixPart, many(suffixPart)),
   ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
 );
 
@@ -168,54 +278,100 @@ function isValidBracketedHost(host: string): boolean {
   }
 }
 
+function isWhitespace(character: string): boolean {
+  return character.length > 0 && character.trim().length === 0;
+}
+
+function previousCharacter(text: string, index: number): string {
+  const lastCodeUnit = text.charCodeAt(index - 1);
+  if (lastCodeUnit >= 0xdc00 && lastCodeUnit <= 0xdfff && index >= 2) {
+    const firstCodeUnit = text.charCodeAt(index - 2);
+    if (firstCodeUnit >= 0xd800 && firstCodeUnit <= 0xdbff) {
+      return text.slice(index - 2, index);
+    }
+  }
+
+  return text[index - 1] ?? "";
+}
+
+function containsBreakCharacter(
+  text: string,
+  breakCharacters: ReadonlySet<string>,
+): boolean {
+  return [...text].some(
+    (character) => isWhitespace(character) || breakCharacters.has(character),
+  );
+}
+
+function lastProtocolStart(
+  text: string,
+): { index: number; length: number } | null {
+  const folded = text.toLowerCase();
+  let latest: { index: number; length: number } | null = null;
+
+  for (const candidate of protocolsWithSeparator) {
+    const index = folded.lastIndexOf(candidate);
+    if (index >= 0 && (latest === null || index > latest.index)) {
+      latest = { index, length: candidate.length };
+    }
+  }
+
+  return latest;
+}
+
 function hasCompleteUrlBefore(text: string, index: number): boolean {
   const prefix = text.substring(
     Math.max(0, index - maxDomainLength - 16),
     index,
   );
-  const match =
-    /(?:https?|ftps?):\/\/[^\s<,;!)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]+$/i.exec(
-      prefix,
-    );
-  if (!match) return false;
+  const start = lastProtocolStart(prefix);
+  if (start === null) return false;
+
+  const candidate = prefix.slice(start.index);
+  if (containsBreakCharacter(candidate, completeUrlBreakCharacters)) {
+    return false;
+  }
 
   try {
-    return new globalThis.URL(match[0]).hostname.length > 0;
+    return new globalThis.URL(candidate).hostname.length > 0;
   } catch {
     return false;
   }
 }
 
+function hasAttachedScheme(prefix: string): boolean {
+  const start = lastProtocolStart(prefix);
+  if (start === null) return false;
+
+  const authority = prefix.slice(start.index + start.length);
+  return !containsBreakCharacter(authority, authorityBreakCharacters);
+}
+
 function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.index === 0) return false;
+  if (ctx.text[ctx.index] === ".") return true;
 
-  const previous = ctx.text[ctx.index - 1];
-  if (/[\p{L}\p{M}\p{N}_@/%-]/u.test(previous)) return true;
+  const previous = previousCharacter(ctx.text, ctx.index);
+  if (
+    unicodeLetterMarkOrNumberPattern.test(previous) ||
+    "_@/%-".includes(previous)
+  ) {
+    return true;
+  }
   if (previous === "." && ctx.text[ctx.index - 2] !== ".") return true;
   if (previous === "!" && hasCompleteUrlBefore(ctx.text, ctx.index - 1)) {
     return false;
   }
-  if (
-    /[\s<,;)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]/u.test(previous)
-  ) {
+  if (isWhitespace(previous) || bareLookbehindBreakCharacters.has(previous)) {
     return false;
   }
 
   const start = Math.max(0, ctx.index - maxDomainLength - 16);
   const prefix = ctx.text.substring(start, ctx.index);
-  if (
-    /(?:https?|ftps?):\/\/[^\s/?#,;)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]*$/i.test(
-      prefix,
-    )
-  ) {
-    return true;
-  }
+  if (hasAttachedScheme(prefix)) return true;
 
   return (
-    start > 0 &&
-    !/[\s/?#<,;)\]}"'>`\u2013\u2014\u2018\u2019\u201c\u201d\u2026]/u.test(
-      prefix,
-    )
+    start > 0 && !containsBreakCharacter(prefix, bareLookbehindBreakCharacters)
   );
 }
 
@@ -229,10 +385,18 @@ function withStartBoundary<T>(
 
 const validDnsName = guard(dnsName, isValidDnsName, "valid hostname");
 const rootDot = map(seq(str("."), peek(authorityDelimiter)), ([dot]) => dot);
+const ipv6Character = any(hexDigit(), str(":"), str("."));
+const ipv6Address = mapJoin(
+  guard(
+    atMost(45, ipv6Character),
+    (characters) => characters.length >= 2,
+    "IPv6 address",
+  ),
+);
 const bracketedHost = guard(
   map(
-    seq(str("["), regex(/[0-9A-Fa-f:.]{2,45}/, "IPv6 address"), str("]")),
-    (parts) => parts.join(""),
+    seq(str("["), ipv6Address, str("]")),
+    ([open, address, close]) => `${open}${address}${close}`,
   ),
   isValidBracketedHost,
   "valid IPv6 host",
@@ -262,6 +426,14 @@ const bareDomain = withStartBoundary(
   ),
   hasInvalidBareStart,
   "domain boundary",
+);
+const portNumber = guard(
+  map(
+    guard(atMost(5, digit()), (digits) => digits.length > 0, "port digits"),
+    (digits) => digits.reduce((port, value) => port * 10 + value, 0),
+  ),
+  (port) => port >= 1 && port <= 65535,
+  "port 1-65535",
 );
 
 /**
@@ -301,20 +473,9 @@ type URLOutputs = {
  * URL parser language (http/https/ftp with optional port, path, query, fragment).
  */
 export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
-  Protocol: () => any(regex(/https?/i, "http"), regex(/ftps?/i, "ftp")),
+  Protocol: () => protocol,
   TLD: () => tldParser,
-  Port: () =>
-    map(
-      seq(
-        guard(
-          map(regex(/[0-9]{1,5}/, "port"), (digits) => parseInt(digits, 10)),
-          (port) => port >= 1 && port <= 65535,
-          "port 1-65535",
-        ),
-        portBoundary,
-      ),
-      ([port]) => port,
-    ),
+  Port: () => map(seq(portNumber, portBoundary), ([port]) => port),
   Suffix: () => any(slashSuffix, queryOrFragmentSuffix),
   Domain: () => bareDomain,
   FullHost: () => fullHost,
@@ -342,7 +503,10 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
           ),
       ),
       (ctx) =>
-        ctx.index > 0 && /[\p{L}\p{M}\p{N}_]/u.test(ctx.text[ctx.index - 1]),
+        ctx.index > 0 &&
+        unicodeLetterMarkOrNumberPattern.test(
+          previousCharacter(ctx.text, ctx.index),
+        ),
       "URL boundary",
     ),
   Bare: (symbol) =>
