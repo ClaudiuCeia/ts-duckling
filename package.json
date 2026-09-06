@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Extract typed dates, times, URLs, countries, quantities, and sensitive values from text.",
   "keywords": [
     "browser",
