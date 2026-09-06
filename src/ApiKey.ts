@@ -16,7 +16,7 @@ import { ent, type Entity } from "./Entity.ts";
 /**
  * API key entity for a set of common providers.
  *
- * This intentionally targets "high precision" deterministic prefixes (no ML).
+ * This intentionally targets recognized provider prefixes.
  */
 export type ApiKeyEntity = Entity<
   "api_key",

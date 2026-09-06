@@ -1,19 +1,19 @@
 {
-  "name": "docs",
-  "private": true,
-  "type": "module",
+  "name": "@claudiu-ceia/ts-duckling-playground",
   "version": "1.0.0",
-  "description": "Interactive playground for ts-duckling",
+  "private": true,
+  "description": "Browser playground for typed entity extraction with ts-duckling",
+  "license": "MIT",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
-  "license": "MIT",
   "dependencies": {
-    "@claudiu-ceia/combine": "npm:@jsr/claudiu-ceia__combine@0.8.0",
+    "@claudiu-ceia/combine": "0.8.1",
     "@mozilla/readability": "^0.6.0",
-    "@std/crypto": "npm:@jsr/std__crypto@1.1.0",
+    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

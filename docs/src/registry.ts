@@ -26,7 +26,7 @@ const parserInfo: Record<ParserId, Omit<ParserInfo, "id">> = {
   },
   Location: {
     label: "Location",
-    desc: "Countries and cities (dataset-backed)",
+    desc: "Countries only (dataset-backed)",
   },
   URL: {
     label: "URL",
@@ -46,7 +46,7 @@ const parserInfo: Record<ParserId, Omit<ParserInfo, "id">> = {
   SSN: { label: "SSN", desc: "US SSN: AAA-GG-SSSS (basic constraints)" },
   CreditCard: {
     label: "Credit card",
-    desc: "13–19 digits (spaces/dashes) + Luhn",
+    desc: "13 to 19 digits (spaces/dashes) + Luhn",
   },
   UUID: { label: "UUID", desc: "Canonical 8-4-4-4-12 UUID" },
   ApiKey: { label: "API key", desc: "Common API key patterns" },
@@ -106,16 +106,23 @@ export const PARSER_PRIORITY: ParserId[] = [
 ];
 
 export const PRESETS: Record<string, string> = {
-  mixed: [
-    "Email me at no-reply+foo@some.domain.dev.",
-    "Visit https://duckling.deno.dev/.",
-    "Call +14155552671.",
-    "SSN 123-45-6789. CC 4242 4242 4242 4242.",
-    "IP 192.168.0.1 and 2001:0db8:85a3:0000:0000:8a2e:0370:7334.",
-    "We met 2 days ago and it was 20 C.",
+  chat: [
+    "The review is on May 18, 2024.",
+    "Notes are at https://example.com/brief and contact alex@company.io",
+  ].join(" "),
+  support: [
+    "Ticket opened January 5, 2022 for a customer in Germany.",
+    "Reply to help@example.com or call +14155552671.",
+  ].join(" "),
+  log: [
+    "2024-05-18T10:30:00Z request from 192.168.0.1",
     "id 550e8400-e29b-41d4-a716-446655440000",
   ].join(" "),
-  pii: [
+  dates: [
+    "Between 2018 and 2022, usage grew from 2 million to 3,500,000.",
+    "The next review is Friday at 3pm and the limit is 20 C.",
+  ].join(" "),
+  sensitive: [
     "no-reply+foo@some.domain.dev",
     "+14155552671",
     "192.168.0.1",
@@ -128,9 +135,4 @@ export const PRESETS: Record<string, string> = {
     "0x52908400098527886E0F7030069857D2E4169EE7",
     "DEUTDEFF",
   ].join("\n"),
-  article: [
-    "Between 2018 and 2022, we saw a big shift in browser runtimes.",
-    "On January 5, 2022, the project started shipping weekly releases.",
-    "Reach out at hello@example.com or visit https://example.com/docs.",
-  ].join("\n\n"),
 };

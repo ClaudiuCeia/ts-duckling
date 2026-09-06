@@ -1,17 +1,25 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
   "version": "0.7.0",
-  "description": "A tiny, deterministic entity extractor for TypeScript.",
+  "description": "Extract typed dates, times, URLs, countries, quantities, and sensitive values from text.",
   "keywords": [
+    "browser",
     "bun",
+    "date-parser",
     "deno",
     "entity-extraction",
-    "parser",
-    "pii",
-    "redaction",
-    "typescript"
+    "nlp",
+    "nodejs",
+    "parser-combinators",
+    "pii-detection",
+    "sensitive-data",
+    "structured-data",
+    "text-parsing",
+    "time-parser",
+    "typescript",
+    "url-parser"
   ],
-  "homepage": "https://github.com/ClaudiuCeia/ts-duckling#readme",
+  "homepage": "https://claudiuceia.github.io/ts-duckling/",
   "bugs": {
     "url": "https://github.com/ClaudiuCeia/ts-duckling/issues"
   },
@@ -20,6 +28,9 @@
     "type": "git",
     "url": "git+https://github.com/ClaudiuCeia/ts-duckling.git"
   },
+  "workspaces": [
+    "docs"
+  ],
   "files": [
     "dist",
     "LICENSE",
@@ -36,19 +47,23 @@
     }
   },
   "scripts": {
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test",
-    "format": "oxfmt mod.ts src tests bench scripts package.json deno.json tsconfig.json tsconfig.build.json",
-    "format:check": "oxfmt --check mod.ts src tests bench scripts package.json deno.json tsconfig.json tsconfig.build.json",
-    "lint": "oxlint --deny-warnings mod.ts src tests bench scripts",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run metadata:check && bun run test",
+    "format": "oxfmt mod.ts src tests examples docs/examples bench scripts package.json deno.json tsconfig.json tsconfig.build.json README.md",
+    "format:check": "oxfmt --check mod.ts src tests examples docs/examples bench scripts package.json deno.json tsconfig.json tsconfig.build.json README.md",
+    "lint": "oxlint --deny-warnings mod.ts src tests examples docs/examples bench scripts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "bun test ./tests",
+    "examples:check": "bun test ./examples && bun test --cwd docs ./examples",
+    "metadata:check": "bun run scripts/check_metadata.ts",
     "coverage": "bun test --coverage ./tests",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "package:check": "bun run build && publint && attw --pack . --profile esm-only",
+    "package:check": "bun run build && bun run examples:check && publint && attw --pack . --profile esm-only",
     "prepack": "bun run build",
     "bench": "bun run bench/extract.bench.ts && bun run bench/vocabulary.bench.ts",
     "bench:extract": "bun run bench/extract.bench.ts",
     "bench:vocabulary": "bun run bench/vocabulary.bench.ts",
+    "docs:dev": "bun run --cwd docs dev",
+    "docs:build": "bun run --cwd docs build",
     "update:data": "bun run scripts/update_data.ts",
     "hooks:install": "ln -sf ../../scripts/pre-commit .git/hooks/pre-commit && chmod +x scripts/pre-commit",
     "hooks:uninstall": "rm -f .git/hooks/pre-commit"
