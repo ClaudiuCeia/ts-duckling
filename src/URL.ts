@@ -235,7 +235,7 @@ const percentEncodedOctet = map(
   (_value, before, after) => before.text.substring(before.index, after.index),
 );
 const domainLabelStart = any(
-  regex(/[\p{L}\p{N}\p{So}]/u, "Unicode hostname label start"),
+  regex(/[\p{L}\p{N}\p{Sk}\p{So}]/u, "Unicode hostname label start"),
   str("_"),
   contextualIdnaCharacter,
 );
@@ -308,8 +308,8 @@ const compatibilityDot: Parser<string> = (ctx) => {
   return compatibilityDotCharacter(ctx);
 };
 const compatibilityDotLabel = map(
-  seq(compatibilityDot, domainLabel),
-  ([dot, label]) => `${dot}${label}`,
+  seq(compatibilityDot, not(protocolStart), domainLabel),
+  ([dot, , label]) => `${dot}${label}`,
 );
 const asciiDnsName = map(
   seq(domainLabel, atMost(maxDomainLabels - 1, asciiDotLabel)),
@@ -1005,7 +1005,10 @@ function isIpv4Host(host: string): boolean {
 }
 
 function isSpecialHost(host: string): boolean {
-  const canonical = host.endsWith(".") ? host.slice(0, -1) : host;
+  const normalized = normalizeDnsName(host) ?? host;
+  const canonical = normalized.endsWith(".")
+    ? normalized.slice(0, -1)
+    : normalized;
   return (
     canonical.toLowerCase() === "localhost" ||
     canonical.startsWith("[") ||

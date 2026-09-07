@@ -223,7 +223,13 @@ test("URL accepts uppercase TLD and hyphens in full URL", () => {
 });
 
 test("URL accepts Unicode label in full URL", () => {
-  const urls = ["https://münchen.de/", "https://👍🏽.com/"];
+  const urls = [
+    "https://münchen.de/",
+    "https://👍🏽.com/",
+    "https://🏽.com/",
+    "https://foo.🏽.com/",
+    "🏽.com",
+  ];
   assertEquals(
     Duckling([URL.parser])
       .extract(urls.join(" "))
@@ -622,6 +628,20 @@ test("URL treats compatibility periods after ports as prose boundaries", () => {
   );
 });
 
+test("URL normalizes special hosts before compatibility-dot boundaries", () => {
+  for (const separator of ["。", "．", "｡"]) {
+    const urls = ["http://ℓocalhost", "http://127.1"];
+    const input = urls.map((url) => `${url}${separator}谢谢`).join(" ");
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(input)
+        .map(({ text }) => text),
+      urls,
+      separator,
+    );
+  }
+});
+
 test("URL rejects IDN hostname continuations after ports", () => {
   for (const separator of ["。", "．", "｡"]) {
     for (const tail of ["中国/path", "例子.中国/path"]) {
@@ -924,6 +944,19 @@ test("URL separates period-delimited host-only links", () => {
       "https://[::1]",
     ],
   );
+});
+
+test("URL separates schemes after compatibility full stops", () => {
+  for (const separator of ["。", "．", "｡"]) {
+    const input = `http://example.com${separator}https://b.com/x`;
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(input)
+        .map(({ text }) => text),
+      ["http://example.com", "https://b.com/x"],
+      separator,
+    );
+  }
 });
 
 test("URL rejects partial matches from invalid attached authorities", () => {
