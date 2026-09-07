@@ -878,6 +878,7 @@ test("URL handles dense domain-shaped candidates without repeated lookbehind", (
   const malformed = `https://${"x".repeat(64)}+example.com+`;
   assertEquals(Duckling([URL.parser]).extract(malformed.repeat(400)), []);
   assertEquals(Duckling([URL.parser]).extract("谢谢。".repeat(100)), []);
+  assertEquals(Duckling([URL.parser]).extract("😀".repeat(4000)), []);
 });
 
 test("URL treats prose dashes as boundaries outside host labels", () => {

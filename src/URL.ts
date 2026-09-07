@@ -8,7 +8,6 @@ import {
   eof,
   failure,
   hexDigit,
-  keepNonNull,
   many,
   many1,
   map,
@@ -18,9 +17,7 @@ import {
   pending,
   peek,
   regex,
-  repeat,
   seq,
-  skipMany,
   skipMany1,
   space,
   str,
@@ -39,6 +36,7 @@ import tlds from "../data/tlds.json" with { type: "json" };
 
 const maxDomainLength = 253;
 const maxLabelLength = 63;
+const maxDomainLabelUnits = maxLabelLength * 4;
 const maxDomainLabels = Math.ceil(maxDomainLength / 2);
 const maxAttachedDelimiterLength = 64;
 
@@ -222,8 +220,25 @@ const nonWhitespaceCharacterExcept = (
     return !isWhitespace(character) && !excluded.has(character);
   });
 
-const atMost = <T>(count: number, parser: Parser<T>): Parser<T[]> =>
-  keepNonNull(repeat(count, optional(parser)));
+const atMost =
+  <T>(count: number, parser: Parser<T>): Parser<T[]> =>
+  (ctx) => {
+    const values: T[] = [];
+    let next = ctx;
+    while (values.length < count) {
+      const result = parser(next);
+      if (!result.success) {
+        if ("pending" in result || result.fatal) return result;
+        break;
+      }
+      if (result.ctx.index <= next.index) {
+        return failure(next, "bounded parser must consume input");
+      }
+      values.push(result.value);
+      next = result.ctx;
+    }
+    return success(next, values);
+  };
 
 const contextualIdnaCharacters = [
   "\u00b7",
@@ -273,7 +288,10 @@ const domainLabelContinuation = any(
 );
 const domainLabel = guard(
   map(
-    seq(domainLabelStart, skipMany(domainLabelContinuation)),
+    seq(
+      domainLabelStart,
+      atMost(maxDomainLabelUnits - 1, domainLabelContinuation),
+    ),
     (_value, before, after) => before.text.substring(before.index, after.index),
   ),
   (label) => !label.startsWith("-") && !label.endsWith("-"),
@@ -283,7 +301,10 @@ const encodedDomainLabel = guard(
   map(
     seq(
       any(domainLabelStart, percentEncodedOctet),
-      skipMany(any(domainLabelContinuation, percentEncodedOctet)),
+      atMost(
+        maxDomainLabelUnits - 1,
+        any(domainLabelContinuation, percentEncodedOctet),
+      ),
     ),
     (_value, before, after) => before.text.substring(before.index, after.index),
   ),
@@ -1247,6 +1268,8 @@ function exceedsAttachedDelimiterHorizon(text: string, index: number): boolean {
 
 function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.index === 0) return false;
+  const currentCodeUnit = ctx.text.charCodeAt(ctx.index);
+  if (currentCodeUnit >= 0xdc00 && currentCodeUnit <= 0xdfff) return true;
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
@@ -1396,10 +1419,30 @@ const bareDnsName = guard(
   hasKnownTld,
   "hostname with an IANA TLD",
 );
+const bareDomainSeparatorAhead: Parser<null> = (ctx) => {
+  let cursor = ctx.index;
+  for (let units = 0; units < maxDomainLabelUnits; units += 1) {
+    const codePoint = ctx.text.codePointAt(cursor);
+    if (codePoint === undefined) {
+      return ctx.final === false
+        ? pending(ctx, "bare domain separator")
+        : failure(ctx, "bare domain separator");
+    }
+    const character = String.fromCodePoint(codePoint);
+    if (character === "." || compatibilityDots.includes(character)) {
+      return success(ctx, null);
+    }
+    if (!isDomainLabelCharacter(character) && character !== "%") {
+      return failure(ctx, "bare domain separator");
+    }
+    cursor += character.length;
+  }
+  return failure(ctx, "bare domain separator");
+};
 const bareDomain = withStartBoundary(
   map(
-    seq(bareDnsName, optional(rootDot), hostBoundary),
-    ([host, dot]) => `${host}${dot ?? ""}`,
+    seq(bareDomainSeparatorAhead, bareDnsName, optional(rootDot), hostBoundary),
+    ([, host, dot]) => `${host}${dot ?? ""}`,
   ),
   hasInvalidBareStart,
   "domain boundary",
