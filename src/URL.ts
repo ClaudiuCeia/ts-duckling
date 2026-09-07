@@ -85,6 +85,13 @@ const unicodeSentencePunctuation = [
   "\uff1f",
   "\uff61",
 ];
+const unicodeTerminalSentencePunctuation = [
+  "\u3002",
+  "\uff01",
+  "\uff0e",
+  "\uff1f",
+  "\uff61",
+];
 const suffixPunctuationCharacters = [
   ".",
   ",",
@@ -198,6 +205,7 @@ const contextualIdnaCharacters = [
 ];
 const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
+const unicodeUrlContentCharacterPattern = /[\p{L}\p{M}\p{N}\p{S}]/u;
 const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
 const asciiLetterOrNumberPattern = /[A-Za-z0-9]/;
 const contextualIdnaCharacter = oneOfCharacters(contextualIdnaCharacters);
@@ -238,6 +246,12 @@ const asciiDotLabel = map(
   ([dot, , label]) => `${dot}${label}`,
 );
 const compatibilityDotCharacter = oneOfCharacters(compatibilityDots);
+const rootDotCharacter = any(str("."), compatibilityDotCharacter);
+const repeatedRootDotsBeforeAuthority = seq(
+  rootDotCharacter,
+  skipMany1(rootDotCharacter),
+  peek(authorityDelimiter),
+);
 const rawCompatibilityDotLabel = map(
   seq(compatibilityDotCharacter, domainLabel),
   ([dot, label]) => `${dot}${label}`,
@@ -329,6 +343,7 @@ const ordinaryTextBoundary = any(
 );
 const repeatedSentencePeriods = map(
   seq(
+    not(repeatedRootDotsBeforeAuthority),
     str("."),
     mapJoin(many1(str("."))),
     not(oneOfCharacters([":", "/", "?", "#", "@", "\\"])),
@@ -378,37 +393,49 @@ const adjacentProtocolBoundary = seq(
   peek(protocolStart),
 );
 const hostBoundary = peek(
-  any(
-    authorityDelimiter,
-    textBoundary,
-    sentencePeriod,
-    adjacentProtocolBoundary,
+  seq(
+    not(repeatedRootDotsBeforeAuthority),
+    any(
+      authorityDelimiter,
+      textBoundary,
+      sentencePeriod,
+      adjacentProtocolBoundary,
+    ),
   ),
 );
 const ordinaryHostBoundary = peek(
-  any(
-    authorityDelimiter,
-    ordinaryTextBoundary,
-    terminalCompatibilityDot,
-    singleSentencePeriod,
-    adjacentProtocolBoundary,
+  seq(
+    not(repeatedRootDotsBeforeAuthority),
+    any(
+      authorityDelimiter,
+      ordinaryTextBoundary,
+      terminalCompatibilityDot,
+      singleSentencePeriod,
+      adjacentProtocolBoundary,
+    ),
   ),
 );
 const registeredHostBoundary = peek(
-  any(
-    authorityDelimiter,
-    textBoundary,
-    singleSentencePeriod,
-    adjacentProtocolBoundary,
+  seq(
+    not(repeatedRootDotsBeforeAuthority),
+    any(
+      authorityDelimiter,
+      textBoundary,
+      singleSentencePeriod,
+      adjacentProtocolBoundary,
+    ),
   ),
 );
 const portBoundary = peek(
-  any(
-    oneOfCharacters(["/", "?", "#"]),
-    ordinaryTextBoundary,
-    terminalCompatibilityDot,
-    proseCompatibilityDot,
-    sentencePeriod,
+  seq(
+    not(repeatedRootDotsBeforeAuthority),
+    any(
+      oneOfCharacters(["/", "?", "#"]),
+      ordinaryTextBoundary,
+      terminalCompatibilityDot,
+      proseCompatibilityDot,
+      sentencePeriod,
+    ),
   ),
 );
 const completeEntityBoundary = peek(
@@ -644,6 +671,72 @@ function hasKnownHostBeforeRepeatedPeriods(
   return hasKnownTld(text.substring(hostStart, hostEnd));
 }
 
+function hasKnownHostBeforeRootDots(text: string, index: number): boolean {
+  let authorityEnd = index;
+  while (authorityEnd > 0) {
+    const character = previousCharacter(text, authorityEnd);
+    if (character !== "." && !compatibilityDots.includes(character)) break;
+    authorityEnd -= character.length;
+  }
+  if (authorityEnd === index) return false;
+
+  let authorityStart = authorityEnd;
+  while (authorityStart > 0) {
+    const character = previousCharacter(text, authorityStart);
+    if (
+      isWhitespace(character) ||
+      "/<,;!?\"'>`".includes(character) ||
+      character === "#"
+    ) {
+      break;
+    }
+    authorityStart -= character.length;
+  }
+
+  const authority = text.substring(authorityStart, authorityEnd);
+  const authorityPrefix = text
+    .substring(Math.max(0, authorityStart - 8), authorityStart)
+    .toLowerCase();
+  if (
+    protocolsWithSeparator.some((candidate) =>
+      authorityPrefix.endsWith(candidate),
+    )
+  ) {
+    return true;
+  }
+
+  let host = authority;
+  if (authority.startsWith("[")) {
+    const closingBracket = authority.indexOf("]");
+    if (closingBracket < 0) return false;
+    const remainder = authority.slice(closingBracket + 1);
+    if (remainder.length > 0 && !remainder.startsWith(":")) return false;
+    host = authority.slice(0, closingBracket + 1);
+  } else {
+    const colon = authority.indexOf(":");
+    if (colon >= 0) host = authority.slice(0, colon);
+  }
+  return hasKnownTld(host) || isSpecialHost(host);
+}
+
+function hasMalformedRootAuthorityBefore(text: string, index: number): boolean {
+  const earliest = Math.max(0, index - maxDomainLength - 32);
+  for (let cursor = index; cursor > earliest;) {
+    const character = previousCharacter(text, cursor);
+    cursor -= character.length;
+    if (isWhitespace(character) || "/<,;!)]}\"'>`".includes(character)) {
+      return false;
+    }
+    if (
+      [":", "?", "#"].includes(character) &&
+      hasKnownHostBeforeRootDots(text, cursor)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isKnownTldLabel(label: string): boolean {
   return label.length > 0 && hasKnownTld(`example.${label}`);
 }
@@ -712,10 +805,17 @@ function isUnicodeProseBoundary(
   if (nextCodePoint === undefined) return false;
 
   const next = String.fromCodePoint(nextCodePoint);
+  const punctuation = text.substring(punctuationStart, punctuationEnd);
+  const followsUnicodeContentAtSentenceEnd =
+    unicodeUrlContentCharacterPattern.test(previous) &&
+    [...punctuation].some((character) =>
+      unicodeTerminalSentencePunctuation.includes(character),
+    );
   return (
-    asciiLetterOrNumberPattern.test(previous) &&
     unicodeWordCharacterPattern.test(next) &&
-    !asciiLetterOrNumberPattern.test(next)
+    !asciiLetterOrNumberPattern.test(next) &&
+    (asciiLetterOrNumberPattern.test(previous) ||
+      followsUnicodeContentAtSentenceEnd)
   );
 }
 
@@ -803,6 +903,7 @@ function hasAttachedScheme(prefix: string): boolean {
 
 function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.index === 0) return false;
+  if (hasMalformedRootAuthorityBefore(ctx.text, ctx.index)) return true;
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
@@ -880,7 +981,10 @@ const validFullDnsName = guard(
   isValidDnsName,
   "valid hostname",
 );
-const rootDot = map(seq(str("."), peek(authorityDelimiter)), ([dot]) => dot);
+const rootDot = map(
+  seq(rootDotCharacter, peek(authorityDelimiter)),
+  ([dot]) => dot,
+);
 const ipv6Character = any(hexDigit(), str(":"), str("."));
 const ipv6Address = mapJoin(
   guard(

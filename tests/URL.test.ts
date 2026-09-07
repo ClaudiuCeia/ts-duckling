@@ -698,6 +698,28 @@ test("URL preserves CJK punctuation inside suffixes", () => {
       .map(({ text }) => text),
     ["https://example.com/path"],
   );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "请访问 https://example.com/路径。谢谢 https://example.org/?q=路径！继续",
+      )
+      .map(({ text }) => text),
+    ["https://example.com/路径", "https://example.org/?q=路径"],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://example.com/😀。谢谢 https://example.org/©！继续 https://example.net/?q=✓？完成",
+      )
+      .map(({ text }) => text),
+    [
+      "https://example.com/😀",
+      "https://example.org/©",
+      "https://example.net/?q=✓",
+    ],
+  );
 });
 
 test("URL treats repeated periods as sentence punctuation", () => {
@@ -814,6 +836,25 @@ test("URL separates period-delimited host-only links", () => {
 test("URL rejects partial matches from invalid attached authorities", () => {
   for (const text of [
     "https://user:pass@example.com/path",
+    "https://example.com。:abc.com/x",
+    "https://localhost｡:80evil.com",
+    "example.com。:abc.com/x",
+    "https://example.com。。?next.com",
+    "https://example.com。:80。evil.com/x",
+    "https://[::1]。。?next.com",
+    "https://[::1]:80。。#next.com",
+    "https://[::1]:000080。。:abc.com/x",
+    "https://example.com:1.5。。?next.com",
+    "https://localhost:1.5。。#next.com",
+    "https://example.invalid。。?next.com",
+    "http://intranet。.#next.com",
+    "https://user:pass@example.com。。?next.com",
+    `https://${"x".repeat(300)}。.#next.com`,
+    "https://127.0.0.1:1.5。.:abc.com/x",
+    "https://example.com:80。。?next.com",
+    "https://example.com:80。。#next.com",
+    "https://example.com:80。。:abc.com/x",
+    "https://example.com:80。.:abc.com/x",
     "https://%zz.example.com/path",
     "https://example%6x.com/path",
     "https://%2dexample.com/path",
@@ -858,11 +899,31 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     const text = `https://${"x".repeat(300)}${separator}example.com/path`;
     assertEquals(Duckling([URL.parser]).extract(text), [], text);
   }
+
+  for (const first of [".", "。", "．", "｡"]) {
+    for (const second of [".", "。", "．", "｡"]) {
+      if (first === "." && second === ".") continue;
+      const text = `https://example.com${first}${second}/path`;
+      assertEquals(Duckling([URL.parser]).extract(text), [], text);
+    }
+  }
+
+  for (const dots of ["..。", "..．", "..｡"]) {
+    for (const continuation of [
+      "/path",
+      "?next.com",
+      "#next.com",
+      ":8080/path",
+    ]) {
+      const text = `https://example.com${dots}${continuation}`;
+      assertEquals(Duckling([URL.parser]).extract(text), [], text);
+    }
+  }
 });
 
 test("URL accepts a terminal DNS root dot before authority delimiters", () => {
   const res = Duckling([URL.parser]).extract(
-    "https://example.com./path http://localhost.:8080/ example.com./path example.org.:8080/path example.net.?q=1",
+    "https://example.com./path http://localhost.:8080/ example.com./path example.org.:8080/path example.net.?q=1 https://example.com。/path https://example.com．?q=1 https://example.com｡:8080/path",
   );
   assertEquals(
     res.map(({ text }) => text),
@@ -872,6 +933,9 @@ test("URL accepts a terminal DNS root dot before authority delimiters", () => {
       "example.com./path",
       "example.org.:8080/path",
       "example.net.?q=1",
+      "https://example.com。/path",
+      "https://example.com．?q=1",
+      "https://example.com｡:8080/path",
     ],
   );
 });
