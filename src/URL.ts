@@ -135,6 +135,21 @@ const unicodeHostBoundaries = [
   ...balancedOpeningCharacters,
 ];
 const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
+const forbiddenHostBoundaryCharacters = [
+  "^",
+  "\u061c",
+  "\u200e",
+  "\u200f",
+  "\u202a",
+  "\u202b",
+  "\u202c",
+  "\u202d",
+  "\u202e",
+  "\u2066",
+  "\u2067",
+  "\u2068",
+  "\u2069",
+];
 const textBoundaryCharacters = [
   "<",
   "*",
@@ -152,6 +167,7 @@ const textBoundaryCharacters = [
   "'",
   ">",
   "`",
+  ...forbiddenHostBoundaryCharacters,
   ...unicodeHostBoundaries,
 ];
 const authorityBreakCharacters = new Set([
@@ -416,10 +432,18 @@ const compatibilityDot: Parser<string> = (ctx) => {
   const canUseUnknownTld =
     !hasKnownTail &&
     hasSchemeQualifiedHostImmediatelyBefore(ctx.text, ctx.index);
+  const rawTail = rawCompatibilityHostTail(ctx);
+  const hasTerminalUnknownTail =
+    canUseUnknownTld &&
+    !hasKnownTldLabelBefore(ctx.text, ctx.index) &&
+    !hasSpecialHostImmediatelyBefore(ctx.text, ctx.index) &&
+    rawTail.success &&
+    ordinaryTextBoundary(rawTail.ctx).success;
   if (
     mayBeProse &&
     ((!hasKnownTail && !canUseUnknownTld) ||
-      !meaningfulCompatibilityHostTail(ctx).success)
+      (!hasTerminalUnknownTail &&
+        !meaningfulCompatibilityHostTail(ctx).success))
   ) {
     return failure(ctx, "hostname compatibility dot");
   }
@@ -592,7 +616,7 @@ const portBoundary = peek(
   seq(
     not(repeatedRootDotsBeforeAuthority),
     any(
-      oneOfCharacters(["/", "?", "#"]),
+      oneOfCharacters(["/", "?", "#", "\\"]),
       ordinaryTextBoundary,
       terminalCompatibilityDot,
       proseCompatibilityDot,
@@ -616,8 +640,12 @@ const completeEntityBoundary = peek(
   ),
 );
 
-const plainSuffixCharacter = nonWhitespaceCharacterExcept(
+const plainSuffixCharacterValue = nonWhitespaceCharacterExcept(
   plainSuffixReservedCharacters,
+);
+const plainSuffixCharacter = map(
+  seq(not(htmlEntity), plainSuffixCharacterValue),
+  ([, character]) => character,
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
 const unmatchedOpeningPunctuation = map(
@@ -666,20 +694,18 @@ const createBalancedSuffixPart = (
     if (codePoint === undefined) break;
     const character = String.fromCodePoint(codePoint);
     const previous = previousCharacter(text, index);
-    const previousResult = plainSuffixCharacter({
-      text,
-      index: index - previous.length,
-    });
-    const nextResult = plainSuffixCharacter({
-      text,
-      index: index + character.length,
-    });
+    const nextCodePoint = text.codePointAt(index + character.length);
+    const next =
+      nextCodePoint === undefined ? "" : String.fromCodePoint(nextCodePoint);
     const internalTypographicApostrophe =
       character === "\u2019" &&
       index > startIndex &&
-      previousResult.success &&
-      previousResult.ctx.index === index &&
-      nextResult.success;
+      previous.length > 0 &&
+      !isWhitespace(previous) &&
+      !plainSuffixReservedCharacters.has(previous) &&
+      next.length > 0 &&
+      !isWhitespace(next) &&
+      !plainSuffixReservedCharacters.has(next);
     const startsAdjacentUrl =
       index > startIndex &&
       ".,;!([{".includes(text[index - 1]) &&
@@ -687,6 +713,7 @@ const createBalancedSuffixPart = (
     if (
       startsAdjacentUrl ||
       isWhitespace(character) ||
+      htmlEntity({ text, index }).success ||
       (balancedGroupBreakCharacters.has(character) &&
         !balancedOpeningCharacters.includes(character) &&
         !balancedClosingCharacters.includes(character) &&
@@ -821,6 +848,16 @@ function previousCharacterBeforeVariationSelectors(
 ): string {
   let cursor = index;
   let character = previousCharacter(text, cursor);
+  if (character === "\u20e3") {
+    const keycap = character;
+    cursor -= character.length;
+    character = previousCharacter(text, cursor);
+    while (/[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(character)) {
+      cursor -= character.length;
+      character = previousCharacter(text, cursor);
+    }
+    return /^[#*0-9]$/.test(character) ? "" : keycap;
+  }
   while (/[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(character)) {
     cursor -= character.length;
     character = previousCharacter(text, cursor);

@@ -709,6 +709,21 @@ test("URL accepts unknown Unicode TLDs after compatibility dots", () => {
   }
 });
 
+test("URL accepts terminal unknown Unicode TLDs after compatibility dots", () => {
+  for (const dot of ["。", "．", "｡"]) {
+    const url = `https://例え${dot}テスト`;
+    for (const suffix of ["", " "]) {
+      assertEquals(
+        Duckling([URL.parser])
+          .extract(`${url}${suffix}`)
+          .map(({ text }) => text),
+        [url],
+        `${dot}${suffix}`,
+      );
+    }
+  }
+});
+
 test("URL rejects IDN hostname continuations after ports", () => {
   for (const separator of ["。", "．", "｡"]) {
     for (const tail of ["中国/path", "例子.中国/path"]) {
@@ -989,6 +1004,15 @@ test("URL treats safe symbols and HTML entities as host boundaries", () => {
   );
 });
 
+test("URL treats forbidden hostname characters as boundaries", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com^next a.com\u200enext")
+      .map(({ text }) => text),
+    ["https://a.com", "a.com"],
+  );
+});
+
 test("URL treats safe symbols as boundaries for unregistered full hosts", () => {
   assertEquals(
     Duckling([URL.parser])
@@ -1024,6 +1048,38 @@ test("URL accepts backslashes as special URL path separators", () => {
   );
 });
 
+test("URL accepts backslash paths after explicit ports", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://a.com:80\\path http://localhost:80\\share ftp://example.com:21\\file example.com:80\\path",
+      )
+      .map(({ text }) => text),
+    [
+      "https://a.com:80\\path",
+      "http://localhost:80\\share",
+      "ftp://example.com:21\\file",
+      "example.com:80\\path",
+    ],
+  );
+});
+
+test("URL stops suffixes before adjacent HTML entities", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://a.com/path&nbsp;next https://b.com/?q=1&#160;next https://c.com/#value&#xA0;next example.org/path&nbsp;next",
+      )
+      .map(({ text }) => text),
+    [
+      "https://a.com/path",
+      "https://b.com/?q=1",
+      "https://c.com/#value",
+      "example.org/path",
+    ],
+  );
+});
+
 test("URL rejects starts attached to Unicode words and connectors", () => {
   for (const text of [
     "\u{10400}https://example.com",
@@ -1048,6 +1104,18 @@ test("URL classifies start boundaries before emoji variation selectors", () => {
     );
   }
   assertEquals(Duckling([URL.parser]).extract("a️https://example.com"), []);
+});
+
+test("URL classifies keycap emoji as start boundaries", () => {
+  for (const keycap of ["1️⃣", "#️⃣", "*️⃣"]) {
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(`${keycap}https://example.com`)
+        .map(({ text }) => text),
+      ["https://example.com"],
+      keycap,
+    );
+  }
 });
 
 test("URL separates adjacent links and markup", () => {
@@ -1352,7 +1420,7 @@ test("URL keeps external wrappers outside nested completion checks", () => {
 
 test("URL handles ASCII and typographic apostrophes contextually", () => {
   const res = Duckling([URL.parser]).extract(
-    "See 'https://example.com/O'Brien' and https://example.org/O’Brien then https://example.edu/(O’Brien) and ‘https://example.net/path’",
+    "See 'https://example.com/O'Brien' and https://example.org/O’Brien then https://example.edu/(O’Brien) and https://example.gov/(😀’s) plus https://example.mil/(𐐀’s) and ‘https://example.net/path’",
   );
   assertEquals(
     res.map(({ text }) => text),
@@ -1360,6 +1428,8 @@ test("URL handles ASCII and typographic apostrophes contextually", () => {
       "https://example.com/O'Brien",
       "https://example.org/O’Brien",
       "https://example.edu/(O’Brien)",
+      "https://example.gov/(😀’s)",
+      "https://example.mil/(𐐀’s)",
       "https://example.net/path",
     ],
   );
