@@ -510,6 +510,16 @@ test("URL preserves a valid port before a terminal period", () => {
   );
 });
 
+test("URL preserves a valid port before a sentence colon", () => {
+  const res = Duckling([URL.parser]).extract(
+    "Server http://localhost:8080: ready; mirror https://example.com:0: ready",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["http://localhost:8080", "https://example.com:0"],
+  );
+});
+
 test("URL rejects decimal port :1.5", () => {
   assertEquals(Duckling([URL.parser]).extract("http://example.com:1.5"), []);
 });
@@ -893,6 +903,7 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     `https://${"x".repeat(64)}+。example.com/path`,
     "https://;.;example.org/path",
     "https://[/],example.org/path",
+    `https://${Array.from({ length: 4 }, () => "%61".repeat(60)).join(".")}:80。evil.com/path`,
     "https://user:pass@example.com\u201cexample.org/path",
     "https://example.com:65536\u201cexample.org/path",
     "https://example.com:1.5\u201cexample.org/path",

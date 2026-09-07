@@ -38,6 +38,7 @@ import { longestLiteral } from "./parsers.ts";
 import tlds from "../data/tlds.json" with { type: "json" };
 
 const maxDomainLength = 253;
+const maxRawDomainLength = maxDomainLength * 3;
 const maxLabelLength = 63;
 const maxDomainLabels = Math.ceil(maxDomainLength / 2);
 const maxAttachedDelimiterLength = 64;
@@ -435,6 +436,7 @@ const portBoundary = peek(
       terminalCompatibilityDot,
       proseCompatibilityDot,
       sentencePeriod,
+      sentenceColon,
     ),
   ),
 );
@@ -908,7 +910,7 @@ function hasKnownHostBeforeRootDots(text: string, index: number): boolean {
 }
 
 function hasMalformedRootAuthorityBefore(text: string, index: number): boolean {
-  const earliest = Math.max(0, index - maxDomainLength - 32);
+  const earliest = Math.max(0, index - maxRawDomainLength - 32);
   for (let cursor = index; cursor > earliest;) {
     const character = previousCharacter(text, cursor);
     cursor -= character.length;
@@ -1089,7 +1091,7 @@ function hasCompleteUrlBefore(
 
 function hasPortInUrlBefore(text: string, index: number): boolean {
   const prefix = text.substring(
-    Math.max(0, index - maxDomainLength - 16),
+    Math.max(0, index - maxRawDomainLength - 16),
     index,
   );
   const start = lastProtocolStart(prefix);
@@ -1178,13 +1180,13 @@ function hasInvalidBareStart(ctx: Context): boolean {
     if (!completesOuterUrl) return true;
   }
   if (previous === "]") {
-    const start = Math.max(0, ctx.index - maxDomainLength - 48);
+    const start = Math.max(0, ctx.index - maxRawDomainLength - 48);
     if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
   }
   if (previous === "!") return false;
   if (previous === "?" || previous === "#") {
     const punctuationIndex = ctx.index - 1;
-    const start = Math.max(0, punctuationIndex - maxDomainLength - 16);
+    const start = Math.max(0, punctuationIndex - maxRawDomainLength - 16);
     const prefix = ctx.text.substring(start, punctuationIndex);
     const followsRepeatedPeriods =
       ctx.text[punctuationIndex - 1] === "." &&
@@ -1211,7 +1213,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
     return false;
   }
 
-  const start = Math.max(0, ctx.index - maxDomainLength - 16);
+  const start = Math.max(0, ctx.index - maxRawDomainLength - 16);
   const prefix = ctx.text.substring(start, ctx.index);
   if (hasAttachedScheme(prefix)) return true;
 
