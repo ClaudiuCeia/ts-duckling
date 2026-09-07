@@ -505,6 +505,21 @@ const createBalancedSuffixPart = (
     const codePoint = text.codePointAt(index);
     if (codePoint === undefined) break;
     const character = String.fromCodePoint(codePoint);
+    const previous = previousCharacter(text, index);
+    const previousResult = plainSuffixCharacter({
+      text,
+      index: index - previous.length,
+    });
+    const nextResult = plainSuffixCharacter({
+      text,
+      index: index + character.length,
+    });
+    const internalTypographicApostrophe =
+      character === "\u2019" &&
+      index > startIndex &&
+      previousResult.success &&
+      previousResult.ctx.index === index &&
+      nextResult.success;
     const startsAdjacentUrl =
       index > startIndex &&
       ".,;!([{".includes(text[index - 1]) &&
@@ -512,7 +527,8 @@ const createBalancedSuffixPart = (
     if (
       startsAdjacentUrl ||
       isWhitespace(character) ||
-      balancedGroupBreakCharacters.has(character)
+      (balancedGroupBreakCharacters.has(character) &&
+        !internalTypographicApostrophe)
     ) {
       reachedInputEnd = false;
       break;
@@ -522,7 +538,7 @@ const createBalancedSuffixPart = (
       stack.push({ opening: character, index });
     } else {
       const opening = closingToOpening.get(character);
-      const latest = stack.at(-1);
+      const latest = stack[stack.length - 1];
       if (opening !== undefined && latest?.opening === opening) {
         stack.pop();
         closingIndexes.set(latest.index, index + character.length);

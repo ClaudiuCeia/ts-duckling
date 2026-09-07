@@ -1078,13 +1078,14 @@ test("URL keeps external wrappers outside nested completion checks", () => {
 
 test("URL handles ASCII and typographic apostrophes contextually", () => {
   const res = Duckling([URL.parser]).extract(
-    "See 'https://example.com/O'Brien' and https://example.org/O’Brien then ‘https://example.net/path’",
+    "See 'https://example.com/O'Brien' and https://example.org/O’Brien then https://example.edu/(O’Brien) and ‘https://example.net/path’",
   );
   assertEquals(
     res.map(({ text }) => text),
     [
       "https://example.com/O'Brien",
       "https://example.org/O’Brien",
+      "https://example.edu/(O’Brien)",
       "https://example.net/path",
     ],
   );
