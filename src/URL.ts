@@ -94,6 +94,25 @@ const unicodeTerminalSentencePunctuation = [
   "\uff1f",
   "\uff61",
 ];
+const balancedDelimiterPairs = [
+  ["(", ")"],
+  ["[", "]"],
+  ["{", "}"],
+  ["\u3008", "\u3009"],
+  ["\u300a", "\u300b"],
+  ["\u300c", "\u300d"],
+  ["\u300e", "\u300f"],
+  ["\u3010", "\u3011"],
+  ["\uff08", "\uff09"],
+  ["\uff3b", "\uff3d"],
+  ["\uff5b", "\uff5d"],
+] as const;
+const balancedOpeningCharacters: string[] = balancedDelimiterPairs.map(
+  ([opening]) => opening,
+);
+const balancedClosingCharacters: string[] = balancedDelimiterPairs.map(
+  ([, closing]) => closing,
+);
 const suffixPunctuationCharacters = [
   ".",
   ",",
@@ -112,6 +131,7 @@ const suffixPunctuationCharacters = [
 const unicodeHostBoundaries = [
   ...unicodeSuffixBoundaries,
   ...unicodeSentencePunctuation,
+  ...balancedOpeningCharacters,
 ];
 const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
 const textBoundaryCharacters = [
@@ -165,9 +185,7 @@ const plainSuffixReservedCharacters = new Set([
   "`",
   ...unicodeSuffixBoundaries,
   ...unicodeSentencePunctuation,
-  "(",
-  "[",
-  "{",
+  ...balancedOpeningCharacters,
   ".",
   "?",
   "#",
@@ -356,7 +374,11 @@ const singleSentencePeriod = seq(str("."), peek(textBoundary));
 const sentencePeriod = any(repeatedSentencePeriods, singleSentencePeriod);
 const terminalCompatibilityDot = seq(
   compatibilityDotCharacter,
-  not(domainLabel),
+  not(any(domainLabel, authorityDelimiter)),
+);
+const compatibilityDotBeforeAuthority = seq(
+  compatibilityDotCharacter,
+  peek(authorityDelimiter),
 );
 const proseCompatibilityDotValue = map(
   seq(
@@ -428,6 +450,10 @@ const registeredHostBoundary = peek(
     ),
   ),
 );
+const bracketedHostBoundary = seq(
+  not(compatibilityDotBeforeAuthority),
+  registeredHostBoundary,
+);
 const portBoundary = peek(
   seq(
     not(repeatedRootDotsBeforeAuthority),
@@ -456,7 +482,7 @@ const plainSuffixCharacter = nonWhitespaceCharacterExcept(
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
 const unmatchedOpeningPunctuation = map(
-  seq(oneOfCharacters(["(", "[", "{"]), not(protocolStart)),
+  seq(oneOfCharacters(balancedOpeningCharacters), not(protocolStart)),
   ([opening]) => opening,
 );
 const suffixPartStart = any(plainSuffixPart, unmatchedOpeningPunctuation);
@@ -494,11 +520,9 @@ const createBalancedSuffixPart = (
 ): Parser<string> => {
   const closingIndexes = new Map<number, number>();
   const stack: Array<{ opening: string; index: number }> = [];
-  const closingToOpening = new Map([
-    [")", "("],
-    ["]", "["],
-    ["}", "{"],
-  ]);
+  const closingToOpening: Map<string, string> = new Map(
+    balancedDelimiterPairs.map(([opening, closing]) => [closing, opening]),
+  );
   let reachedInputEnd = true;
 
   for (let index = startIndex; index < text.length;) {
@@ -528,13 +552,15 @@ const createBalancedSuffixPart = (
       startsAdjacentUrl ||
       isWhitespace(character) ||
       (balancedGroupBreakCharacters.has(character) &&
+        !balancedOpeningCharacters.includes(character) &&
+        !balancedClosingCharacters.includes(character) &&
         !internalTypographicApostrophe)
     ) {
       reachedInputEnd = false;
       break;
     }
 
-    if ("([{".includes(character)) {
+    if (balancedOpeningCharacters.includes(character)) {
       stack.push({ opening: character, index });
     } else {
       const opening = closingToOpening.get(character);
@@ -1277,9 +1303,11 @@ const hostValue = any(
 );
 const fullHost = chain(hostValue, (host) =>
   map(
-    hasKnownTld(host) || isSpecialHost(host)
-      ? registeredHostBoundary
-      : ordinaryHostBoundary,
+    host.startsWith("[")
+      ? bracketedHostBoundary
+      : hasKnownTld(host) || isSpecialHost(host)
+        ? registeredHostBoundary
+        : ordinaryHostBoundary,
     () => host,
   ),
 );
@@ -1360,7 +1388,13 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
           fullEntityHost,
           optional(
             map(
-              seq(str(":"), symbol.Port),
+              seq(
+                str(":"),
+                any(
+                  map(symbol.Port, String),
+                  map(peek(oneOfCharacters(["/", "?", "#"])), () => ""),
+                ),
+              ),
               ([colon, port]) => `${colon}${port}`,
             ),
           ),
@@ -1386,7 +1420,16 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       seq(
         symbol.Domain,
         optional(
-          map(seq(str(":"), symbol.Port), ([colon, port]) => `${colon}${port}`),
+          map(
+            seq(
+              str(":"),
+              any(
+                map(symbol.Port, String),
+                map(peek(oneOfCharacters(["/", "?", "#"])), () => ""),
+              ),
+            ),
+            ([colon, port]) => `${colon}${port}`,
+          ),
         ),
         optional(symbol.Suffix),
         completeEntityBoundary,

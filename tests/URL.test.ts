@@ -483,6 +483,20 @@ test("URL preserves cross-nested delimiter characters", () => {
   );
 });
 
+test("URL preserves balanced Unicode delimiter groups", () => {
+  const urls = [
+    "https://example.com/「日本」",
+    "https://example.com/（テスト）",
+    "https://example.com/前「日本」後",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
+  );
+});
+
 test("URL only keeps incomplete balanced groups pending", () => {
   for (const text of ["/abc next", "/(a) next"]) {
     const result = URL.Suffix({ text, index: 0, final: false });
@@ -563,6 +577,20 @@ test("URL accepts port zero", () => {
       "example.com:0/path",
       "https://example.org:000000/",
     ],
+  );
+});
+
+test("URL accepts empty ports before suffixes", () => {
+  const urls = [
+    "http://example.com:/path",
+    "https://[::1]:?q=1",
+    "ftp://localhost:#section",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
   );
 });
 
@@ -913,6 +941,10 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     `https://${"x".repeat(64)}+。example.com/path`,
     "https://;.;example.org/path",
     "https://[/],example.org/path",
+    "https://example.com:80。/path",
+    "https://localhost:80．?x=1",
+    "https://[::1]。/path",
+    "https://[::1]．?x=1",
     `https://${Array.from({ length: 4 }, () => "%61".repeat(60)).join(".")}:80。evil.com/path`,
     "https://user:pass@example.com\u201cexample.org/path",
     "https://example.com:65536\u201cexample.org/path",
