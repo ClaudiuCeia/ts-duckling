@@ -38,7 +38,6 @@ import { longestLiteral } from "./parsers.ts";
 import tlds from "../data/tlds.json" with { type: "json" };
 
 const maxDomainLength = 253;
-const maxRawDomainLength = maxDomainLength * 3;
 const maxLabelLength = 63;
 const maxDomainLabels = Math.ceil(maxDomainLength / 2);
 const maxAttachedDelimiterLength = 64;
@@ -112,6 +111,10 @@ const balancedOpeningCharacters: string[] = balancedDelimiterPairs.map(
 );
 const balancedClosingCharacters: string[] = balancedDelimiterPairs.map(
   ([, closing]) => closing,
+);
+const openingToClosing = new Map<string, string>(balancedDelimiterPairs);
+const closingToOpening = new Map<string, string>(
+  balancedDelimiterPairs.map(([opening, closing]) => [closing, opening]),
 );
 const suffixPunctuationCharacters = [
   ".",
@@ -520,9 +523,6 @@ const createBalancedSuffixPart = (
 ): Parser<string> => {
   const closingIndexes = new Map<number, number>();
   const stack: Array<{ opening: string; index: number }> = [];
-  const closingToOpening: Map<string, string> = new Map(
-    balancedDelimiterPairs.map(([opening, closing]) => [closing, opening]),
-  );
   let reachedInputEnd = true;
 
   for (let index = startIndex; index < text.length;) {
@@ -740,7 +740,8 @@ function matchingOpener(
   closingIndex: number,
   nestedSchemeStart: number,
 ): number {
-  const opening = closing === ")" ? "(" : closing === "]" ? "[" : "{";
+  const opening = closingToOpening.get(closing);
+  if (opening === undefined) return -1;
   let depth = 0;
   for (let cursor = closingIndex + closing.length; cursor > 0;) {
     const character = previousCharacter(text, cursor);
@@ -776,7 +777,7 @@ function completionEndAfterAuthority(
   while (completionEnd > authorityEnd) {
     const character = previousCharacter(text, completionEnd);
     if (
-      ")]}".includes(character) &&
+      balancedClosingCharacters.includes(character) &&
       matchingOpener(
         text,
         character,
@@ -798,6 +799,7 @@ function invalidSchemeAuthoritySeparator(
   separator: number;
   authorityEnd: number;
   schemeStart: number;
+  hasExplicitPort: boolean;
   invalid: boolean;
 } | null {
   let authorityEnd = index;
@@ -821,6 +823,7 @@ function invalidSchemeAuthoritySeparator(
         ),
         authorityEnd,
         schemeStart,
+        hasExplicitPort: false,
         invalid: true,
       };
     }
@@ -868,6 +871,10 @@ function invalidSchemeAuthoritySeparator(
   const scheme = attachedSchemeBefore(text, authorityStart);
   if (scheme === null) return null;
   const schemeStart = authorityStart - scheme.length;
+  const authority = text.substring(authorityStart, authorityEnd);
+  const hasExplicitPort = authority.startsWith("[")
+    ? authority.includes("]:")
+    : authority.includes(":");
   const completionEnd = completionEndAfterAuthority(
     text,
     authorityEnd,
@@ -876,9 +883,7 @@ function invalidSchemeAuthoritySeparator(
   );
 
   try {
-    const parsed = new globalThis.URL(
-      `${scheme}${text.substring(authorityStart, authorityEnd)}`,
-    );
+    const parsed = new globalThis.URL(`${scheme}${authority}`);
     const host = parsed.hostname;
     const validHost = host.startsWith("[")
       ? isValidBracketedHost(host)
@@ -886,13 +891,26 @@ function invalidSchemeAuthoritySeparator(
     return validHost &&
       parsed.username.length === 0 &&
       parsed.password.length === 0
-      ? { separator: completionEnd, authorityEnd, schemeStart, invalid: false }
-      : { separator: completionEnd, authorityEnd, schemeStart, invalid: true };
+      ? {
+          separator: completionEnd,
+          authorityEnd,
+          schemeStart,
+          hasExplicitPort,
+          invalid: false,
+        }
+      : {
+          separator: completionEnd,
+          authorityEnd,
+          schemeStart,
+          hasExplicitPort,
+          invalid: true,
+        };
   } catch {
     return {
       separator: completionEnd,
       authorityEnd,
       schemeStart,
+      hasExplicitPort,
       invalid: true,
     };
   }
@@ -947,7 +965,7 @@ function hasKnownHostBeforeRootDots(text: string, index: number): boolean {
 }
 
 function hasMalformedRootAuthorityBefore(text: string, index: number): boolean {
-  const earliest = Math.max(0, index - maxRawDomainLength - 32);
+  const earliest = 0;
   for (let cursor = index; cursor > earliest;) {
     const character = previousCharacter(text, cursor);
     cursor -= character.length;
@@ -1076,25 +1094,39 @@ function hasCompleteUrlBefore(
   index: number,
   nestedSchemeStart?: number,
 ): boolean {
-  const availableClosers: Record<string, number> = { ")": 0, "]": 0, "}": 0 };
+  const availableClosers = new Map(
+    balancedClosingCharacters.map((closing) => [closing, 0]),
+  );
   if (nestedSchemeStart !== undefined) {
     for (const character of text.substring(nestedSchemeStart, index)) {
-      if (character in availableClosers) availableClosers[character] += 1;
+      if (closingToOpening.has(character)) {
+        availableClosers.set(
+          character,
+          (availableClosers.get(character) ?? 0) + 1,
+        );
+      }
     }
   }
 
   let segmentStart = nestedSchemeStart ?? index;
   while (segmentStart > 0) {
     const character = previousCharacter(text, segmentStart);
-    const closing = character === "(" ? ")" : character === "[" ? "]" : "}";
+    const closing = openingToClosing.get(character);
     const balancedOpening =
       nestedSchemeStart !== undefined &&
-      "([{".includes(character) &&
-      availableClosers[closing] > 0;
-    if (balancedOpening) availableClosers[closing] -= 1;
+      closing !== undefined &&
+      (availableClosers.get(closing) ?? 0) > 0;
+    if (balancedOpening && closing !== undefined) {
+      availableClosers.set(closing, (availableClosers.get(closing) ?? 0) - 1);
+    }
     const balancedClosing =
-      nestedSchemeStart !== undefined && ")]}".includes(character);
-    if (balancedClosing) availableClosers[character] += 1;
+      nestedSchemeStart !== undefined && closingToOpening.has(character);
+    if (balancedClosing) {
+      availableClosers.set(
+        character,
+        (availableClosers.get(character) ?? 0) + 1,
+      );
+    }
     if (
       isWhitespace(character) ||
       (nestedSchemeStart !== undefined &&
@@ -1124,27 +1156,6 @@ function hasCompleteUrlBefore(
   const candidate = prefix.slice(protocolIndex);
   const result = URL.Full({ text: candidate, index: 0 });
   return result.success && result.ctx.index === candidate.length;
-}
-
-function hasPortInUrlBefore(text: string, index: number): boolean {
-  const prefix = text.substring(
-    Math.max(0, index - maxRawDomainLength - 16),
-    index,
-  );
-  const start = lastProtocolStart(prefix);
-  if (start === null) return false;
-
-  const remainder = prefix.slice(start.index + start.length);
-  let authorityEnd = remainder.length;
-  for (const delimiter of ["/", "?", "#"]) {
-    const delimiterIndex = remainder.indexOf(delimiter);
-    if (delimiterIndex >= 0)
-      authorityEnd = Math.min(authorityEnd, delimiterIndex);
-  }
-  const authority = remainder.slice(0, authorityEnd);
-  return authority.startsWith("[")
-    ? authority.includes("]:")
-    : authority.includes(":");
 }
 
 function hasAttachedScheme(prefix: string): boolean {
@@ -1216,15 +1227,14 @@ function hasInvalidBareStart(ctx: Context): boolean {
         ));
     if (!completesOuterUrl) return true;
   }
+  if (previous === ":" && invalidAuthoritySeparator !== null) return true;
   if (previous === "]") {
-    const start = Math.max(0, ctx.index - maxRawDomainLength - 48);
-    if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
+    if (hasAttachedScheme(ctx.text.substring(0, ctx.index))) return true;
   }
   if (previous === "!") return false;
   if (previous === "?" || previous === "#") {
     const punctuationIndex = ctx.index - 1;
-    const start = Math.max(0, punctuationIndex - maxRawDomainLength - 16);
-    const prefix = ctx.text.substring(start, punctuationIndex);
+    const prefix = ctx.text.substring(0, punctuationIndex);
     const followsRepeatedPeriods =
       ctx.text[punctuationIndex - 1] === "." &&
       ctx.text[punctuationIndex - 2] === ".";
@@ -1242,7 +1252,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
   }
   if (
     compatibilityDots.includes(previous) &&
-    hasPortInUrlBefore(ctx.text, ctx.index - previous.length)
+    invalidAuthoritySeparator?.hasExplicitPort
   ) {
     return true;
   }
@@ -1250,8 +1260,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
     return false;
   }
 
-  const start = Math.max(0, ctx.index - maxRawDomainLength - 16);
-  const prefix = ctx.text.substring(start, ctx.index);
+  const prefix = ctx.text.substring(0, ctx.index);
   if (hasAttachedScheme(prefix)) return true;
 
   return false;

@@ -946,6 +946,7 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     "https://[::1]。/path",
     "https://[::1]．?x=1",
     `https://${Array.from({ length: 4 }, () => "%61".repeat(60)).join(".")}:80。evil.com/path`,
+    `https://${["%E4%B8%AD".repeat(50), "%E4%B8%AD".repeat(50)].join(".")}:80。evil.com/path`,
     "https://user:pass@example.com\u201cexample.org/path",
     "https://example.com:65536\u201cexample.org/path",
     "https://example.com:1.5\u201cexample.org/path",
@@ -1088,12 +1089,20 @@ test("URL separates domains after schemes inside query values", () => {
 test("URL separates domains after schemes inside balanced suffix groups", () => {
   const first = `https://a.com/?x=(foo-https://${"x".repeat(64)})`;
   const second = `https://b.com/?next=x(y)-https://${"x".repeat(64)}`;
+  const third = `https://c.com/?x=「foo-https://${"x".repeat(64)}」`;
   const res = Duckling([URL.parser]).extract(
-    `${first}\u201cexample.org/path ${second}\u201cexample.net/path`,
+    `${first}\u201cexample.org/path ${second}\u201cexample.net/path ${third}\u201cexample.info/path`,
   );
   assertEquals(
     res.map(({ text }) => text),
-    [first, "example.org/path", second, "example.net/path"],
+    [
+      first,
+      "example.org/path",
+      second,
+      "example.net/path",
+      third,
+      "example.info/path",
+    ],
   );
 });
 
