@@ -1089,6 +1089,22 @@ test("URL preserves unknown named-entity syntax in suffixes", () => {
   );
 });
 
+test("URL stops before supported semicolonless HTML references", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://example.com&nbsp next example.com&#160 next https://a.com/path&nbsp next example.org/?q=1&#xA0 next",
+      )
+      .map(({ text }) => text),
+    [
+      "https://example.com",
+      "example.com",
+      "https://a.com/path",
+      "example.org/?q=1",
+    ],
+  );
+});
+
 test("URL restricts backslash paths to WHATWG special schemes", () => {
   assertEquals(
     Duckling([URL.parser])

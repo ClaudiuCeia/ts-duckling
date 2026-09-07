@@ -24,7 +24,7 @@ import {
   success,
   trie,
 } from "@claudiu-ceia/combine";
-import { decodeHTMLStrict } from "entities";
+import { decodeHTML, decodeHTMLStrict } from "entities";
 import type {
   Language as DefinedLanguage,
   Parser,
@@ -278,6 +278,15 @@ const htmlEntity: Parser<string> = (ctx) => {
     if (numeric || decodeHTMLStrict(entity) !== entity) {
       return success({ ...ctx, index: end }, entity);
     }
+  }
+  const entity = ctx.text.substring(ctx.index, cursor);
+  const atFinalEnd = cursor === ctx.text.length && ctx.final !== false;
+  if (
+    cursor > contentStart &&
+    (atFinalEnd || isWhitespace(ctx.text[cursor] ?? "")) &&
+    (numeric || decodeHTML(entity) !== entity)
+  ) {
+    return success({ ...ctx, index: cursor }, entity);
   }
   return ctx.final === false && cursor === ctx.text.length
     ? pending(ctx, "HTML entity")
