@@ -177,6 +177,13 @@ const bareLookbehindBreakCharacters = new Set([
 ]);
 const hostnameSymbolBoundaries = new Set([
   ...textBoundaryCharacters,
+  ...authorityBreakCharacters,
+  ...compatibilityDots,
+  ".",
+  ":",
+  "@",
+  "%",
+  "\\",
   "+",
   "=",
   "$",
@@ -251,7 +258,7 @@ const contextualIdnaCharacters = [
   "\u30fb",
 ];
 const unicodeDomainCharacterPattern =
-  /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u;
+  /[\p{L}\p{M}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
 const unicodeUrlContentCharacterPattern = /[\p{L}\p{M}\p{N}\p{S}]/u;
 const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
@@ -267,7 +274,7 @@ let compatibilityTailCleanupScheduled = false;
 const domainLabelStart = any(
   guard(
     regex(
-      /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
+      /[\p{L}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
       "Unicode hostname label start",
     ),
     (character) => !hostnameSymbolBoundaries.has(character),
@@ -279,7 +286,7 @@ const domainLabelStart = any(
 const domainLabelContinuation = any(
   guard(
     regex(
-      /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
+      /[\p{L}\p{M}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
       "Unicode hostname label character",
     ),
     (character) => !hostnameSymbolBoundaries.has(character),
@@ -359,9 +366,13 @@ const compatibilityDot: Parser<string> = (ctx) => {
       hasSpecialHostImmediatelyBefore(ctx.text, ctx.index) ||
       !hasKnownTail
     : false;
+  const canUseUnknownTld =
+    !hasKnownTail &&
+    hasSchemeQualifiedHostImmediatelyBefore(ctx.text, ctx.index);
   if (
     mayBeProse &&
-    (!hasKnownTail || !meaningfulCompatibilityHostTail(ctx).success)
+    ((!hasKnownTail && !canUseUnknownTld) ||
+      !meaningfulCompatibilityHostTail(ctx).success)
   ) {
     return failure(ctx, "hostname compatibility dot");
   }
@@ -1118,16 +1129,28 @@ function isSpecialHost(host: string): boolean {
 }
 
 function hasSpecialHostImmediatelyBefore(text: string, index: number): boolean {
+  const start = schemeQualifiedHostStartBefore(text, index);
+  return start !== null && isSpecialHost(text.slice(start, index));
+}
+
+function schemeQualifiedHostStartBefore(
+  text: string,
+  index: number,
+): number | null {
   let start = index;
   while (start > 0) {
     const character = previousCharacter(text, start);
     if (!isAuthorityCandidateCharacter(character)) break;
     start -= character.length;
   }
-  return (
-    attachedSchemeBefore(text, start) !== null &&
-    isSpecialHost(text.slice(start, index))
-  );
+  return attachedSchemeBefore(text, start) === null ? null : start;
+}
+
+function hasSchemeQualifiedHostImmediatelyBefore(
+  text: string,
+  index: number,
+): boolean {
+  return schemeQualifiedHostStartBefore(text, index) !== null;
 }
 
 function isUnicodeProseBoundary(

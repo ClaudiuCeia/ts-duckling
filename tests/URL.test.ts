@@ -239,6 +239,10 @@ test("URL accepts Unicode label in full URL", () => {
     "https://€.com/",
     "https://a\u00adb.com/",
     "a\u00adb.com",
+    "https://a\u200bb\u2060c\ufeffd.com/",
+    "a\u200bb\u2060c\ufeffd.com",
+    "https://foo§bar.com/",
+    "foo§bar.com",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -299,6 +303,7 @@ test("URL validates protocol-qualified hosts", () => {
     "foo‐-.com",
     "foo∑-.com",
     "foo€-.com",
+    "foo§-.com",
     "example..com",
     `[${"1".repeat(1000)}]`,
   ]) {
@@ -656,6 +661,19 @@ test("URL normalizes special hosts before compatibility-dot boundaries", () => {
         .extract(input)
         .map(({ text }) => text),
       urls,
+      separator,
+    );
+  }
+});
+
+test("URL accepts unknown Unicode TLDs after compatibility dots", () => {
+  for (const separator of ["。", "．", "｡"]) {
+    const url = `https://例え${separator}テスト/path`;
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(url)
+        .map(({ text }) => text),
+      [url],
       separator,
     );
   }
