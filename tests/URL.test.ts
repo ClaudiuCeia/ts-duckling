@@ -869,6 +869,26 @@ test("URL treats safe bare-domain delimiters consistently on long lines", () => 
 
 test("URL handles dense domain-shaped candidates without repeated lookbehind", () => {
   assertEquals(Duckling([URL.parser]).extract("x.a.com+".repeat(1600)), []);
+  const malformed = `https://${"x".repeat(64)}+example.com+`;
+  assertEquals(Duckling([URL.parser]).extract(malformed.repeat(400)), []);
+});
+
+test("URL treats prose dashes as boundaries outside host labels", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("See https://a.com—thanks a.com–example.org")
+      .map(({ text }) => text),
+    ["https://a.com", "a.com", "example.org"],
+  );
+});
+
+test("URL treats Markdown pipes as host boundaries", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("|https://a.com|https://b.com/path|next|")
+      .map(({ text }) => text),
+    ["https://a.com", "https://b.com/path|next|"],
+  );
 });
 
 test("URL rejects starts attached to Unicode words and connectors", () => {

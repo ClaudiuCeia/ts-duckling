@@ -139,6 +139,7 @@ const unicodeHostBoundaries = [
 const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
 const textBoundaryCharacters = [
   "<",
+  "|",
   "(",
   "[",
   "{",
@@ -156,6 +157,7 @@ const textBoundaryCharacters = [
 ];
 const authorityBreakCharacters = new Set([
   "/",
+  "|",
   "?",
   "#",
   ",",
@@ -236,16 +238,24 @@ const percentEncodedOctet = map(
   (_value, before, after) => before.text.substring(before.index, after.index),
 );
 const domainLabelStart = any(
-  regex(
-    /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+  guard(
+    regex(
+      /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+      "Unicode hostname label start",
+    ),
+    (character) => !unicodeSuffixBoundaries.includes(character),
     "Unicode hostname label start",
   ),
   str("_"),
   contextualIdnaCharacter,
 );
 const domainLabelContinuation = any(
-  regex(
-    /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+  guard(
+    regex(
+      /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+      "Unicode hostname label character",
+    ),
+    (character) => !unicodeSuffixBoundaries.includes(character),
     "Unicode hostname label character",
   ),
   str("_"),
@@ -688,7 +698,8 @@ function previousCharacter(text: string, index: number): string {
 
 function isDomainLabelCharacter(character: string): boolean {
   return (
-    unicodeDomainCharacterPattern.test(character) ||
+    (unicodeDomainCharacterPattern.test(character) &&
+      !unicodeSuffixBoundaries.includes(character)) ||
     "-_".includes(character) ||
     contextualIdnaCharacters.includes(character)
   );
@@ -1106,6 +1117,14 @@ function hasCompleteUrlBefore(
 
   let segmentStart = nestedSchemeStart ?? index;
   while (segmentStart > 0) {
+    const precedingScheme = attachedSchemeBefore(text, segmentStart);
+    if (
+      precedingScheme !== null &&
+      (nestedSchemeStart === undefined || segmentStart < nestedSchemeStart)
+    ) {
+      segmentStart -= precedingScheme.length;
+      break;
+    }
     const character = previousCharacter(text, segmentStart);
     const closing = openingToClosing.get(character);
     const balancedOpening =
