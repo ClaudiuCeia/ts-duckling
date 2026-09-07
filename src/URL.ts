@@ -574,9 +574,10 @@ const emptySuffixDelimiter = seq(
   peek(textBoundary),
 );
 const mixedTerminalSuffixPunctuation = seq(
-  str("."),
+  skipMany1(str(".")),
   peek(emptySuffixDelimiter),
 );
+const closingEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
@@ -653,6 +654,7 @@ const completeEntityBoundary = peek(
     safeTrailingHostDelimiter,
     htmlEntityBoundary,
     backslashBoundary,
+    closingEmphasis,
     adjacentProtocolBoundary,
   ),
 );
@@ -661,8 +663,8 @@ const plainSuffixCharacterValue = nonWhitespaceCharacterExcept(
   plainSuffixReservedCharacters,
 );
 const plainSuffixCharacter = map(
-  seq(not(htmlEntity), plainSuffixCharacterValue),
-  ([, character]) => character,
+  seq(not(htmlEntity), not(closingEmphasis), plainSuffixCharacterValue),
+  ([, , character]) => character,
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
 const unmatchedOpeningPunctuation = map(
@@ -744,6 +746,7 @@ const createBalancedSuffixPart = (
       startsAdjacentUrl ||
       isWhitespace(character) ||
       htmlEntity({ text, index }).success ||
+      closingEmphasis({ text, index }).success ||
       (balancedGroupBreakCharacters.has(character) &&
         !balancedOpeningCharacters.includes(character) &&
         !balancedClosingCharacters.includes(character) &&

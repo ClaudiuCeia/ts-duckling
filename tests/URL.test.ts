@@ -397,6 +397,15 @@ test("URL trims terminal periods before empty query and fragment delimiters", ()
   );
 });
 
+test("URL trims repeated terminal periods before empty suffix delimiters", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://example.com/path..? example.com/path..#")
+      .map(({ text }) => text),
+    ["https://example.com/path", "example.com/path"],
+  );
+});
+
 test("URL trims terminal empty suffix delimiter runs", () => {
   assertEquals(
     Duckling([URL.parser])
@@ -980,9 +989,17 @@ test("URL treats Markdown pipes as host boundaries", () => {
 test("URL treats Markdown emphasis markers as host boundaries", () => {
   assertEquals(
     Duckling([URL.parser])
-      .extract("**https://a.com** *https://b.com* https://c.com/path*part")
+      .extract(
+        "**https://a.com** *https://b.com* *https://c.com/path* **https://d.com/path** https://e.com/path*part",
+      )
       .map(({ text }) => text),
-    ["https://a.com", "https://b.com", "https://c.com/path*part"],
+    [
+      "https://a.com",
+      "https://b.com",
+      "https://c.com/path",
+      "https://d.com/path",
+      "https://e.com/path*part",
+    ],
   );
 });
 
