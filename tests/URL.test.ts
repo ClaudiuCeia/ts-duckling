@@ -1080,6 +1080,24 @@ test("URL stops suffixes before adjacent HTML entities", () => {
   );
 });
 
+test("URL preserves unknown named-entity syntax in suffixes", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com/?x=1&foo;bar")
+      .map(({ text }) => text),
+    ["https://a.com/?x=1&foo;bar"],
+  );
+});
+
+test("URL restricts backslash paths to WHATWG special schemes", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("ftps://example.com\\path ftps://example.com:21\\file")
+      .map(({ text }) => text),
+    ["ftps://example.com", "ftps://example.com:21"],
+  );
+});
+
 test("URL rejects starts attached to Unicode words and connectors", () => {
   for (const text of [
     "\u{10400}https://example.com",

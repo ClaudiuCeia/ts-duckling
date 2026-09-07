@@ -70,7 +70,8 @@
   },
   "dependencies": {
     "@claudiu-ceia/combine": "0.11.2",
-    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz"
+    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz",
+    "entities": "8.0.0"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",

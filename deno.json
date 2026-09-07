@@ -28,6 +28,7 @@
   },
   "imports": {
     "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.11.2",
-    "@std/crypto": "jsr:@std/crypto@1"
+    "@std/crypto": "jsr:@std/crypto@1",
+    "entities": "npm:entities@8.0.0"
   }
 }

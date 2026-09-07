@@ -24,6 +24,7 @@ import {
   success,
   trie,
 } from "@claudiu-ceia/combine";
+import { decodeHTMLStrict } from "entities";
 import type {
   Language as DefinedLanguage,
   Parser,
@@ -271,7 +272,10 @@ const htmlEntity: Parser<string> = (ctx) => {
   }
   if (cursor > contentStart && ctx.text[cursor] === ";") {
     const end = cursor + 1;
-    return success({ ...ctx, index: end }, ctx.text.substring(ctx.index, end));
+    const entity = ctx.text.substring(ctx.index, end);
+    if (numeric || decodeHTMLStrict(entity) !== entity) {
+      return success({ ...ctx, index: end }, entity);
+    }
   }
   return ctx.final === false && cursor === ctx.text.length
     ? pending(ctx, "HTML entity")
@@ -568,6 +572,7 @@ const adjacentProtocolBoundary = seq(
 );
 const safeTrailingHostDelimiter = oneOfCharacters(["+", "=", "$"]);
 const htmlEntityBoundary = peek(htmlEntity);
+const backslashBoundary = str("\\");
 const hostBoundary = peek(
   seq(
     not(repeatedRootDotsBeforeAuthority),
@@ -636,6 +641,7 @@ const completeEntityBoundary = peek(
     mixedTerminalSuffixPunctuation,
     safeTrailingHostDelimiter,
     htmlEntityBoundary,
+    backslashBoundary,
     adjacentProtocolBoundary,
   ),
 );
@@ -753,27 +759,33 @@ const createBalancedSuffixPart = (
   };
 };
 
-const suffix: Parser<string> = (ctx) => {
-  const suffixStart = peek(oneOfCharacters(["/", "?", "#", "\\"]))(ctx);
-  if (!suffixStart.success) return suffixStart;
+const createSuffix =
+  (pathSeparators: string[]): Parser<string> =>
+  (ctx) => {
+    const suffixStart = peek(oneOfCharacters([...pathSeparators, "?", "#"]))(
+      ctx,
+    );
+    if (!suffixStart.success) return suffixStart;
 
-  const balancedSuffixPart = createBalancedSuffixPart(ctx.text, ctx.index);
-  const suffixPart = any(
-    balancedSuffixPart,
-    plainSuffixPart,
-    internalSuffixPunctuation,
-    unmatchedOpeningPunctuation,
-  );
-  const slashSuffix = map(
-    seq(oneOfCharacters(["/", "\\"]), many(suffixPart)),
-    ([slash, parts]) => `${slash}${parts.join("")}`,
-  );
-  const queryOrFragmentSuffix = map(
-    seq(oneOfCharacters(["?", "#"]), suffixPart, many(suffixPart)),
-    ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
-  );
-  return any(slashSuffix, queryOrFragmentSuffix)(ctx);
-};
+    const balancedSuffixPart = createBalancedSuffixPart(ctx.text, ctx.index);
+    const suffixPart = any(
+      balancedSuffixPart,
+      plainSuffixPart,
+      internalSuffixPunctuation,
+      unmatchedOpeningPunctuation,
+    );
+    const slashSuffix = map(
+      seq(oneOfCharacters(pathSeparators), many(suffixPart)),
+      ([slash, parts]) => `${slash}${parts.join("")}`,
+    );
+    const queryOrFragmentSuffix = map(
+      seq(oneOfCharacters(["?", "#"]), suffixPart, many(suffixPart)),
+      ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
+    );
+    return any(slashSuffix, queryOrFragmentSuffix)(ctx);
+  };
+const suffix = createSuffix(["/", "\\"]);
+const nonSpecialSuffix = createSuffix(["/"]);
 
 function normalizeDnsName(host: string): string | null {
   try {
@@ -1660,24 +1672,29 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
   Full: (symbol) =>
     withStartBoundary(
       map(
-        seq(
-          symbol.Protocol,
-          str("://"),
-          fullEntityHost,
-          optional(
-            map(
-              seq(
-                str(":"),
-                any(
-                  map(symbol.Port, String),
-                  map(peek(oneOfCharacters(["/", "?", "#", "\\"])), () => ""),
+        chain(symbol.Protocol, (parsedProtocol) =>
+          seq(
+            str("://"),
+            fullEntityHost,
+            optional(
+              map(
+                seq(
+                  str(":"),
+                  any(
+                    map(symbol.Port, String),
+                    map(peek(oneOfCharacters(["/", "?", "#", "\\"])), () => ""),
+                  ),
                 ),
+                ([colon, port]) => `${colon}${port}`,
               ),
-              ([colon, port]) => `${colon}${port}`,
             ),
+            optional(
+              parsedProtocol.toLowerCase() === "ftps"
+                ? nonSpecialSuffix
+                : symbol.Suffix,
+            ),
+            completeEntityBoundary,
           ),
-          optional(symbol.Suffix),
-          completeEntityBoundary,
         ),
         (_parts, before, after) =>
           url(
