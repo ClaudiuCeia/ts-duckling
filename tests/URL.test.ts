@@ -541,6 +541,15 @@ test("URL preserves deeply nested balanced groups", () => {
   );
 });
 
+test("URL preserves URL-content entities inside balanced groups", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com/(x&amp;y) a.com/(x&amp;y)")
+      .map(({ text }) => text),
+    ["https://a.com/(x&amp;y)", "a.com/(x&amp;y)"],
+  );
+});
+
 test("URL preserves cross-nested delimiter characters", () => {
   const input = "https://example.com/([)]";
   assertEquals(
@@ -809,7 +818,11 @@ test("URL recognizes Markdown and Unicode text boundaries", () => {
   );
   assertEquals(
     res.map(({ text }) => text),
-    ["https://example.com/a", "https://example.org/b", "https://example.net/c"],
+    [
+      "https://example.com/a",
+      "https://example.org/b—details",
+      "https://example.net/c",
+    ],
   );
 
   assertEquals(
@@ -1496,6 +1509,10 @@ test("URL retains completion scans across async yields", async () => {
   );
 });
 
+test("URL bounds compatibility-host lookbehind scans", () => {
+  assertEquals(Duckling([URL.parser]).extract("谢谢。".repeat(2_000)), []);
+});
+
 test("URL separates domains after schemes inside balanced suffix groups", () => {
   const first = `https://a.com/?x=(foo-https://${"x".repeat(64)})`;
   const second = `https://b.com/?next=x(y)-https://${"x".repeat(64)}`;
@@ -1556,6 +1573,19 @@ test("URL handles en and em dashes contextually in suffixes", () => {
       "https://example.org/?q=foo–bar",
       "https://example.net/#foo—bar",
       "https://example.edu/(foo—bar)",
+    ],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://example.com/a—b https://example.org?a–b https://example.net#a—b",
+      )
+      .map(({ text }) => text),
+    [
+      "https://example.com/a—b",
+      "https://example.org?a–b",
+      "https://example.net#a—b",
     ],
   );
 });

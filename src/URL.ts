@@ -462,17 +462,16 @@ const compatibilityDot: Parser<string> = (ctx) => {
     !unknownNonAsciiTail || hasKnownTldInCompatibilityTail(ctx.text, ctx.index);
   const mayBeProse = unknownNonAsciiTail
     ? hasKnownTldLabelBefore(ctx.text, ctx.index) ||
-      hasSpecialHostImmediatelyBefore(ctx.text, ctx.index) ||
+      hasSpecialHostImmediatelyBefore(ctx, ctx.index) ||
       !hasKnownTail
     : false;
   const canUseUnknownTld =
-    !hasKnownTail &&
-    hasSchemeQualifiedHostImmediatelyBefore(ctx.text, ctx.index);
+    !hasKnownTail && hasSchemeQualifiedHostImmediatelyBefore(ctx, ctx.index);
   const rawTail = rawCompatibilityHostTail(ctx);
   const hasTerminalUnknownTail =
     canUseUnknownTld &&
     !hasKnownTldLabelBefore(ctx.text, ctx.index) &&
-    !hasSpecialHostImmediatelyBefore(ctx.text, ctx.index) &&
+    !hasSpecialHostImmediatelyBefore(ctx, ctx.index) &&
     rawTail.success &&
     ordinaryTextBoundary(rawTail.ctx).success;
   if (
@@ -775,7 +774,7 @@ const createBalancedSuffixPart = (
     if (
       startsAdjacentUrl ||
       isWhitespace(character) ||
-      htmlEntity({ text, index }).success ||
+      htmlEntityBoundary({ text, index }).success ||
       closingEmphasis({ text, index }).success ||
       (balancedGroupBreakCharacters.has(character) &&
         !balancedOpeningCharacters.includes(character) &&
@@ -920,8 +919,8 @@ function hasInternalDashPrefix(text: string, index: number): boolean {
     !isWhitespace(previous) &&
     !plainSuffixReservedCharacters.has(previous) &&
     !isWhitespace(secondPrevious) &&
-    !plainSuffixReservedCharacters.has(secondPrevious) &&
-    !"/?#".includes(secondPrevious)
+    (!plainSuffixReservedCharacters.has(secondPrevious) ||
+      "?#".includes(secondPrevious))
   );
 }
 
@@ -1326,17 +1325,29 @@ function isSpecialHost(host: string): boolean {
   );
 }
 
-function hasSpecialHostImmediatelyBefore(text: string, index: number): boolean {
-  const start = schemeQualifiedHostStartBefore(text, index);
-  return start !== null && isSpecialHost(text.slice(start, index));
+function hasSpecialHostImmediatelyBefore(ctx: Context, index: number): boolean {
+  const start = schemeQualifiedHostStartBefore(ctx, index);
+  return start !== null && isSpecialHost(ctx.text.slice(start, index));
 }
 
 function schemeQualifiedHostStartBefore(
-  text: string,
+  ctx: Context,
   index: number,
 ): number | null {
+  const { text } = ctx;
+  const minimumStart = Math.max(0, index - maxDomainLength * 4 - 48);
+  const protocolStarts = completionScan(ctx).protocolStarts;
+  let low = 0;
+  let high = protocolStarts.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (protocolStarts[middle] < minimumStart) low = middle + 1;
+    else high = middle;
+  }
+  if ((protocolStarts[low] ?? index) >= index) return null;
+
   let start = index;
-  while (start > 0) {
+  while (start > minimumStart) {
     const character = previousCharacter(text, start);
     if (!isAuthorityCandidateCharacter(character)) break;
     start -= character.length;
@@ -1345,10 +1356,10 @@ function schemeQualifiedHostStartBefore(
 }
 
 function hasSchemeQualifiedHostImmediatelyBefore(
-  text: string,
+  ctx: Context,
   index: number,
 ): boolean {
-  return schemeQualifiedHostStartBefore(text, index) !== null;
+  return schemeQualifiedHostStartBefore(ctx, index) !== null;
 }
 
 function isUnicodeProseBoundary(

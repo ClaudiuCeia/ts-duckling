@@ -10,7 +10,7 @@
  */
 
 import { type Context, type Parser, recognizeAt } from "@claudiu-ceia/combine";
-import { __, dot, extractionCache, word } from "./common.ts";
+import { __, beginExtraction, dot, word } from "./common.ts";
 
 type NonEmptyArray<T> = [T, ...T[]];
 
@@ -77,50 +77,54 @@ export async function asyncScan<T>(
   opts: AsyncScanOptions = {},
 ): Promise<T[]> {
   const { signal, yieldEvery = 512 } = opts;
+  const endExtraction = beginExtraction(text);
 
-  const recognizer = recognizeAt(...parsers);
-  const results: T[] = [];
-  const cache = new Map<symbol, unknown>();
-  let index = 0;
-  let steps = 0;
+  try {
+    const recognizer = recognizeAt(...parsers);
+    const results: T[] = [];
+    let index = 0;
+    let steps = 0;
 
-  // Skip optional leading whitespace (mirrors `optional(space())` in sync)
-  const leadingSpc = /^\s+/.exec(text);
-  if (leadingSpc) index = leadingSpc[0].length;
+    // Skip optional leading whitespace (mirrors `optional(space())` in sync)
+    const leadingSpc = /^\s+/.exec(text);
+    if (leadingSpc) index = leadingSpc[0].length;
 
-  while (index < text.length) {
-    signal?.throwIfAborted();
+    while (index < text.length) {
+      signal?.throwIfAborted();
 
-    const ctx = { text, index, [extractionCache]: cache } as Context;
+      const ctx: Context = { text, index };
 
-    // Try entity parsers
-    const rec = recognizer(ctx);
-    if (rec.success && rec.value.length > 0) {
-      // Collect ALL matched values (mirroring the sync path's
-      // `map(step(recognizeAt(...), "shortest"), recs => recs.map(r => r.value))`
-      // which keeps every recognition but advances by the shortest).
-      let shortestIndex = Number.POSITIVE_INFINITY;
-      for (const r of rec.value) {
-        results.push(r.value);
-        if (r.ctx.index < shortestIndex) shortestIndex = r.ctx.index;
-      }
-      index = shortestIndex;
-    } else {
-      // Try to skip unstructured text
-      const skipped = trySkipUnstructured(ctx);
-      if (skipped > index) {
-        index = skipped;
+      // Try entity parsers
+      const rec = recognizer(ctx);
+      if (rec.success && rec.value.length > 0) {
+        // Collect ALL matched values (mirroring the sync path's
+        // `map(step(recognizeAt(...), "shortest"), recs => recs.map(r => r.value))`
+        // which keeps every recognition but advances by the shortest).
+        let shortestIndex = Number.POSITIVE_INFINITY;
+        for (const r of rec.value) {
+          results.push(r.value);
+          if (r.ctx.index < shortestIndex) shortestIndex = r.ctx.index;
+        }
+        index = shortestIndex;
       } else {
-        // Fallback: skip one character
-        index++;
+        // Try to skip unstructured text
+        const skipped = trySkipUnstructured(ctx);
+        if (skipped > index) {
+          index = skipped;
+        } else {
+          // Fallback: skip one character
+          index++;
+        }
+      }
+
+      // Yield periodically
+      if (++steps % yieldEvery === 0) {
+        await yieldToEventLoop();
       }
     }
 
-    // Yield periodically
-    if (++steps % yieldEvery === 0) {
-      await yieldToEventLoop();
-    }
+    return results;
+  } finally {
+    endExtraction();
   }
-
-  return results;
 }

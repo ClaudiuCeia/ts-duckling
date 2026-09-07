@@ -13,7 +13,7 @@ import {
   space,
   step,
 } from "@claudiu-ceia/combine";
-import { __, dot, extractionCache, word } from "./src/common.ts";
+import { __, beginExtraction, dot, word } from "./src/common.ts";
 import { asyncScan, type AsyncScanOptions } from "./src/async.ts";
 import { buildSpanTree, renderMapNode, renderNode } from "./src/render.ts";
 import type { RenderFn, RenderMapFn } from "./src/render.ts";
@@ -268,16 +268,10 @@ export function Duckling(parsers?: any): any {
     parser = (ctx) => failure(ctx, "entity");
   }
 
-  const recognizedEntities = map(
+  const entities = map(
     step(recognizeAt(...(p as NonEmptyArray<Parser<unknown>>)), "shortest"),
     (recs) => recs.map((r) => r.value),
   );
-  let syncExtractionCache: Map<symbol, unknown> | null = null;
-  const entities: Parser<unknown[]> = (ctx) =>
-    recognizedEntities({
-      ...ctx,
-      [extractionCache]: syncExtractionCache ?? new Map(),
-    } as Parameters<typeof recognizedEntities>[0]);
 
   const unstructured = any(dot(word), __(word), space());
   parser = map(
@@ -296,13 +290,12 @@ export function Duckling(parsers?: any): any {
   );
 
   const parse = (input: string): unknown[] => {
-    const previousCache = syncExtractionCache;
-    syncExtractionCache = new Map();
+    const endExtraction = beginExtraction(input);
     try {
       const result = parser({ text: input, index: 0 });
       return result.success ? (result.value as unknown[]) : [];
     } finally {
-      syncExtractionCache = previousCache;
+      endExtraction();
     }
   };
 
