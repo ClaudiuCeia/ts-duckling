@@ -1370,11 +1370,61 @@ function lastProtocolStart(
   return latest;
 }
 
+type CompletionScan = {
+  text: string;
+  folded: string;
+  mandatoryStarts: Int32Array;
+  conditionalCounts: Uint32Array;
+  completionEnds: Map<number, number | null>;
+};
+
+let completionScanCache: CompletionScan | null = null;
+let completionScanCleanupScheduled = false;
+
+function completionScan(text: string): CompletionScan {
+  if (completionScanCache?.text === text) return completionScanCache;
+
+  const mandatoryStarts = new Int32Array(text.length + 1);
+  const conditionalCounts = new Uint32Array(text.length + 1);
+  let mandatoryStart = 0;
+  let conditionalCount = 0;
+  for (let index = 0; index < text.length;) {
+    const codePoint = text.codePointAt(index);
+    if (codePoint === undefined) break;
+    const character = String.fromCodePoint(codePoint);
+    const next = index + character.length;
+    if (isWhitespace(character) || character === "+") mandatoryStart = next;
+    if (textBoundaryCharacters.includes(character)) conditionalCount += 1;
+    for (let unit = index + 1; unit <= next; unit += 1) {
+      mandatoryStarts[unit] = mandatoryStart;
+      conditionalCounts[unit] = conditionalCount;
+    }
+    index = next;
+  }
+
+  completionScanCache = {
+    text,
+    folded: text.toLowerCase(),
+    mandatoryStarts,
+    conditionalCounts,
+    completionEnds: new Map(),
+  };
+  if (!completionScanCleanupScheduled) {
+    completionScanCleanupScheduled = true;
+    queueMicrotask(() => {
+      completionScanCache = null;
+      completionScanCleanupScheduled = false;
+    });
+  }
+  return completionScanCache;
+}
+
 function hasCompleteUrlBefore(
   text: string,
   index: number,
   nestedSchemeStart?: number,
 ): boolean {
+  const scan = completionScan(text);
   const availableClosers = new Map(
     balancedClosingCharacters.map((closing) => [closing, 0]),
   );
@@ -1389,45 +1439,45 @@ function hasCompleteUrlBefore(
     }
   }
 
-  let segmentStart = nestedSchemeStart ?? index;
-  while (segmentStart > 0) {
-    const character = previousCharacter(text, segmentStart);
-    const closing = openingToClosing.get(character);
-    const balancedOpening =
-      nestedSchemeStart !== undefined &&
-      closing !== undefined &&
-      (availableClosers.get(closing) ?? 0) > 0;
-    if (balancedOpening && closing !== undefined) {
-      availableClosers.set(closing, (availableClosers.get(closing) ?? 0) - 1);
-    }
-    const balancedClosing =
-      nestedSchemeStart !== undefined && closingToOpening.has(character);
-    if (balancedClosing) {
-      availableClosers.set(
-        character,
-        (availableClosers.get(character) ?? 0) + 1,
-      );
-    }
-    if (
-      isWhitespace(character) ||
-      character === "+" ||
-      (nestedSchemeStart !== undefined &&
+  const mandatoryStart = scan.mandatoryStarts[index] ?? 0;
+  let segmentStart = mandatoryStart;
+  if (
+    nestedSchemeStart !== undefined &&
+    scan.conditionalCounts[index] !== scan.conditionalCounts[mandatoryStart]
+  ) {
+    segmentStart = nestedSchemeStart;
+    while (segmentStart > mandatoryStart) {
+      const character = previousCharacter(text, segmentStart);
+      const closing = openingToClosing.get(character);
+      const balancedOpening =
+        closing !== undefined && (availableClosers.get(closing) ?? 0) > 0;
+      if (balancedOpening && closing !== undefined) {
+        availableClosers.set(closing, (availableClosers.get(closing) ?? 0) - 1);
+      }
+      const balancedClosing = closingToOpening.has(character);
+      if (balancedClosing) {
+        availableClosers.set(
+          character,
+          (availableClosers.get(character) ?? 0) + 1,
+        );
+      }
+      if (
         textBoundaryCharacters.includes(character) &&
         !balancedOpening &&
-        !balancedClosing)
-    ) {
-      break;
+        !balancedClosing
+      ) {
+        break;
+      }
+      segmentStart -= character.length;
     }
-    segmentStart -= character.length;
   }
 
-  const prefix = text.substring(segmentStart, index);
-  const folded = prefix.toLowerCase();
   let protocolIndex = -1;
   for (const protocol of protocolsWithSeparator) {
-    const candidateIndex = folded.indexOf(protocol);
+    const candidateIndex = scan.folded.indexOf(protocol, segmentStart);
     if (
       candidateIndex >= 0 &&
+      candidateIndex < index &&
       (protocolIndex < 0 || candidateIndex < protocolIndex)
     ) {
       protocolIndex = candidateIndex;
@@ -1435,9 +1485,15 @@ function hasCompleteUrlBefore(
   }
   if (protocolIndex < 0) return false;
 
-  const candidate = prefix.slice(protocolIndex);
-  const result = URL.Full({ text: candidate, index: 0 });
-  return result.success && result.ctx.index === candidate.length;
+  if (!scan.completionEnds.has(protocolIndex)) {
+    scan.completionEnds.set(protocolIndex, null);
+    const result = URL.Full({ text: text.slice(protocolIndex), index: 0 });
+    scan.completionEnds.set(
+      protocolIndex,
+      result.success ? protocolIndex + result.ctx.index : null,
+    );
+  }
+  return scan.completionEnds.get(protocolIndex) === index;
 }
 
 function hasAttachedScheme(prefix: string): boolean {
@@ -1475,6 +1531,12 @@ function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
+  if (
+    previous === "\u20e3" &&
+    previousCharacterBeforeVariationSelectors(ctx.text, ctx.index) === ""
+  ) {
+    return false;
+  }
   if (exceedsAttachedDelimiterHorizon(ctx.text, ctx.index)) return false;
   if (isDomainLabelCharacter(previous) || "_@/%".includes(previous)) {
     return true;

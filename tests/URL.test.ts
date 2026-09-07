@@ -1169,6 +1169,18 @@ test("URL classifies keycap emoji as start boundaries", () => {
   }
 });
 
+test("URL classifies keycap emoji as bare-domain boundaries", () => {
+  for (const keycap of ["#️⃣", "*️⃣"]) {
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(`${keycap}example.com`)
+        .map(({ text }) => text),
+      ["example.com"],
+      keycap,
+    );
+  }
+});
+
 test("URL separates adjacent links and markup", () => {
   const res = Duckling([URL.parser]).extract(
     "[one](https://a.com/x)[two](https://b.com/y) https://c.com/a,https://d.com/b https://e.com/c.https://f.com/d <a>https://g.com/x</a>",
@@ -1436,6 +1448,10 @@ test("URL completes outer URLs across multiple nested schemes", () => {
       .map(({ text }) => text),
     [first, "example.org/path"],
   );
+});
+
+test("URL bounds repeated malformed outer-authority completion scans", () => {
+  assertEquals(Duckling([URL.parser]).extract("https://%zz".repeat(800)), []);
 });
 
 test("URL separates domains after schemes inside balanced suffix groups", () => {
