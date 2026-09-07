@@ -245,6 +245,9 @@ test("URL accepts Unicode label in full URL", () => {
     "foo§bar.com",
     "https://foo&bar.com/",
     "foo&bar.com",
+    "https://\uFE0Fa.com/",
+    "https://x.\uFE0Fa.com/",
+    "\uFE0Fa.com",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -986,6 +989,15 @@ test("URL treats safe symbols and HTML entities as host boundaries", () => {
   );
 });
 
+test("URL treats safe symbols as boundaries for unregistered full hosts", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://intranet+next https://example.invalid=value")
+      .map(({ text }) => text),
+    ["https://intranet", "https://example.invalid"],
+  );
+});
+
 test("URL treats safe symbols and HTML entities as port boundaries", () => {
   assertEquals(
     Duckling([URL.parser])
@@ -994,6 +1006,21 @@ test("URL treats safe symbols and HTML entities as port boundaries", () => {
       )
       .map(({ text }) => text),
     ["https://a.com:80", "a.com:80", "https://a.com:80"],
+  );
+});
+
+test("URL accepts backslashes as special URL path separators", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://a.com\\path http://localhost\\share ftp://example.com\\file",
+      )
+      .map(({ text }) => text),
+    [
+      "https://a.com\\path",
+      "http://localhost\\share",
+      "ftp://example.com\\file",
+    ],
   );
 });
 

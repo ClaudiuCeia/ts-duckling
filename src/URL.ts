@@ -312,7 +312,7 @@ const domainLabelStart = any(
       not(htmlEntity),
       guard(
         regex(
-          /[\p{L}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
+          /[\p{L}\p{M}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
           "Unicode hostname label start",
         ),
         (character) => !hostnameSymbolBoundaries.has(character),
@@ -367,7 +367,7 @@ const encodedDomainLabel = guard(
   (label) => !label.startsWith("-") && !label.endsWith("-"),
   "valid percent-encoded domain label",
 );
-const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
+const authorityDelimiter = oneOfCharacters([":", "/", "?", "#", "\\"]);
 const asciiDotLabel = map(
   seq(str("."), not(protocolStart), domainLabel),
   ([dot, , label]) => `${dot}${label}`,
@@ -566,6 +566,7 @@ const ordinaryHostBoundary = peek(
       terminalCompatibilityDot,
       singleSentencePeriod,
       adjacentProtocolBoundary,
+      safeTrailingHostDelimiter,
       htmlEntityBoundary,
     ),
   ),
@@ -726,7 +727,7 @@ const createBalancedSuffixPart = (
 };
 
 const suffix: Parser<string> = (ctx) => {
-  const suffixStart = peek(oneOfCharacters(["/", "?", "#"]))(ctx);
+  const suffixStart = peek(oneOfCharacters(["/", "?", "#", "\\"]))(ctx);
   if (!suffixStart.success) return suffixStart;
 
   const balancedSuffixPart = createBalancedSuffixPart(ctx.text, ctx.index);
@@ -737,7 +738,7 @@ const suffix: Parser<string> = (ctx) => {
     unmatchedOpeningPunctuation,
   );
   const slashSuffix = map(
-    seq(str("/"), many(suffixPart)),
+    seq(oneOfCharacters(["/", "\\"]), many(suffixPart)),
     ([slash, parts]) => `${slash}${parts.join("")}`,
   );
   const queryOrFragmentSuffix = map(
@@ -1632,7 +1633,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
                 str(":"),
                 any(
                   map(symbol.Port, String),
-                  map(peek(oneOfCharacters(["/", "?", "#"])), () => ""),
+                  map(peek(oneOfCharacters(["/", "?", "#", "\\"])), () => ""),
                 ),
               ),
               ([colon, port]) => `${colon}${port}`,
@@ -1665,7 +1666,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
               str(":"),
               any(
                 map(symbol.Port, String),
-                map(peek(oneOfCharacters(["/", "?", "#"])), () => ""),
+                map(peek(oneOfCharacters(["/", "?", "#", "\\"])), () => ""),
               ),
             ),
             ([colon, port]) => `${colon}${port}`,
