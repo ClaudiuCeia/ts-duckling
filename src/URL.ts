@@ -531,6 +531,7 @@ const sentenceColon = seq(
 );
 const emptySuffixDelimiter = seq(
   oneOfCharacters(["?", "#"]),
+  many(oneOfCharacters([".", "?", "#"])),
   peek(textBoundary),
 );
 const mixedTerminalSuffixPunctuation = seq(
@@ -596,6 +597,8 @@ const portBoundary = peek(
       proseCompatibilityDot,
       sentencePeriod,
       sentenceColon,
+      safeTrailingHostDelimiter,
+      htmlEntityBoundary,
     ),
   ),
 );

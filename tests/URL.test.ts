@@ -394,6 +394,22 @@ test("URL trims terminal periods before empty query and fragment delimiters", ()
   );
 });
 
+test("URL trims terminal empty suffix delimiter runs", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://example.com?# https://example.org?. example.com/path#. example.org?#",
+      )
+      .map(({ text }) => text),
+    [
+      "https://example.com",
+      "https://example.org",
+      "example.com/path",
+      "example.org",
+    ],
+  );
+});
+
 test("URL trims sentence colons from suffixes", () => {
   const res = Duckling([URL.parser]).extract(
     "See https://example.com/path: next https://example.org/?q=value: and https://example.net/#section:) plus https://example.edu/a:b. https://example.gov/a:: next",
@@ -967,6 +983,17 @@ test("URL treats safe symbols and HTML entities as host boundaries", () => {
       "example.org",
       "example.net",
     ],
+  );
+});
+
+test("URL treats safe symbols and HTML entities as port boundaries", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://a.com:80+next a.com:80=value https://a.com:80&nbsp;next",
+      )
+      .map(({ text }) => text),
+    ["https://a.com:80", "a.com:80", "https://a.com:80"],
   );
 });
 
