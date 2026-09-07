@@ -122,6 +122,8 @@ const suffixPunctuationCharacters = [
   "!",
   "?",
   "'",
+  "\u2013",
+  "\u2014",
   "\u2019",
   "#",
   ":",
@@ -668,8 +670,20 @@ const internalSuffixPunctuationValue = map(
   ([punctuation]) => punctuation,
 );
 const internalSuffixPunctuation: Parser<string> = (ctx) => {
+  if (
+    ["\u2013", "\u2014"].includes(ctx.text[ctx.index] ?? "") &&
+    !hasInternalDashPrefix(ctx.text, ctx.index)
+  ) {
+    return failure(ctx, "Unicode URL dash");
+  }
   const result = internalSuffixPunctuationValue(ctx);
   if (!result.success) return result;
+  const containsDash = [...result.value].some((character) =>
+    ["\u2013", "\u2014"].includes(character),
+  );
+  if (containsDash && !hasInternalDashPrefix(ctx.text, ctx.index)) {
+    return failure(ctx, "Unicode URL dash");
+  }
   const containsUnicodePunctuation = [...result.value].some((character) =>
     unicodeSentencePunctuation.includes(character),
   );
@@ -703,15 +717,16 @@ const createBalancedSuffixPart = (
     const nextCodePoint = text.codePointAt(index + character.length);
     const next =
       nextCodePoint === undefined ? "" : String.fromCodePoint(nextCodePoint);
-    const internalTypographicApostrophe =
-      character === "\u2019" &&
+    const internalUnicodeSeparator =
+      ["\u2013", "\u2014", "\u2019"].includes(character) &&
       index > startIndex &&
       previous.length > 0 &&
       !isWhitespace(previous) &&
       !plainSuffixReservedCharacters.has(previous) &&
       next.length > 0 &&
       !isWhitespace(next) &&
-      !plainSuffixReservedCharacters.has(next);
+      !plainSuffixReservedCharacters.has(next) &&
+      (character === "\u2019" || hasInternalDashPrefix(text, index));
     const startsAdjacentUrl =
       index > startIndex &&
       ".,;!([{".includes(text[index - 1]) &&
@@ -723,7 +738,7 @@ const createBalancedSuffixPart = (
       (balancedGroupBreakCharacters.has(character) &&
         !balancedOpeningCharacters.includes(character) &&
         !balancedClosingCharacters.includes(character) &&
-        !internalTypographicApostrophe)
+        !internalUnicodeSeparator)
     ) {
       reachedInputEnd = false;
       break;
@@ -852,6 +867,20 @@ function previousCharacter(text: string, index: number): string {
   }
 
   return text[index - 1] ?? "";
+}
+
+function hasInternalDashPrefix(text: string, index: number): boolean {
+  const previous = previousCharacter(text, index);
+  const secondPrevious = previousCharacter(text, index - previous.length);
+  return (
+    previous.length > 0 &&
+    secondPrevious.length > 0 &&
+    !isWhitespace(previous) &&
+    !plainSuffixReservedCharacters.has(previous) &&
+    !isWhitespace(secondPrevious) &&
+    !plainSuffixReservedCharacters.has(secondPrevious) &&
+    !"/?#".includes(secondPrevious)
+  );
 }
 
 function previousCharacterBeforeVariationSelectors(

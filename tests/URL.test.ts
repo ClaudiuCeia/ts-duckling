@@ -1453,6 +1453,22 @@ test("URL handles ASCII and typographic apostrophes contextually", () => {
   );
 });
 
+test("URL handles en and em dashes contextually in suffixes", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://example.com/foo—bar https://example.org/?q=foo–bar https://example.net/#foo—bar https://example.edu/(foo—bar)",
+      )
+      .map(({ text }) => text),
+    [
+      "https://example.com/foo—bar",
+      "https://example.org/?q=foo–bar",
+      "https://example.net/#foo—bar",
+      "https://example.edu/(foo—bar)",
+    ],
+  );
+});
+
 test("URL matches canonically equivalent Unicode TLDs", () => {
   const domain = "example.vermo\u0308gensberater";
   assertEquals(
