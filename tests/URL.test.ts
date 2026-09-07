@@ -226,6 +226,26 @@ test("URL accepts Punycode label in full URL", () => {
   assertEquals(res[0].value, { url: "https://xn--mnchen-3ya.de/" });
 });
 
+test("URL accepts percent-encoded labels in full URLs", () => {
+  const urls = [
+    "http://%65xample.com/",
+    "https://ex%61mple.com/path",
+    "ftp://example%2ecom/file",
+    "https://%65xample。com/path",
+    "https://example%2ecom。cn/path",
+    "https://example.com%2e/path",
+    "https://example.com%E3%80%82/path",
+    "https://example.com%EF%BC%8E/path",
+    "https://example.com%EF%BD%A1/path",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
+  );
+});
+
 test("URL validates protocol-qualified hosts", () => {
   for (const host of [
     "localhost",
@@ -589,6 +609,8 @@ test("URL preserves CJK punctuation inside suffixes", () => {
     "https://example.com/こんにちは、世界",
     "https://example.com/?q=你好，世界",
     "https://example.com/a。b",
+    "https://example.com/a。_b",
+    "https://example.com/?q=a，_b",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -630,12 +652,16 @@ test("URL treats opening brackets as text boundaries", () => {
   );
 });
 
-test("URL rejects starts attached to astral Unicode words", () => {
+test("URL rejects starts attached to Unicode words and connectors", () => {
   for (const text of [
     "\u{10400}https://example.com",
     "\u{1e800}https://example.com",
+    "foo_https://example.com",
+    "foo\u203fhttps://example.com",
   ]) {
     assertEquals(Duckling([URL.parser]).extract(text), [], text);
+    const start = text.indexOf("https");
+    assertEquals(URL.Full({ text, index: start }).success, false, text);
   }
 });
 
@@ -716,6 +742,14 @@ test("URL rejects partial matches from invalid attached authorities", () => {
   for (const text of [
     "https://user:pass@example.com/path",
     "https://%zz.example.com/path",
+    "https://example%6x.com/path",
+    "https://%2dexample.com/path",
+    "https://example%2d.com/path",
+    "https://example.com%2e./path",
+    "https://example.com%2E.:8080/path",
+    "https://example.com%E3%80%82./path",
+    "https://example.com%EF%BC%8E./path",
+    "https://example.com%EF%BD%A1./path",
     "https://!example.com/path",
     "https://[::1].evil",
     "https://[::1]._evil/path",

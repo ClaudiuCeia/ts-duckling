@@ -183,8 +183,13 @@ const contextualIdnaCharacters = [
 ];
 const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
+const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
 const asciiLetterOrNumberPattern = /[A-Za-z0-9]/;
 const contextualIdnaCharacter = oneOfCharacters(contextualIdnaCharacters);
+const percentEncodedOctet = map(
+  seq(str("%"), hexDigit(), hexDigit()),
+  (_value, before, after) => before.text.substring(before.index, after.index),
+);
 const domainLabelStart = any(
   regex(/[\p{L}\p{N}\p{So}]/u, "Unicode hostname label start"),
   contextualIdnaCharacter,
@@ -200,6 +205,17 @@ const domainLabel = guard(
   ),
   (label) => !label.endsWith("-"),
   "valid domain label",
+);
+const encodedDomainLabel = guard(
+  map(
+    seq(
+      any(domainLabelStart, percentEncodedOctet),
+      skipMany(any(domainLabelContinuation, percentEncodedOctet)),
+    ),
+    (_value, before, after) => before.text.substring(before.index, after.index),
+  ),
+  (label) => !label.endsWith("-"),
+  "valid percent-encoded domain label",
 );
 const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
 const asciiDotLabel = map(
@@ -258,6 +274,29 @@ const compatibilityDnsName = map(
     `${first}${beforeDot.join("")}${dotLabel}${rest.join("")}`,
 );
 const dnsName = any(compatibilityDnsName, asciiDnsName);
+const encodedAsciiDotLabel = map(
+  seq(str("."), not(protocolStart), encodedDomainLabel),
+  ([dot, , label]) => `${dot}${label}`,
+);
+const encodedCompatibilityDotLabel = map(
+  seq(compatibilityDot, encodedDomainLabel),
+  ([dot, label]) => `${dot}${label}`,
+);
+const encodedDnsName = map(
+  seq(
+    encodedDomainLabel,
+    atMost(
+      maxDomainLabels - 1,
+      any(encodedAsciiDotLabel, encodedCompatibilityDotLabel),
+    ),
+  ),
+  ([first, rest]) => `${first}${rest.join("")}`,
+);
+const percentEncodedDnsName = guard(
+  encodedDnsName,
+  (host) => host.includes("%"),
+  "percent-encoded hostname",
+);
 
 const textBoundary = any(
   space(),
@@ -514,10 +553,23 @@ function normalizeDnsName(host: string): string | null {
 
 function isValidDnsName(host: string): boolean {
   const normalized = normalizeDnsName(host);
+  if (normalized === null) return false;
+
+  const canonical = normalized.endsWith(".")
+    ? normalized.slice(0, -1)
+    : normalized;
   return (
-    normalized !== null &&
-    normalized.length <= maxDomainLength &&
-    normalized.split(".").every((label) => label.length <= maxLabelLength)
+    canonical.length > 0 &&
+    canonical.length <= maxDomainLength &&
+    canonical
+      .split(".")
+      .every(
+        (label) =>
+          label.length > 0 &&
+          label.length <= maxLabelLength &&
+          !label.startsWith("-") &&
+          !label.endsWith("-"),
+      )
   );
 }
 
@@ -602,7 +654,7 @@ function hasKnownTldLabelBefore(text: string, index: number): boolean {
   let start = index;
   while (start > 0) {
     const character = previousCharacter(text, start);
-    if (!isDomainLabelCharacter(character)) break;
+    if (!isDomainLabelCharacter(character) && character !== "%") break;
     start -= character.length;
   }
 
@@ -820,6 +872,11 @@ function withStartBoundary<T>(
 }
 
 const validDnsName = guard(dnsName, isValidDnsName, "valid hostname");
+const validFullDnsName = guard(
+  any(percentEncodedDnsName, dnsName),
+  isValidDnsName,
+  "valid hostname",
+);
 const rootDot = map(seq(str("."), peek(authorityDelimiter)), ([dot]) => dot);
 const ipv6Character = any(hexDigit(), str(":"), str("."));
 const ipv6Address = mapJoin(
@@ -837,11 +894,14 @@ const bracketedHost = guard(
   isValidBracketedHost,
   "valid IPv6 host",
 );
+const noRootDot: Parser<null> = (ctx) => success(ctx, null);
 const hostValue = any(
   bracketedHost,
-  map(
-    seq(validDnsName, optional(rootDot)),
-    ([host, dot]) => `${host}${dot ?? ""}`,
+  chain(validFullDnsName, (host) =>
+    map(
+      normalizeDnsName(host)?.endsWith(".") ? noRootDot : optional(rootDot),
+      (dot) => `${host}${dot ?? ""}`,
+    ),
   ),
 );
 const fullHost = chain(hostValue, (host) =>
@@ -958,7 +1018,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       ),
       (ctx) =>
         ctx.index > 0 &&
-        unicodeWordCharacterPattern.test(
+        unicodeWordOrConnectorPattern.test(
           previousCharacter(ctx.text, ctx.index),
         ),
       "URL boundary",
