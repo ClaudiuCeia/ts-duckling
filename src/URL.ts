@@ -227,6 +227,41 @@ const nonWhitespaceCharacterExcept = (
     return !isWhitespace(character) && !excluded.has(character);
   });
 
+const htmlEntity: Parser<string> = (ctx) => {
+  if (ctx.text[ctx.index] !== "&") return failure(ctx, "HTML entity");
+  let cursor = ctx.index + 1;
+  let numeric = false;
+  let hexadecimal = false;
+  if (ctx.text[cursor] === "#") {
+    numeric = true;
+    cursor += 1;
+    if (ctx.text[cursor]?.toLowerCase() === "x") {
+      hexadecimal = true;
+      cursor += 1;
+    }
+  }
+  const contentStart = cursor;
+  while (cursor < ctx.text.length) {
+    const code = ctx.text.charCodeAt(cursor);
+    const valid = numeric
+      ? (code >= 48 && code <= 57) ||
+        (hexadecimal &&
+          ((code >= 65 && code <= 70) || (code >= 97 && code <= 102)))
+      : (code >= 48 && code <= 57) ||
+        (code >= 65 && code <= 90) ||
+        (code >= 97 && code <= 122);
+    if (!valid) break;
+    cursor += 1;
+  }
+  if (cursor > contentStart && ctx.text[cursor] === ";") {
+    const end = cursor + 1;
+    return success({ ...ctx, index: end }, ctx.text.substring(ctx.index, end));
+  }
+  return ctx.final === false && cursor === ctx.text.length
+    ? pending(ctx, "HTML entity")
+    : failure(ctx, "HTML entity");
+};
+
 const atMost =
   <T>(count: number, parser: Parser<T>): Parser<T[]> =>
   (ctx) => {
@@ -272,25 +307,37 @@ let compatibilityTailCacheText: string | null = null;
 let compatibilityTailCache = new Map<number, boolean>();
 let compatibilityTailCleanupScheduled = false;
 const domainLabelStart = any(
-  guard(
-    regex(
-      /[\p{L}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
-      "Unicode hostname label start",
+  map(
+    seq(
+      not(htmlEntity),
+      guard(
+        regex(
+          /[\p{L}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
+          "Unicode hostname label start",
+        ),
+        (character) => !hostnameSymbolBoundaries.has(character),
+        "Unicode hostname label start",
+      ),
     ),
-    (character) => !hostnameSymbolBoundaries.has(character),
-    "Unicode hostname label start",
+    ([, character]) => character,
   ),
   str("_"),
   contextualIdnaCharacter,
 );
 const domainLabelContinuation = any(
-  guard(
-    regex(
-      /[\p{L}\p{M}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
-      "Unicode hostname label character",
+  map(
+    seq(
+      not(htmlEntity),
+      guard(
+        regex(
+          /[\p{L}\p{M}\p{N}\p{Cf}\p{Pc}\p{Pd}\p{Po}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
+          "Unicode hostname label character",
+        ),
+        (character) => !hostnameSymbolBoundaries.has(character),
+        "Unicode hostname label character",
+      ),
     ),
-    (character) => !hostnameSymbolBoundaries.has(character),
-    "Unicode hostname label character",
+    ([, character]) => character,
   ),
   str("_"),
   contextualIdnaCharacter,
@@ -490,6 +537,8 @@ const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
 );
+const safeTrailingHostDelimiter = oneOfCharacters(["+", "=", "$"]);
+const htmlEntityBoundary = peek(htmlEntity);
 const hostBoundary = peek(
   seq(
     not(repeatedRootDotsBeforeAuthority),
@@ -498,6 +547,8 @@ const hostBoundary = peek(
       textBoundary,
       sentencePeriod,
       adjacentProtocolBoundary,
+      safeTrailingHostDelimiter,
+      htmlEntityBoundary,
     ),
   ),
 );
@@ -510,6 +561,7 @@ const ordinaryHostBoundary = peek(
       terminalCompatibilityDot,
       singleSentencePeriod,
       adjacentProtocolBoundary,
+      htmlEntityBoundary,
     ),
   ),
 );
@@ -521,6 +573,8 @@ const registeredHostBoundary = peek(
       textBoundary,
       singleSentencePeriod,
       adjacentProtocolBoundary,
+      safeTrailingHostDelimiter,
+      htmlEntityBoundary,
     ),
   ),
 );
@@ -547,6 +601,8 @@ const completeEntityBoundary = peek(
     sentencePeriod,
     sentenceColon,
     emptySuffixDelimiter,
+    safeTrailingHostDelimiter,
+    htmlEntityBoundary,
     adjacentProtocolBoundary,
   ),
 );
@@ -1470,6 +1526,16 @@ const bareDomainSeparatorAhead: Parser<null> = (ctx) => {
       return failure(ctx, "bare domain separator");
     }
     cursor += character.length;
+  }
+  const codePoint = ctx.text.codePointAt(cursor);
+  if (codePoint === undefined) {
+    return ctx.final === false
+      ? pending(ctx, "bare domain separator")
+      : failure(ctx, "bare domain separator");
+  }
+  const character = String.fromCodePoint(codePoint);
+  if (character === "." || compatibilityDots.includes(character)) {
+    return success(ctx, null);
   }
   return failure(ctx, "bare domain separator");
 };

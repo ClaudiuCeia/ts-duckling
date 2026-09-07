@@ -243,6 +243,8 @@ test("URL accepts Unicode label in full URL", () => {
     "a\u200bb\u2060c\ufeffd.com",
     "https://foo§bar.com/",
     "foo§bar.com",
+    "https://foo&bar.com/",
+    "foo&bar.com",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -712,6 +714,16 @@ test("URL validates decomposed hosts after normalization", () => {
   );
 });
 
+test("URL scans the maximum raw bare label through its separator", () => {
+  const domain = `a${"\u00ad".repeat(251)}.com`;
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(domain)
+      .map(({ text }) => text),
+    [domain],
+  );
+});
+
 test("URL validates contextual IDNA characters", () => {
   const accepted = [
     "l·l.cat",
@@ -894,7 +906,10 @@ test("URL treats safe bare-domain delimiters consistently on long lines", () => 
 });
 
 test("URL handles dense domain-shaped candidates without repeated lookbehind", () => {
-  assertEquals(Duckling([URL.parser]).extract("x.a.com+".repeat(1600)), []);
+  assertEquals(
+    Duckling([URL.parser]).extract("x.a.com+".repeat(1600)).length,
+    1600,
+  );
   const malformed = `https://${"x".repeat(64)}+example.com+`;
   assertEquals(Duckling([URL.parser]).extract(malformed.repeat(400)), []);
   assertEquals(Duckling([URL.parser]).extract("谢谢。".repeat(100)), []);
@@ -925,6 +940,24 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
       .extract("**https://a.com** *https://b.com* https://c.com/path*part")
       .map(({ text }) => text),
     ["https://a.com", "https://b.com", "https://c.com/path*part"],
+  );
+});
+
+test("URL treats safe symbols and HTML entities as host boundaries", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://a.com+next a.com=value a.com$5 https://example.com&nbsp;next example.org&#160;next example.net&#xA0;next",
+      )
+      .map(({ text }) => text),
+    [
+      "https://a.com",
+      "a.com",
+      "a.com",
+      "https://example.com",
+      "example.org",
+      "example.net",
+    ],
   );
 });
 
