@@ -919,19 +919,24 @@ test("URL preserves CJK punctuation inside suffixes", () => {
   );
 });
 
-test("URL treats repeated periods as sentence punctuation", () => {
+test("URL treats repeated periods after registered hosts as punctuation", () => {
   const res = Duckling([URL.parser]).extract(
     "See https://example.com...next and https://example.org..more http://intranet...next http://LOCALHOST..more",
   );
   assertEquals(
     res.map(({ text }) => text),
-    [
-      "https://example.com",
-      "https://example.org",
-      "http://intranet",
-      "http://LOCALHOST",
-    ],
+    ["https://example.com", "https://example.org"],
   );
+});
+
+test("URL rejects repeated-dot continuations after special hosts", () => {
+  for (const text of [
+    "http://localhost..evil/path",
+    "https://intranet..com/path",
+    "http://127.0.0.1..evil/path",
+  ]) {
+    assertEquals(Duckling([URL.parser]).extract(text), [], text);
+  }
 });
 
 test("URL treats opening brackets as text boundaries", () => {
@@ -1005,10 +1010,15 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
   assertEquals(
     Duckling([URL.parser])
       .extract(
-        "_https://f.com/path_ https://g.com/path_ foo_https://h.com/path_ _https://i.com/path",
+        "_https://f.com/path_ _https://j.com_ _https://k.com:80_ https://g.com/path_ foo_https://h.com/path_ _https://i.com/path",
       )
       .map(({ text }) => text),
-    ["https://f.com/path", "https://g.com/path_"],
+    [
+      "https://f.com/path",
+      "https://j.com",
+      "https://k.com:80",
+      "https://g.com/path_",
+    ],
   );
 });
 
@@ -1027,6 +1037,13 @@ test("URL treats safe symbols and HTML entities as host boundaries", () => {
       "example.org",
       "example.net",
     ],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com/?x=1&amp;y=2 https://b.com&nbsp;next")
+      .map(({ text }) => text),
+    ["https://a.com/?x=1&amp;y=2", "https://b.com"],
   );
 });
 
@@ -1457,10 +1474,26 @@ test("URL completes outer URLs across multiple nested schemes", () => {
       .map(({ text }) => text),
     [first, "example.org/path"],
   );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(`İ—${first}“example.org/path`)
+      .map(({ text }) => text),
+    [first, "example.org/path"],
+  );
 });
 
 test("URL bounds repeated malformed outer-authority completion scans", () => {
   assertEquals(Duckling([URL.parser]).extract("https://%zz".repeat(800)), []);
+});
+
+test("URL retains completion scans across async yields", async () => {
+  assertEquals(
+    await Duckling([URL.parser]).extractAsync("https://%zz".repeat(800), {
+      yieldEvery: 128,
+    }),
+    [],
+  );
 });
 
 test("URL separates domains after schemes inside balanced suffix groups", () => {

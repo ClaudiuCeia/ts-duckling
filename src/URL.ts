@@ -29,7 +29,7 @@ import type {
   Language as DefinedLanguage,
   Parser,
 } from "@claudiu-ceia/combine";
-import { dot } from "./common.ts";
+import { dot, extractionCacheFor } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
 import { longestLiteral } from "./parsers.ts";
@@ -43,6 +43,11 @@ const maxAttachedDelimiterLength = 64;
 
 const protocolNames = ["https", "http", "ftps", "ftp"];
 const protocolsWithSeparator = protocolNames.map((name) => `${name}://`);
+const protocolLengthAt = (text: string, index: number): number =>
+  protocolsWithSeparator.find(
+    (protocol) =>
+      text.substring(index, index + protocol.length).toLowerCase() === protocol,
+  )?.length ?? 0;
 const protocol = map(
   longestLiteral(protocolNames, { caseInsensitive: true }),
   (_name, before, after) => before.text.substring(before.index, after.index),
@@ -292,6 +297,22 @@ const htmlEntity: Parser<string> = (ctx) => {
     ? pending(ctx, "HTML entity")
     : failure(ctx, "HTML entity");
 };
+
+const isUrlContentHtmlEntity = (entity: string): boolean =>
+  [...decodeHTML(entity)].every((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return (
+      codePoint > 0x20 &&
+      codePoint !== 0x7f &&
+      !isWhitespace(character) &&
+      !['"', "<", ">", "`"].includes(character)
+    );
+  });
+const urlContentHtmlEntity = guard(
+  htmlEntity,
+  isUrlContentHtmlEntity,
+  "URL content HTML entity",
+);
 
 const atMost =
   <T>(count: number, parser: Parser<T>): Parser<T[]> =>
@@ -577,14 +598,19 @@ const mixedTerminalSuffixPunctuation = seq(
   skipMany1(str(".")),
   peek(emptySuffixDelimiter),
 );
-const closingAsteriskEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
-const closingEmphasis = any(closingAsteriskEmphasis, closingUnderscoreEmphasis);
+const closingEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
 );
 const safeTrailingHostDelimiter = oneOfCharacters(["+", "=", "$"]);
-const htmlEntityBoundary = peek(htmlEntity);
+const htmlEntityBoundary = peek(
+  guard(
+    htmlEntity,
+    (entity) => !isUrlContentHtmlEntity(entity),
+    "HTML entity boundary",
+  ),
+);
 const backslashBoundary = str("\\");
 const hostBoundary = peek(
   seq(
@@ -663,9 +689,12 @@ const completeEntityBoundary = peek(
 const plainSuffixCharacterValue = nonWhitespaceCharacterExcept(
   plainSuffixReservedCharacters,
 );
-const plainSuffixCharacter = map(
-  seq(not(htmlEntity), not(closingEmphasis), plainSuffixCharacterValue),
-  ([, , character]) => character,
+const plainSuffixCharacter = any(
+  urlContentHtmlEntity,
+  map(
+    seq(not(htmlEntity), not(closingEmphasis), plainSuffixCharacterValue),
+    ([, , character]) => character,
+  ),
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
 const unmatchedOpeningPunctuation = map(
@@ -1358,83 +1387,38 @@ function containsBreakCharacter(
 function lastProtocolStart(
   text: string,
 ): { index: number; length: number } | null {
-  const folded = text.toLowerCase();
-  let latest: { index: number; length: number } | null = null;
-
-  for (const candidate of protocolsWithSeparator) {
-    const index = folded.lastIndexOf(candidate);
-    if (index >= 0 && (latest === null || index > latest.index)) {
-      latest = { index, length: candidate.length };
-    }
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    const length = protocolLengthAt(text, index);
+    if (length > 0) return { index, length };
   }
-
-  return latest;
-}
-
-function isMarkdownUnderscoreOpener(text: string, protocolIndex: number) {
-  const openerIndex = protocolIndex - 1;
-  if (openerIndex < 0 || text[openerIndex] !== "_") return false;
-  const previous = previousCharacter(text, openerIndex);
-  return (
-    previous.length === 0 ||
-    isWhitespace(previous) ||
-    textBoundaryCharacters.includes(previous)
-  );
-}
-
-function hasOpeningUnderscoreEmphasis(
-  text: string,
-  closingIndex: number,
-): boolean {
-  let segmentStart = closingIndex;
-  while (segmentStart > 0) {
-    const previous = previousCharacter(text, segmentStart);
-    if (
-      isWhitespace(previous) ||
-      previous === "+" ||
-      textBoundaryCharacters.includes(previous)
-    ) {
-      break;
-    }
-    segmentStart -= previous.length;
-  }
-  const folded = text.substring(segmentStart, closingIndex).toLowerCase();
-  return protocolsWithSeparator.some((protocol) =>
-    folded.startsWith(`_${protocol}`),
-  );
-}
-
-function closingUnderscoreEmphasis(ctx: Context) {
-  if (ctx.text[ctx.index] !== "_") {
-    return failure(ctx, "closing underscore emphasis");
-  }
-  const after = { ...ctx, index: ctx.index + 1 };
-  const boundary = textBoundary(after);
-  if (!boundary.success) return boundary;
-  return hasOpeningUnderscoreEmphasis(ctx.text, ctx.index)
-    ? success(after, "_")
-    : failure(ctx, "closing underscore emphasis");
+  return null;
 }
 
 type CompletionScan = {
   text: string;
-  folded: string;
+  protocolStarts: number[];
   mandatoryStarts: Int32Array;
   conditionalCounts: Uint32Array;
   completionEnds: Map<number, number | null>;
 };
 
-let completionScanCache: CompletionScan | null = null;
-let completionScanCleanupScheduled = false;
+const completionScanCacheKey = Symbol("URL completion scan");
 
-function completionScan(text: string): CompletionScan {
-  if (completionScanCache?.text === text) return completionScanCache;
+function completionScan(ctx: Context): CompletionScan {
+  const cache = extractionCacheFor(ctx);
+  const cached = cache.get(completionScanCacheKey) as
+    | CompletionScan
+    | undefined;
+  if (cached?.text === ctx.text) return cached;
 
+  const { text } = ctx;
+  const protocolStarts: number[] = [];
   const mandatoryStarts = new Int32Array(text.length + 1);
   const conditionalCounts = new Uint32Array(text.length + 1);
   let mandatoryStart = 0;
   let conditionalCount = 0;
   for (let index = 0; index < text.length;) {
+    if (protocolLengthAt(text, index) > 0) protocolStarts.push(index);
     const codePoint = text.codePointAt(index);
     if (codePoint === undefined) break;
     const character = String.fromCodePoint(codePoint);
@@ -1448,29 +1432,24 @@ function completionScan(text: string): CompletionScan {
     index = next;
   }
 
-  completionScanCache = {
+  const scan: CompletionScan = {
     text,
-    folded: text.toLowerCase(),
+    protocolStarts,
     mandatoryStarts,
     conditionalCounts,
     completionEnds: new Map(),
   };
-  if (!completionScanCleanupScheduled) {
-    completionScanCleanupScheduled = true;
-    queueMicrotask(() => {
-      completionScanCache = null;
-      completionScanCleanupScheduled = false;
-    });
-  }
-  return completionScanCache;
+  cache.set(completionScanCacheKey, scan);
+  return scan;
 }
 
 function hasCompleteUrlBefore(
-  text: string,
+  ctx: Context,
   index: number,
   nestedSchemeStart?: number,
 ): boolean {
-  const scan = completionScan(text);
+  const { text } = ctx;
+  const scan = completionScan(ctx);
   const availableClosers = new Map(
     balancedClosingCharacters.map((closing) => [closing, 0]),
   );
@@ -1518,18 +1497,15 @@ function hasCompleteUrlBefore(
     }
   }
 
-  let protocolIndex = -1;
-  for (const protocol of protocolsWithSeparator) {
-    const candidateIndex = scan.folded.indexOf(protocol, segmentStart);
-    if (
-      candidateIndex >= 0 &&
-      candidateIndex < index &&
-      (protocolIndex < 0 || candidateIndex < protocolIndex)
-    ) {
-      protocolIndex = candidateIndex;
-    }
+  let low = 0;
+  let high = scan.protocolStarts.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (scan.protocolStarts[middle] < segmentStart) low = middle + 1;
+    else high = middle;
   }
-  if (protocolIndex < 0) return false;
+  const protocolIndex = scan.protocolStarts[low] ?? -1;
+  if (protocolIndex < 0 || protocolIndex >= index) return false;
 
   if (!scan.completionEnds.has(protocolIndex)) {
     scan.completionEnds.set(protocolIndex, null);
@@ -1611,14 +1587,14 @@ function hasInvalidBareStart(ctx: Context): boolean {
   ) {
     const completesOuterUrl =
       hasCompleteUrlBefore(
-        ctx.text,
+        ctx,
         invalidAuthoritySeparator.separator,
         invalidAuthoritySeparator.schemeStart,
       ) ||
       (invalidAuthoritySeparator.authorityEnd !==
         invalidAuthoritySeparator.separator &&
         hasCompleteUrlBefore(
-          ctx.text,
+          ctx,
           invalidAuthoritySeparator.authorityEnd,
           invalidAuthoritySeparator.schemeStart,
         ));
@@ -1643,8 +1619,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
         hasAttachedScheme(ctx.text.substring(0, punctuationIndex)));
     if (
       hasScheme &&
-      (followsRepeatedPeriods ||
-        !hasCompleteUrlBefore(ctx.text, punctuationIndex))
+      (followsRepeatedPeriods || !hasCompleteUrlBefore(ctx, punctuationIndex))
     ) {
       return true;
     }
@@ -1722,7 +1697,13 @@ const fullHost = chain(hostValue, (host) =>
 );
 const fullEntityHost = any(
   fullHost,
-  map(seq(hostValue, peek(repeatedSentencePeriods)), ([host]) => host),
+  map(
+    seq(
+      guard(hostValue, hasKnownTld, "hostname with an IANA TLD"),
+      peek(repeatedSentencePeriods),
+    ),
+    ([host]) => host,
+  ),
 );
 const bareDnsName = guard(
   validDnsName,
@@ -1796,6 +1777,44 @@ export const url = (
   return ent(value, "url", before, after);
 };
 
+const underscoreEmphasizedFull: Parser<URLEntity> = (ctx) => {
+  if (
+    ctx.text[ctx.index] !== "_" ||
+    (ctx.index > 0 &&
+      unicodeWordOrConnectorPattern.test(
+        previousCharacterBeforeVariationSelectors(ctx.text, ctx.index),
+      ))
+  ) {
+    return failure(ctx, "underscore-emphasized URL");
+  }
+
+  const start = ctx.index + 1;
+  for (
+    let closing = ctx.text.indexOf("_", start);
+    closing >= 0;
+    closing = ctx.text.indexOf("_", closing + 1)
+  ) {
+    const after = { ...ctx, index: closing + 1 };
+    const boundary = textBoundary(after);
+    if (!boundary.success) {
+      if ("pending" in boundary) return boundary;
+      continue;
+    }
+    const raw = ctx.text.substring(start, closing);
+    const result = URL.Full({ text: raw, index: 0 });
+    if (result.success && result.ctx.index === raw.length) {
+      return success(
+        after,
+        url({ url: raw }, { ...ctx, index: start }, { ...ctx, index: closing }),
+      );
+    }
+    return failure(ctx, "underscore-emphasized URL");
+  }
+  return ctx.final === false
+    ? pending(ctx, "underscore-emphasized URL")
+    : failure(ctx, "underscore-emphasized URL");
+};
+
 type URLOutputs = {
   Protocol: string;
   TLD: string;
@@ -1856,8 +1875,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
         ctx.index > 0 &&
         unicodeWordOrConnectorPattern.test(
           previousCharacterBeforeVariationSelectors(ctx.text, ctx.index),
-        ) &&
-        !isMarkdownUnderscoreOpener(ctx.text, ctx.index),
+        ),
       "URL boundary",
     ),
   Bare: (symbol) =>
@@ -1888,22 +1906,6 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     ),
   parser: (symbol) => {
     const entityParser = any(symbol.Full, symbol.Bare);
-    const unwrappedEntityParser: Parser<URLEntity> = (ctx) => {
-      const result = entityParser(ctx);
-      if (
-        result.success &&
-        isMarkdownUnderscoreOpener(ctx.text, result.value.start)
-      ) {
-        return failure(ctx, "unwrapped URL");
-      }
-      return result;
-    };
-    return any(
-      map(
-        seq(str("_"), entityParser, closingUnderscoreEmphasis),
-        ([, entity]) => entity,
-      ),
-      dot(unwrappedEntityParser),
-    );
+    return any(underscoreEmphasizedFull, dot(entityParser));
   },
 });

@@ -10,7 +10,7 @@
  */
 
 import { type Context, type Parser, recognizeAt } from "@claudiu-ceia/combine";
-import { __, dot, word } from "./common.ts";
+import { __, dot, extractionCache, word } from "./common.ts";
 
 type NonEmptyArray<T> = [T, ...T[]];
 
@@ -80,6 +80,7 @@ export async function asyncScan<T>(
 
   const recognizer = recognizeAt(...parsers);
   const results: T[] = [];
+  const cache = new Map<symbol, unknown>();
   let index = 0;
   let steps = 0;
 
@@ -90,7 +91,7 @@ export async function asyncScan<T>(
   while (index < text.length) {
     signal?.throwIfAborted();
 
-    const ctx: Context = { text, index };
+    const ctx = { text, index, [extractionCache]: cache } as Context;
 
     // Try entity parsers
     const rec = recognizer(ctx);

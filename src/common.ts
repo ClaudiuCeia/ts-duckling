@@ -1,4 +1,5 @@
 import {
+  type Context,
   any,
   eof,
   map,
@@ -8,6 +9,20 @@ import {
   skip1,
   space,
 } from "@claudiu-ceia/combine";
+
+export const extractionCache = Symbol("extraction cache");
+
+type CachedContext = Context & {
+  [extractionCache]?: Map<symbol, unknown>;
+};
+
+export function extractionCacheFor(ctx: Context): Map<symbol, unknown> {
+  const cached = (ctx as CachedContext)[extractionCache];
+  if (cached !== undefined) return cached;
+  const cache = new Map<symbol, unknown>();
+  (ctx as CachedContext)[extractionCache] = cache;
+  return cache;
+}
 
 export const dot = <T>(p: Parser<T>): Parser<T> =>
   map(
