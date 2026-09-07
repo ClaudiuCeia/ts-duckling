@@ -85,6 +85,20 @@ const unicodeSentencePunctuation = [
   "\uff1f",
   "\uff61",
 ];
+const suffixPunctuationCharacters = [
+  ".",
+  ",",
+  ";",
+  "!",
+  "?",
+  "'",
+  "#",
+  ":",
+  ")",
+  "]",
+  "}",
+  ...unicodeSentencePunctuation,
+];
 const unicodeHostBoundaries = [
   ...unicodeSuffixBoundaries,
   ...unicodeSentencePunctuation,
@@ -131,6 +145,7 @@ const completeUrlBreakCharacters = new Set(
 );
 const plainSuffixReservedCharacters = new Set([
   "<",
+  ":",
   ",",
   ";",
   "!",
@@ -346,13 +361,20 @@ const proseCompatibilityDot: Parser<string> = (ctx) => {
     ? failure(ctx, "compatibility hostname continuation")
     : result;
 };
-const sentenceColon = seq(str(":"), peek(textBoundary));
+const sentenceColon = seq(
+  guard(
+    mapJoin(many1(oneOfCharacters(suffixPunctuationCharacters))),
+    (punctuation) => punctuation.includes(":"),
+    "sentence colon",
+  ),
+  peek(textBoundary),
+);
 const emptySuffixDelimiter = seq(
   oneOfCharacters(["?", "#"]),
   peek(textBoundary),
 );
 const adjacentProtocolBoundary = seq(
-  skipMany1(oneOfCharacters([".", ",", ";", "!"])),
+  skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
 );
 const hostBoundary = peek(
@@ -403,56 +425,38 @@ const plainSuffixCharacter = nonWhitespaceCharacterExcept(
   plainSuffixReservedCharacters,
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
-const suffixPartStart = any(plainSuffixPart, oneOfCharacters(["(", "[", "{"]));
-const internalSuffixPunctuation = map(
-  seq(
-    mapJoin(many1(oneOfCharacters([".", ",", ";", "!", "?", "'", "#"]))),
-    not(protocolStart),
-    peek(suffixPartStart),
-  ),
-  ([punctuation]) => punctuation,
-);
-const internalUnicodeSuffixPunctuationValue = map(
-  seq(
-    mapJoin(many1(oneOfCharacters(unicodeSentencePunctuation))),
-    not(protocolStart),
-    peek(suffixPartStart),
-  ),
-  ([punctuation]) => punctuation,
-);
-const internalUnicodeSuffixPunctuation: Parser<string> = (ctx) => {
-  const result = internalUnicodeSuffixPunctuationValue(ctx);
-  if (!result.success) return result;
-  return isUnicodeProseBoundary(ctx.text, ctx.index, result.ctx.index)
-    ? failure(ctx, "Unicode URL punctuation")
-    : result;
-};
-const internalClosingPunctuation = any(
-  map(
-    seq(
-      mapJoin(many1(oneOfCharacters([")", "]", "}"]))),
-      peek(
-        any(
-          plainSuffixPart,
-          internalSuffixPunctuation,
-          internalUnicodeSuffixPunctuation,
-        ),
-      ),
-    ),
-    ([punctuation]) => punctuation,
-  ),
-  map(
-    seq(
-      mapJoin(many1(str(")"))),
-      peek(any(seq(str("("), not(protocolStart)), str("{"))),
-    ),
-    ([punctuation]) => punctuation,
-  ),
-);
 const unmatchedOpeningPunctuation = map(
   seq(oneOfCharacters(["(", "[", "{"]), not(protocolStart)),
   ([opening]) => opening,
 );
+const suffixPartStart = any(plainSuffixPart, unmatchedOpeningPunctuation);
+const internalSuffixPunctuationValue = map(
+  seq(
+    mapJoin(many1(oneOfCharacters(suffixPunctuationCharacters))),
+    not(protocolStart),
+    peek(suffixPartStart),
+  ),
+  ([punctuation]) => punctuation,
+);
+const internalSuffixPunctuation: Parser<string> = (ctx) => {
+  const result = internalSuffixPunctuationValue(ctx);
+  if (!result.success) return result;
+  const containsUnicodePunctuation = [...result.value].some((character) =>
+    unicodeSentencePunctuation.includes(character),
+  );
+  if (
+    containsUnicodePunctuation &&
+    isUnicodeProseBoundary(ctx.text, ctx.index, result.ctx.index)
+  ) {
+    return failure(ctx, "Unicode URL punctuation");
+  }
+  const containsClosingPunctuation = [...result.value].some((character) =>
+    ")]}".includes(character),
+  );
+  return containsClosingPunctuation && ctx.text[result.ctx.index] === "["
+    ? failure(ctx, "Markdown link boundary")
+    : result;
+};
 
 const createBalancedSuffixPart = (
   text: string,
@@ -524,12 +528,11 @@ const suffix: Parser<string> = (ctx) => {
   const suffixStart = peek(oneOfCharacters(["/", "?", "#"]))(ctx);
   if (!suffixStart.success) return suffixStart;
 
+  const balancedSuffixPart = createBalancedSuffixPart(ctx.text, ctx.index);
   const suffixPart = any(
-    createBalancedSuffixPart(ctx.text, ctx.index),
+    balancedSuffixPart,
     plainSuffixPart,
     internalSuffixPunctuation,
-    internalUnicodeSuffixPunctuation,
-    internalClosingPunctuation,
     unmatchedOpeningPunctuation,
   );
   const slashSuffix = map(

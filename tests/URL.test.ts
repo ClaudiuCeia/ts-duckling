@@ -344,6 +344,79 @@ test("URL leaves empty query and fragment delimiters as punctuation", () => {
   );
 });
 
+test("URL trims sentence colons from suffixes", () => {
+  const res = Duckling([URL.parser]).extract(
+    "See https://example.com/path: next https://example.org/?q=value: and https://example.net/#section:) plus https://example.edu/a:b. https://example.gov/a:: next",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "https://example.com/path",
+      "https://example.org/?q=value",
+      "https://example.net/#section",
+      "https://example.edu/a:b",
+      "https://example.gov/a",
+    ],
+  );
+
+  const incomplete = URL.Suffix({ text: "/path:", index: 0, final: false });
+  assertEquals(incomplete.success, false);
+  assertEquals("pending" in incomplete && incomplete.pending, true);
+});
+
+test("URL preserves colons before internal suffix punctuation", () => {
+  const urls = [
+    "https://example.com/a:(b)",
+    "https://example.com/?q=a:,b",
+    "https://example.com/#a:;b",
+    "https://example.com/O:'Brien",
+    "https://example.com/a:，_b",
+    "https://example.com/a,:b",
+    "https://example.com/a):b",
+    "https://example.com/a?:b",
+    "https://example.com/a:)b",
+    "https://example.com/a:,)b",
+    "https://example.com/a:)(b)",
+    "https://example.com/a::b",
+    "https://example.com/a):)b",
+    "https://example.com/?q=a]:]b",
+    "https://example.com/#a}:}b",
+    "https://example.com/a:):)b",
+  ];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
+  );
+});
+
+test("URL trims mixed terminal punctuation containing colons", () => {
+  const cases: Array<[string, string[]]> = [
+    ["https://example.com/a.: next", ["https://example.com/a"]],
+    ["https://example.com/a?: next", ["https://example.com/a"]],
+    ["https://example.com/a:. next", ["https://example.com/a"]],
+    ["https://a.com/x:https://b.com/y", ["https://a.com/x", "https://b.com/y"]],
+    [
+      "https://a.com/x:)https://b.com/y",
+      ["https://a.com/x", "https://b.com/y"],
+    ],
+    [
+      "https://a.com/x?:),https://b.com/y",
+      ["https://a.com/x", "https://b.com/y"],
+    ],
+  ];
+  for (const [input, expected] of cases) {
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(input)
+        .map(({ text }) => text),
+      expected,
+      input,
+    );
+  }
+});
+
 test("URL preserves internal punctuation and unmatched opening brackets", () => {
   const res = Duckling([URL.parser]).extract(
     "https://example.com/a..b https://example.org/a?!b https://example.net/a(b https://example.edu/a(b)c https://en.wikipedia.org/wiki/Function_((mathematics)) https://example.gov/(((a)))",
