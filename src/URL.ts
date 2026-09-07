@@ -101,6 +101,7 @@ const suffixPunctuationCharacters = [
   "!",
   "?",
   "'",
+  "\u2019",
   "#",
   ":",
   ")",
@@ -492,11 +493,7 @@ const createBalancedSuffixPart = (
   startIndex: number,
 ): Parser<string> => {
   const closingIndexes = new Map<number, number>();
-  const stacks = new Map([
-    ["(", [] as number[]],
-    ["[", [] as number[]],
-    ["{", [] as number[]],
-  ]);
+  const stack: Array<{ opening: string; index: number }> = [];
   const closingToOpening = new Map([
     [")", "("],
     ["]", "["],
@@ -521,23 +518,21 @@ const createBalancedSuffixPart = (
       break;
     }
 
-    const openingStack = stacks.get(character);
-    if (openingStack !== undefined) {
-      openingStack.push(index);
+    if ("([{".includes(character)) {
+      stack.push({ opening: character, index });
     } else {
       const opening = closingToOpening.get(character);
-      const stack = opening === undefined ? undefined : stacks.get(opening);
-      if (stack !== undefined && stack.length > 0) {
-        closingIndexes.set(stack.pop()!, index + character.length);
+      const latest = stack.at(-1);
+      if (opening !== undefined && latest?.opening === opening) {
+        stack.pop();
+        closingIndexes.set(latest.index, index + character.length);
       }
     }
     index += character.length;
   }
 
   const pendingOpenings = new Set(
-    reachedInputEnd
-      ? Array.from(stacks.values()).flatMap((stack) => stack)
-      : [],
+    reachedInputEnd ? stack.map(({ index }) => index) : [],
   );
   return (ctx) => {
     const closingIndex = closingIndexes.get(ctx.index);

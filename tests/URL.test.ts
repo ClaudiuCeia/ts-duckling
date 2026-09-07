@@ -473,6 +473,16 @@ test("URL preserves deeply nested balanced groups", () => {
   );
 });
 
+test("URL preserves cross-nested delimiter characters", () => {
+  const input = "https://example.com/([)]";
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(input)
+      .map(({ text }) => text),
+    [input],
+  );
+});
+
 test("URL only keeps incomplete balanced groups pending", () => {
   for (const text of ["/abc next", "/(a) next"]) {
     const result = URL.Suffix({ text, index: 0, final: false });
@@ -1066,13 +1076,17 @@ test("URL keeps external wrappers outside nested completion checks", () => {
   );
 });
 
-test("URL trims an enclosing apostrophe after an internal apostrophe", () => {
+test("URL handles ASCII and typographic apostrophes contextually", () => {
   const res = Duckling([URL.parser]).extract(
-    "See 'https://example.com/O'Brien' now",
+    "See 'https://example.com/O'Brien' and https://example.org/O’Brien then ‘https://example.net/path’",
   );
   assertEquals(
     res.map(({ text }) => text),
-    ["https://example.com/O'Brien"],
+    [
+      "https://example.com/O'Brien",
+      "https://example.org/O’Brien",
+      "https://example.net/path",
+    ],
   );
 });
 
