@@ -241,6 +241,7 @@ const atMost =
   };
 
 const contextualIdnaCharacters = [
+  "\u00ad",
   "\u00b7",
   "\u0375",
   "\u05f3",
@@ -260,8 +261,9 @@ const percentEncodedOctet = map(
   seq(str("%"), hexDigit(), hexDigit()),
   (_value, before, after) => before.text.substring(before.index, after.index),
 );
-let compatibilityTailCacheText = "";
+let compatibilityTailCacheText: string | null = null;
 let compatibilityTailCache = new Map<number, boolean>();
+let compatibilityTailCleanupScheduled = false;
 const domainLabelStart = any(
   guard(
     regex(
@@ -1056,6 +1058,15 @@ function hasKnownTldInCompatibilityTail(text: string, index: number): boolean {
   if (compatibilityTailCacheText !== text) {
     compatibilityTailCacheText = text;
     compatibilityTailCache = new Map();
+  }
+  if (!compatibilityTailCleanupScheduled) {
+    compatibilityTailCleanupScheduled = true;
+    // Reuse the scan within one synchronous extraction, then release its input.
+    queueMicrotask(() => {
+      compatibilityTailCacheText = null;
+      compatibilityTailCache.clear();
+      compatibilityTailCleanupScheduled = false;
+    });
   }
   const cached = compatibilityTailCache.get(index);
   if (cached !== undefined) return cached;

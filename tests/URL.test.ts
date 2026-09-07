@@ -237,6 +237,8 @@ test("URL accepts Unicode label in full URL", () => {
     "https://foo€bar.com/",
     "https://∑.com/",
     "https://€.com/",
+    "https://a\u00adb.com/",
+    "a\u00adb.com",
   ];
   assertEquals(
     Duckling([URL.parser])
