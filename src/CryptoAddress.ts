@@ -8,7 +8,8 @@ import {
   str,
 } from "@claudiu-ceia/combine";
 import type { Language } from "@claudiu-ceia/combine";
-import { crypto as stdCrypto } from "@std/crypto";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { dot } from "./common.ts";
 import { ent, type Entity } from "./Entity.ts";
 import { guard } from "./guard.ts";
@@ -96,8 +97,7 @@ function isValidBase58CheckAddress(addr: string, versionByte: number): boolean {
   if (decoded[0] !== versionByte) return false;
   const payload = decoded.slice(0, 21);
   const storedChecksum = decoded.slice(21);
-  const hash1 = new Uint8Array(stdCrypto.subtle.digestSync("SHA-256", payload));
-  const hash2 = new Uint8Array(stdCrypto.subtle.digestSync("SHA-256", hash1));
+  const hash2 = sha256(sha256(payload));
   return (
     hash2[0] === storedChecksum[0] &&
     hash2[1] === storedChecksum[1] &&
@@ -216,12 +216,7 @@ function isValidEip55(addr: string): boolean {
   if (body === body.toLowerCase() || body === body.toUpperCase()) return true;
 
   const lowerBody = body.toLowerCase();
-  const hashBytes = new Uint8Array(
-    stdCrypto.subtle.digestSync(
-      "KECCAK-256",
-      new TextEncoder().encode(lowerBody),
-    ),
-  );
+  const hashBytes = keccak_256(new TextEncoder().encode(lowerBody));
 
   for (let i = 0; i < body.length; i++) {
     const c = body[i];

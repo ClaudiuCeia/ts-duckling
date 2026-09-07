@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Extract typed dates, times, URLs, countries, quantities, and sensitive values from text.",
   "keywords": [
     "browser",
@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@claudiu-ceia/combine": "0.11.2",
-    "@std/crypto": "https://npm.jsr.io/~/11/@jsr/std__crypto/1.1.0.tgz",
+    "@noble/hashes": "2.4.0",
     "entities": "8.0.0"
   },
   "devDependencies": {

@@ -58,10 +58,12 @@ jobs:
           set -euo pipefail
           tarball="$(realpath "$(find . -maxdepth 1 -name '*.tgz' -print -quit)")"
           smoke="$(mktemp -d)"
+          cp scripts/package_smoke.mjs "${smoke}/"
           cd "${smoke}"
           npm init -y >/dev/null
           npm install "${tarball}" >/dev/null
-          bun --eval 'import { Duckling } from "@claudiu-ceia/ts-duckling"; if (Duckling().extract("a@b.com")[0]?.kind !== "email") process.exit(1)'
+          npm ls --all
+          bun package_smoke.mjs
 
       - name: Upload packed package
         uses: actions/upload-artifact@v6
@@ -76,6 +78,9 @@ jobs:
       matrix:
         node-version: [22, 24, 26]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -93,10 +98,12 @@ jobs:
           set -euo pipefail
           tarball="$(realpath "$(find package -name '*.tgz' -print -quit)")"
           smoke="$(mktemp -d)"
+          cp scripts/package_smoke.mjs "${smoke}/"
           cd "${smoke}"
           npm init -y >/dev/null
           npm install "${tarball}" >/dev/null
-          node --input-type=module --eval 'import { Duckling } from "@claudiu-ceia/ts-duckling"; if (Duckling().extract("a@b.com")[0]?.kind !== "email") process.exit(1)'
+          npm ls --all
+          node package_smoke.mjs
 
   jsr:
     runs-on: ubuntu-latest
