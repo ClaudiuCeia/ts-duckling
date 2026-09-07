@@ -137,6 +137,16 @@ test("URL bare domain with port", () => {
   assertEquals(res[0].value, { url: "localhost.com:3000" });
 });
 
+test("URL accepts underscores inside protocol-qualified hosts", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://foo_bar.example.com/path http://my_service.localhost:3000/",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://foo_bar.example.com/path", "http://my_service.localhost:3000/"],
+  );
+});
+
 test("URL prefers full URL over bare domain", () => {
   const res = Duckling().extract("Go to https://example.com/path please");
 
@@ -252,6 +262,7 @@ test("URL validates protocol-qualified hosts", () => {
     "127.0.0.1",
     "[2001:db8::1]",
     "cafe\u0301.example",
+    "example_com",
   ]) {
     const result = URL.FullHost({ text: host, index: 0 });
     assertEquals(result.success, true, host);
@@ -265,7 +276,6 @@ test("URL validates protocol-qualified hosts", () => {
     "-example.com",
     "example-.com",
     "example..com",
-    "example_com",
     `[${"1".repeat(1000)}]`,
   ]) {
     assertEquals(URL.FullHost({ text: host, index: 0 }).success, false, host);
@@ -512,14 +522,28 @@ test("URL rejects out-of-range port :65536", () => {
 });
 
 test("URL validates integer port boundaries", () => {
-  for (const port of ["1", "65535"]) {
+  for (const port of ["0", "1", "65535"]) {
     const result = URL.Port({ text: port, index: 0 });
     assertEquals(result.success, true, port);
     if (result.success) assertEquals(result.ctx.index, port.length, port);
   }
-  for (const port of ["0", "65536", "1.5", "abc", "9".repeat(1000)]) {
+  for (const port of ["", "65536", "1.5", "abc", "9".repeat(1000)]) {
     assertEquals(URL.Port({ text: port, index: 0 }).success, false, port);
   }
+});
+
+test("URL accepts port zero", () => {
+  const res = Duckling([URL.parser]).extract(
+    "http://localhost:0/ example.com:0/path https://example.org:000000/",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      "http://localhost:0/",
+      "example.com:0/path",
+      "https://example.org:000000/",
+    ],
+  );
 });
 
 test("URL accepts zero-padded ports by numeric value", () => {
@@ -747,6 +771,19 @@ test("URL treats opening brackets as text boundaries", () => {
   );
 });
 
+test("URL treats safe bare-domain delimiters consistently on long lines", () => {
+  for (const delimiter of ["=", "$", "+", "\u201c"]) {
+    const text = `${"A".repeat(300)}${delimiter}example.com`;
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(text)
+        .map(({ text: value }) => value),
+      ["example.com"],
+      delimiter,
+    );
+  }
+});
+
 test("URL rejects starts attached to Unicode words and connectors", () => {
   for (const text of [
     "\u{10400}https://example.com",
@@ -850,6 +887,16 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     "http://intranet。.#next.com",
     "https://user:pass@example.com。。?next.com",
     `https://${"x".repeat(300)}。.#next.com`,
+    `https://${"x".repeat(300)}++example.com/path`,
+    `https://${"x".repeat(64)}\u201cexample.com/path`,
+    `https://${"x".repeat(64)}+]example.com/path`,
+    `https://${"x".repeat(64)}+。example.com/path`,
+    "https://;.;example.org/path",
+    "https://[/],example.org/path",
+    "https://user:pass@example.com\u201cexample.org/path",
+    "https://example.com:65536\u201cexample.org/path",
+    "https://example.com:1.5\u201cexample.org/path",
+    "https://[::1]evil\u201cexample.org/path",
     "https://127.0.0.1:1.5。.:abc.com/x",
     "https://example.com:80。。?next.com",
     "https://example.com:80。。#next.com",
@@ -942,7 +989,7 @@ test("URL accepts a terminal DNS root dot before authority delimiters", () => {
 
 test("URL accepts ordinary punctuation before bare domains", () => {
   const res = Duckling([URL.parser]).extract(
-    "Website:example.com See...example.org/path https://localhost,example.net https://localhost!example.edu https://localhost<example.gov See...?example.io Wait..#example.dev",
+    "Website:example.com See...example.org/path https://localhost,example.net https://localhost!example.edu https://localhost<example.gov See...?example.io Wait..#example.dev https://a.com]example.info/path https://[::1]!example.biz/path",
   );
   assertEquals(
     res.map(({ text }) => text),
@@ -957,7 +1004,54 @@ test("URL accepts ordinary punctuation before bare domains", () => {
       "example.gov",
       "example.io",
       "example.dev",
+      "https://a.com",
+      "example.info/path",
+      "https://[::1]",
+      "example.biz/path",
     ],
+  );
+});
+
+test("URL separates domains after schemes inside query values", () => {
+  const first = `https://a.com/?next=https://${"x".repeat(64)}`;
+  const second = "https://b.com/?next=ftp://[garbage]";
+  const third = `https://c.com/?next=https://${"x".repeat(64)}`;
+  const res = Duckling([URL.parser]).extract(
+    `${first}\u201cexample.org/path ${second}\u201cexample.net/path ${third},\u201cexample.info/path`,
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [
+      first,
+      "example.org/path",
+      second,
+      "example.net/path",
+      third,
+      "example.info/path",
+    ],
+  );
+});
+
+test("URL separates domains after schemes inside balanced suffix groups", () => {
+  const first = `https://a.com/?x=(foo-https://${"x".repeat(64)})`;
+  const second = `https://b.com/?next=x(y)-https://${"x".repeat(64)}`;
+  const res = Duckling([URL.parser]).extract(
+    `${first}\u201cexample.org/path ${second}\u201cexample.net/path`,
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [first, "example.org/path", second, "example.net/path"],
+  );
+});
+
+test("URL keeps external wrappers outside nested completion checks", () => {
+  const first = `https://a.com/?next=https://${"x".repeat(64)}`;
+  const res = Duckling([URL.parser]).extract(
+    `(${first})\u201cexample.org/path [${first}]\u201cexample.net/path`,
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    [first, "example.org/path", first, "example.net/path"],
   );
 });
 

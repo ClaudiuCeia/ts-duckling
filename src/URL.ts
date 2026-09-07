@@ -40,6 +40,7 @@ import tlds from "../data/tlds.json" with { type: "json" };
 const maxDomainLength = 253;
 const maxLabelLength = 63;
 const maxDomainLabels = Math.ceil(maxDomainLength / 2);
+const maxAttachedDelimiterLength = 64;
 
 const protocolNames = ["https", "http", "ftps", "ftp"];
 const protocolsWithSeparator = protocolNames.map((name) => `${name}://`);
@@ -147,9 +148,6 @@ const bareLookbehindBreakCharacters = new Set([
   ...authorityBreakCharacters,
   "<",
 ]);
-const completeUrlBreakCharacters = new Set(
-  textBoundaryCharacters.filter((character) => character !== "!"),
-);
 const plainSuffixReservedCharacters = new Set([
   "<",
   ":",
@@ -215,10 +213,12 @@ const percentEncodedOctet = map(
 );
 const domainLabelStart = any(
   regex(/[\p{L}\p{N}\p{So}]/u, "Unicode hostname label start"),
+  str("_"),
   contextualIdnaCharacter,
 );
 const domainLabelContinuation = any(
   regex(/[\p{L}\p{M}\p{N}\p{So}-]/u, "Unicode hostname label character"),
+  str("_"),
   contextualIdnaCharacter,
 );
 const domainLabel = guard(
@@ -643,7 +643,7 @@ function previousCharacter(text: string, index: number): string {
 function isDomainLabelCharacter(character: string): boolean {
   return (
     unicodeDomainCharacterPattern.test(character) ||
-    character === "-" ||
+    "-_".includes(character) ||
     contextualIdnaCharacters.includes(character)
   );
 }
@@ -669,6 +669,194 @@ function hasKnownHostBeforeRepeatedPeriods(
     hostStart -= character.length;
   }
   return hasKnownTld(text.substring(hostStart, hostEnd));
+}
+
+function isAuthorityCandidateCharacter(character: string): boolean {
+  return (
+    character === "." ||
+    character === "%" ||
+    ":@[]".includes(character) ||
+    compatibilityDots.includes(character) ||
+    isDomainLabelCharacter(character)
+  );
+}
+
+function attachedSchemeBefore(text: string, index: number): string | null {
+  const prefix = text.substring(Math.max(0, index - 8), index).toLowerCase();
+  return (
+    protocolsWithSeparator.find((candidate) => prefix.endsWith(candidate)) ??
+    null
+  );
+}
+
+function previousBracket(text: string, bracket: string, index: number): number {
+  const start = Math.max(0, index - 128);
+  const offset = text.substring(start, index).lastIndexOf(bracket);
+  return offset < 0 ? -1 : start + offset;
+}
+
+function matchingOpener(
+  text: string,
+  closing: string,
+  closingIndex: number,
+  nestedSchemeStart: number,
+): number {
+  const opening = closing === ")" ? "(" : closing === "]" ? "[" : "{";
+  let depth = 0;
+  for (let cursor = closingIndex + closing.length; cursor > 0;) {
+    const character = previousCharacter(text, cursor);
+    cursor -= character.length;
+    if (
+      cursor !== nestedSchemeStart &&
+      "hHfF".includes(character) &&
+      protocolsWithSeparator.some((protocol) =>
+        text
+          .substring(cursor, cursor + protocol.length)
+          .toLowerCase()
+          .startsWith(protocol),
+      )
+    ) {
+      return -1;
+    }
+    if (character === closing) depth += 1;
+    if (character === opening) {
+      depth -= 1;
+      if (depth === 0) return cursor;
+    }
+  }
+  return -1;
+}
+
+function completionEndAfterAuthority(
+  text: string,
+  authorityEnd: number,
+  index: number,
+  schemeStart: number,
+): number {
+  let completionEnd = index;
+  while (completionEnd > authorityEnd) {
+    const character = previousCharacter(text, completionEnd);
+    if (
+      ")]}".includes(character) &&
+      matchingOpener(
+        text,
+        character,
+        completionEnd - character.length,
+        schemeStart,
+      ) >= 0
+    ) {
+      break;
+    }
+    completionEnd -= character.length;
+  }
+  return completionEnd;
+}
+
+function invalidSchemeAuthoritySeparator(
+  text: string,
+  index: number,
+): {
+  separator: number;
+  authorityEnd: number;
+  schemeStart: number;
+  invalid: boolean;
+} | null {
+  let authorityEnd = index;
+  let skippedDelimiter = false;
+  let delimiterLength = 0;
+  while (authorityEnd > 0) {
+    const prefix = text
+      .substring(Math.max(0, authorityEnd - 8), authorityEnd)
+      .toLowerCase();
+    const emptyAuthorityScheme = protocolsWithSeparator.find((candidate) =>
+      prefix.endsWith(candidate),
+    );
+    if (emptyAuthorityScheme !== undefined) {
+      const schemeStart = authorityEnd - emptyAuthorityScheme.length;
+      return {
+        separator: completionEndAfterAuthority(
+          text,
+          authorityEnd,
+          index,
+          schemeStart,
+        ),
+        authorityEnd,
+        schemeStart,
+        invalid: true,
+      };
+    }
+
+    const character = previousCharacter(text, authorityEnd);
+    if (isWhitespace(character)) return null;
+    if (character === "]") {
+      const open = previousBracket(text, "[", authorityEnd - 1);
+      if (
+        open >= 0 &&
+        text.indexOf("]", open) === authorityEnd - 1 &&
+        attachedSchemeBefore(text, open) !== null
+      ) {
+        break;
+      }
+    }
+    if (isDomainLabelCharacter(character)) {
+      break;
+    }
+    if ((character === "." || character === "%") && !skippedDelimiter) break;
+    authorityEnd -= character.length;
+    delimiterLength += character.length;
+    if (delimiterLength > maxAttachedDelimiterLength) return null;
+    skippedDelimiter = true;
+  }
+
+  const close = previousBracket(text, "]", authorityEnd);
+  const open = close >= 0 ? previousBracket(text, "[", close) : -1;
+  const bracketTail = close >= 0 ? text.substring(close + 1, authorityEnd) : "";
+  let authorityStart =
+    open >= 0 &&
+    text.indexOf("]", open) === close &&
+    [...bracketTail].every(isAuthorityCandidateCharacter) &&
+    attachedSchemeBefore(text, open) !== null
+      ? open
+      : authorityEnd;
+  if (authorityStart === authorityEnd) {
+    while (authorityStart > 0) {
+      const character = previousCharacter(text, authorityStart);
+      if (!isAuthorityCandidateCharacter(character)) break;
+      authorityStart -= character.length;
+    }
+  }
+
+  const scheme = attachedSchemeBefore(text, authorityStart);
+  if (scheme === null) return null;
+  const schemeStart = authorityStart - scheme.length;
+  const completionEnd = completionEndAfterAuthority(
+    text,
+    authorityEnd,
+    index,
+    schemeStart,
+  );
+
+  try {
+    const parsed = new globalThis.URL(
+      `${scheme}${text.substring(authorityStart, authorityEnd)}`,
+    );
+    const host = parsed.hostname;
+    const validHost = host.startsWith("[")
+      ? isValidBracketedHost(host)
+      : isValidDnsName(host);
+    return validHost &&
+      parsed.username.length === 0 &&
+      parsed.password.length === 0
+      ? { separator: completionEnd, authorityEnd, schemeStart, invalid: false }
+      : { separator: completionEnd, authorityEnd, schemeStart, invalid: true };
+  } catch {
+    return {
+      separator: completionEnd,
+      authorityEnd,
+      schemeStart,
+      invalid: true,
+    };
+  }
 }
 
 function hasKnownHostBeforeRootDots(text: string, index: number): boolean {
@@ -844,24 +1032,59 @@ function lastProtocolStart(
   return latest;
 }
 
-function hasCompleteUrlBefore(text: string, index: number): boolean {
-  const prefix = text.substring(
-    Math.max(0, index - maxDomainLength - 16),
-    index,
-  );
-  const start = lastProtocolStart(prefix);
-  if (start === null) return false;
-
-  const candidate = prefix.slice(start.index);
-  if (containsBreakCharacter(candidate, completeUrlBreakCharacters)) {
-    return false;
+function hasCompleteUrlBefore(
+  text: string,
+  index: number,
+  nestedSchemeStart?: number,
+): boolean {
+  const availableClosers: Record<string, number> = { ")": 0, "]": 0, "}": 0 };
+  if (nestedSchemeStart !== undefined) {
+    for (const character of text.substring(nestedSchemeStart, index)) {
+      if (character in availableClosers) availableClosers[character] += 1;
+    }
   }
 
-  try {
-    return new globalThis.URL(candidate).hostname.length > 0;
-  } catch {
-    return false;
+  let segmentStart = nestedSchemeStart ?? index;
+  while (segmentStart > 0) {
+    const character = previousCharacter(text, segmentStart);
+    const closing = character === "(" ? ")" : character === "[" ? "]" : "}";
+    const balancedOpening =
+      nestedSchemeStart !== undefined &&
+      "([{".includes(character) &&
+      availableClosers[closing] > 0;
+    if (balancedOpening) availableClosers[closing] -= 1;
+    const balancedClosing =
+      nestedSchemeStart !== undefined && ")]}".includes(character);
+    if (balancedClosing) availableClosers[character] += 1;
+    if (
+      isWhitespace(character) ||
+      (nestedSchemeStart !== undefined &&
+        textBoundaryCharacters.includes(character) &&
+        !balancedOpening &&
+        !balancedClosing)
+    ) {
+      break;
+    }
+    segmentStart -= character.length;
   }
+
+  const prefix = text.substring(segmentStart, index);
+  const folded = prefix.toLowerCase();
+  let protocolIndex = -1;
+  for (const protocol of protocolsWithSeparator) {
+    const candidateIndex = folded.indexOf(protocol);
+    if (
+      candidateIndex >= 0 &&
+      (protocolIndex < 0 || candidateIndex < protocolIndex)
+    ) {
+      protocolIndex = candidateIndex;
+    }
+  }
+  if (protocolIndex < 0) return false;
+
+  const candidate = prefix.slice(protocolIndex);
+  const result = URL.Full({ text: candidate, index: 0 });
+  return result.success && result.ctx.index === candidate.length;
 }
 
 function hasPortInUrlBefore(text: string, index: number): boolean {
@@ -901,29 +1124,64 @@ function hasAttachedScheme(prefix: string): boolean {
   return !containsBreakCharacter(authority, authorityBreakCharacters);
 }
 
+function exceedsAttachedDelimiterHorizon(text: string, index: number): boolean {
+  let length = 0;
+  for (let cursor = index; cursor > 0;) {
+    const character = previousCharacter(text, cursor);
+    if (isWhitespace(character) || isDomainLabelCharacter(character)) break;
+    length += character.length;
+    if (length > maxAttachedDelimiterLength) return true;
+    cursor -= character.length;
+  }
+  return false;
+}
+
 function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.index === 0) return false;
   if (hasMalformedRootAuthorityBefore(ctx.text, ctx.index)) return true;
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
+  if (exceedsAttachedDelimiterHorizon(ctx.text, ctx.index)) return false;
   if (isDomainLabelCharacter(previous) || "_@/%".includes(previous)) {
     return true;
   }
   if (previous === "." && ctx.text[ctx.index - 2] !== ".") return true;
+  if ([":", "?", "#", "\\"].includes(previous)) {
+    const punctuationIndex = ctx.index - previous.length;
+    if (hasKnownHostBeforeRepeatedPeriods(ctx.text, punctuationIndex)) {
+      return true;
+    }
+  }
+  const invalidAuthoritySeparator = invalidSchemeAuthoritySeparator(
+    ctx.text,
+    ctx.index,
+  );
   if (
-    [":", "?", "#", "\\"].includes(previous) &&
-    hasKnownHostBeforeRepeatedPeriods(ctx.text, ctx.index - previous.length)
+    !isWhitespace(previous) &&
+    invalidAuthoritySeparator !== null &&
+    invalidAuthoritySeparator.invalid
   ) {
-    return true;
+    const completesOuterUrl =
+      hasCompleteUrlBefore(
+        ctx.text,
+        invalidAuthoritySeparator.separator,
+        invalidAuthoritySeparator.schemeStart,
+      ) ||
+      (invalidAuthoritySeparator.authorityEnd !==
+        invalidAuthoritySeparator.separator &&
+        hasCompleteUrlBefore(
+          ctx.text,
+          invalidAuthoritySeparator.authorityEnd,
+          invalidAuthoritySeparator.schemeStart,
+        ));
+    if (!completesOuterUrl) return true;
   }
   if (previous === "]") {
     const start = Math.max(0, ctx.index - maxDomainLength - 48);
     if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
   }
-  if (previous === "!" && hasCompleteUrlBefore(ctx.text, ctx.index - 1)) {
-    return false;
-  }
+  if (previous === "!") return false;
   if (previous === "?" || previous === "#") {
     const punctuationIndex = ctx.index - 1;
     const start = Math.max(0, punctuationIndex - maxDomainLength - 16);
@@ -943,16 +1201,11 @@ function hasInvalidBareStart(ctx: Context): boolean {
       return true;
     }
   }
-  if (compatibilityDots.includes(previous)) {
-    const punctuationIndex = ctx.index - previous.length;
-    const start = Math.max(0, ctx.index - maxDomainLength - 16);
-    const prefix = ctx.text.substring(start, punctuationIndex);
-    if (hasAttachedScheme(prefix)) {
-      return (
-        !hasCompleteUrlBefore(ctx.text, punctuationIndex) ||
-        hasPortInUrlBefore(ctx.text, punctuationIndex)
-      );
-    }
+  if (
+    compatibilityDots.includes(previous) &&
+    hasPortInUrlBefore(ctx.text, ctx.index - previous.length)
+  ) {
+    return true;
   }
   if (isWhitespace(previous) || bareLookbehindBreakCharacters.has(previous)) {
     return false;
@@ -962,9 +1215,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
   const prefix = ctx.text.substring(start, ctx.index);
   if (hasAttachedScheme(prefix)) return true;
 
-  return (
-    start > 0 && !containsBreakCharacter(prefix, bareLookbehindBreakCharacters)
-  );
+  return false;
 }
 
 function withStartBoundary<T>(
@@ -1037,24 +1288,11 @@ const bareDomain = withStartBoundary(
   "domain boundary",
 );
 const portNumber = guard(
-  map(
-    seq(
-      skipMany(str("0")),
-      optional(
-        map(
-          seq(
-            guard(digit(), (value) => value > 0, "non-zero port digit"),
-            atMost(4, digit()),
-          ),
-          ([first, rest]) =>
-            rest.reduce((port, digit) => port * 10 + digit, first),
-        ),
-      ),
-    ),
-    ([, port]) => port ?? 0,
+  map(seq(digit(), many(digit())), ([first, rest]) =>
+    rest.reduce((port, nextDigit) => port * 10 + nextDigit, first),
   ),
-  (port) => port >= 1 && port <= 65535,
-  "port 1-65535",
+  (port) => port >= 0 && port <= 65535,
+  "port 0-65535",
 );
 
 /**
