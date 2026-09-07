@@ -233,6 +233,10 @@ test("URL accepts Unicode label in full URL", () => {
     "https://foo‐bar.com/",
     "https://‿.com/",
     "https://‐.com/",
+    "https://foo∑bar.com/",
+    "https://foo€bar.com/",
+    "https://∑.com/",
+    "https://€.com/",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -291,6 +295,8 @@ test("URL validates protocol-qualified hosts", () => {
     "👍🏽-.com",
     "foo‿-.com",
     "foo‐-.com",
+    "foo∑-.com",
+    "foo€-.com",
     "example..com",
     `[${"1".repeat(1000)}]`,
   ]) {
@@ -889,6 +895,15 @@ test("URL treats Markdown pipes as host boundaries", () => {
       .extract("|https://a.com|https://b.com/path|next|")
       .map(({ text }) => text),
     ["https://a.com", "https://b.com/path|next|"],
+  );
+});
+
+test("URL treats Markdown emphasis markers as host boundaries", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("**https://a.com** *https://b.com* https://c.com/path*part")
+      .map(({ text }) => text),
+    ["https://a.com", "https://b.com", "https://c.com/path*part"],
   );
 });
 

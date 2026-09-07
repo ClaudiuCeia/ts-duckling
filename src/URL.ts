@@ -139,6 +139,7 @@ const unicodeHostBoundaries = [
 const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
 const textBoundaryCharacters = [
   "<",
+  "*",
   "|",
   "(",
   "[",
@@ -157,6 +158,7 @@ const textBoundaryCharacters = [
 ];
 const authorityBreakCharacters = new Set([
   "/",
+  "*",
   "|",
   "?",
   "#",
@@ -174,6 +176,12 @@ const authorityBreakCharacters = new Set([
 const bareLookbehindBreakCharacters = new Set([
   ...authorityBreakCharacters,
   "<",
+]);
+const hostnameSymbolBoundaries = new Set([
+  ...textBoundaryCharacters,
+  "+",
+  "=",
+  "$",
 ]);
 const plainSuffixReservedCharacters = new Set([
   "<",
@@ -227,7 +235,7 @@ const contextualIdnaCharacters = [
   "\u30fb",
 ];
 const unicodeDomainCharacterPattern =
-  /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u;
+  /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
 const unicodeUrlContentCharacterPattern = /[\p{L}\p{M}\p{N}\p{S}]/u;
 const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
@@ -242,10 +250,10 @@ let compatibilityTailCache = new Map<number, boolean>();
 const domainLabelStart = any(
   guard(
     regex(
-      /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+      /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
       "Unicode hostname label start",
     ),
-    (character) => !unicodeSuffixBoundaries.includes(character),
+    (character) => !hostnameSymbolBoundaries.has(character),
     "Unicode hostname label start",
   ),
   str("_"),
@@ -254,10 +262,10 @@ const domainLabelStart = any(
 const domainLabelContinuation = any(
   guard(
     regex(
-      /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+      /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sc}\p{Sk}\p{Sm}\p{So}]/u,
       "Unicode hostname label character",
     ),
-    (character) => !unicodeSuffixBoundaries.includes(character),
+    (character) => !hostnameSymbolBoundaries.has(character),
     "Unicode hostname label character",
   ),
   str("_"),
@@ -711,7 +719,7 @@ function previousCharacter(text: string, index: number): string {
 function isDomainLabelCharacter(character: string): boolean {
   return (
     (unicodeDomainCharacterPattern.test(character) &&
-      !unicodeSuffixBoundaries.includes(character)) ||
+      !hostnameSymbolBoundaries.has(character)) ||
     "-_".includes(character) ||
     contextualIdnaCharacters.includes(character)
   );
