@@ -224,7 +224,8 @@ const contextualIdnaCharacters = [
   "\u200d",
   "\u30fb",
 ];
-const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{Sk}\p{So}]/u;
+const unicodeDomainCharacterPattern =
+  /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
 const unicodeUrlContentCharacterPattern = /[\p{L}\p{M}\p{N}\p{S}]/u;
 const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
@@ -235,12 +236,18 @@ const percentEncodedOctet = map(
   (_value, before, after) => before.text.substring(before.index, after.index),
 );
 const domainLabelStart = any(
-  regex(/[\p{L}\p{N}\p{Sk}\p{So}]/u, "Unicode hostname label start"),
+  regex(
+    /[\p{L}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+    "Unicode hostname label start",
+  ),
   str("_"),
   contextualIdnaCharacter,
 );
 const domainLabelContinuation = any(
-  regex(/[\p{L}\p{M}\p{N}\p{Sk}\p{So}-]/u, "Unicode hostname label character"),
+  regex(
+    /[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Sk}\p{So}]/u,
+    "Unicode hostname label character",
+  ),
   str("_"),
   contextualIdnaCharacter,
 );
@@ -249,7 +256,7 @@ const domainLabel = guard(
     seq(domainLabelStart, skipMany(domainLabelContinuation)),
     (_value, before, after) => before.text.substring(before.index, after.index),
   ),
-  (label) => !label.endsWith("-"),
+  (label) => !label.startsWith("-") && !label.endsWith("-"),
   "valid domain label",
 );
 const encodedDomainLabel = guard(
@@ -260,7 +267,7 @@ const encodedDomainLabel = guard(
     ),
     (_value, before, after) => before.text.substring(before.index, after.index),
   ),
-  (label) => !label.endsWith("-"),
+  (label) => !label.startsWith("-") && !label.endsWith("-"),
   "valid percent-encoded domain label",
 );
 const authorityDelimiter = oneOfCharacters([":", "/", "?", "#"]);
@@ -331,8 +338,8 @@ const encodedAsciiDotLabel = map(
   ([dot, , label]) => `${dot}${label}`,
 );
 const encodedCompatibilityDotLabel = map(
-  seq(compatibilityDot, encodedDomainLabel),
-  ([dot, label]) => `${dot}${label}`,
+  seq(compatibilityDot, not(protocolStart), encodedDomainLabel),
+  ([dot, , label]) => `${dot}${label}`,
 );
 const encodedDnsName = map(
   seq(
@@ -1017,12 +1024,16 @@ function isSpecialHost(host: string): boolean {
 }
 
 function hasSpecialHostImmediatelyBefore(text: string, index: number): boolean {
-  const earliest = Math.max(2, index - 15);
-  for (let start = earliest; start < index; start += 1) {
-    if (text[start - 2] !== "/" || text[start - 1] !== "/") continue;
-    return isSpecialHost(text.slice(start, index));
+  let start = index;
+  while (start > 0) {
+    const character = previousCharacter(text, start);
+    if (!isAuthorityCandidateCharacter(character)) break;
+    start -= character.length;
   }
-  return false;
+  return (
+    attachedSchemeBefore(text, start) !== null &&
+    isSpecialHost(text.slice(start, index))
+  );
 }
 
 function isUnicodeProseBoundary(

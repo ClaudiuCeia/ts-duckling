@@ -229,6 +229,10 @@ test("URL accepts Unicode label in full URL", () => {
     "https://🏽.com/",
     "https://foo.🏽.com/",
     "🏽.com",
+    "https://foo‿bar.com/",
+    "https://foo‐bar.com/",
+    "https://‿.com/",
+    "https://‐.com/",
   ];
   assertEquals(
     Duckling([URL.parser])
@@ -285,6 +289,8 @@ test("URL validates protocol-qualified hosts", () => {
     "-example.com",
     "example-.com",
     "👍🏽-.com",
+    "foo‿-.com",
+    "foo‐-.com",
     "example..com",
     `[${"1".repeat(1000)}]`,
   ]) {
@@ -630,7 +636,12 @@ test("URL treats compatibility periods after ports as prose boundaries", () => {
 
 test("URL normalizes special hosts before compatibility-dot boundaries", () => {
   for (const separator of ["。", "．", "｡"]) {
-    const urls = ["http://ℓocalhost", "http://127.1"];
+    const urls = [
+      "http://ℓocalhost",
+      "http://127.1",
+      "http://%6c%6f%63%61%6c%68%6f%73%74",
+      "http://%31%32%37.%31",
+    ];
     const input = urls.map((url) => `${url}${separator}谢谢`).join(" ");
     assertEquals(
       Duckling([URL.parser])
@@ -948,12 +959,17 @@ test("URL separates period-delimited host-only links", () => {
 
 test("URL separates schemes after compatibility full stops", () => {
   for (const separator of ["。", "．", "｡"]) {
-    const input = `http://example.com${separator}https://b.com/x`;
+    const input = `http://example.com${separator}https://b.com/x http://ex%61mple.com${separator}https://c.com/y`;
     assertEquals(
       Duckling([URL.parser])
         .extract(input)
         .map(({ text }) => text),
-      ["http://example.com", "https://b.com/x"],
+      [
+        "http://example.com",
+        "https://b.com/x",
+        "http://ex%61mple.com",
+        "https://c.com/y",
+      ],
       separator,
     );
   }
