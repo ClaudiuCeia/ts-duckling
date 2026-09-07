@@ -326,7 +326,7 @@ test("URL leaves empty query and fragment delimiters as punctuation", () => {
 
 test("URL preserves internal punctuation and unmatched opening brackets", () => {
   const res = Duckling([URL.parser]).extract(
-    "https://example.com/a..b https://example.org/a?!b https://example.net/a(b https://example.edu/a(b)c https://en.wikipedia.org/wiki/Function_((mathematics))",
+    "https://example.com/a..b https://example.org/a?!b https://example.net/a(b https://example.edu/a(b)c https://en.wikipedia.org/wiki/Function_((mathematics)) https://example.gov/(((a)))",
   );
   assertEquals(
     res.map(({ text }) => text),
@@ -336,6 +336,7 @@ test("URL preserves internal punctuation and unmatched opening brackets", () => 
       "https://example.net/a(b",
       "https://example.edu/a(b)c",
       "https://en.wikipedia.org/wiki/Function_((mathematics))",
+      "https://example.gov/(((a)))",
     ],
   );
 });
@@ -356,6 +357,28 @@ test("URL preserves unmatched closing brackets inside suffixes", () => {
       "https://example.dev/a])b",
     ],
   );
+});
+
+test("URL preserves deeply nested balanced groups", () => {
+  const depth = 3_000;
+  const input = `https://example.com/${"(".repeat(depth)}a${")".repeat(depth)}`;
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(input)
+      .map(({ text }) => text),
+    [input],
+  );
+});
+
+test("URL only keeps incomplete balanced groups pending", () => {
+  for (const text of ["/abc next", "/(a) next"]) {
+    const result = URL.Suffix({ text, index: 0, final: false });
+    assertEquals(result.success, true, text);
+  }
+
+  const incomplete = URL.Suffix({ text: "/(a", index: 0, final: false });
+  assertEquals(incomplete.success, false);
+  assertEquals("pending" in incomplete && incomplete.pending, true);
 });
 
 test("URL preserves a valid port before a terminal period", () => {
@@ -539,6 +562,16 @@ test("URL treats repeated periods as sentence punctuation", () => {
   );
 });
 
+test("URL treats opening brackets as text boundaries", () => {
+  const res = Duckling([URL.parser]).extract(
+    "See https://example.com[1] example.org(note) example.net{draft}",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://example.com", "example.org", "example.net"],
+  );
+});
+
 test("URL rejects starts attached to astral Unicode words", () => {
   for (const text of [
     "\u{10400}https://example.com",
@@ -617,6 +650,19 @@ test("URL rejects partial matches from invalid attached authorities", () => {
     "http://[::1]:80evil.com",
     "http://[::1]evil.com",
     "http://[::1]example.org/path",
+    "http://example.com../path",
+    "http://localhost../path",
+    "http://127.0.0.1../path",
+    "http://example.com..:8080/path",
+    "http://example.com..?query",
+    "http://example.com..#fragment",
+    "http://example.com..?next.com",
+    "http://example.com..#next.com",
+    "http://example.com..\\evil.com",
+    "example.com..:next.org",
+    "example.com..\\next.org",
+    `https://${"x".repeat(300)}..?next.com`,
+    `https://${"x".repeat(300)}..#next.com`,
     "http://example.com:1.5",
     "http://example.com:65536",
   ]) {
@@ -647,7 +693,7 @@ test("URL accepts a terminal DNS root dot before authority delimiters", () => {
 
 test("URL accepts ordinary punctuation before bare domains", () => {
   const res = Duckling([URL.parser]).extract(
-    "Website:example.com See...example.org/path https://localhost,example.net https://localhost!example.edu https://localhost<example.gov",
+    "Website:example.com See...example.org/path https://localhost,example.net https://localhost!example.edu https://localhost<example.gov See...?example.io Wait..#example.dev",
   );
   assertEquals(
     res.map(({ text }) => text),
@@ -660,6 +706,8 @@ test("URL accepts ordinary punctuation before bare domains", () => {
       "example.edu",
       "https://localhost",
       "example.gov",
+      "example.io",
+      "example.dev",
     ],
   );
 });

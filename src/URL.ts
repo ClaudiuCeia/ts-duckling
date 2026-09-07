@@ -15,6 +15,7 @@ import {
   mapJoin,
   not,
   optional,
+  pending,
   peek,
   regex,
   repeat,
@@ -23,6 +24,7 @@ import {
   skipMany1,
   space,
   str,
+  success,
   trie,
 } from "@claudiu-ceia/combine";
 import type {
@@ -90,6 +92,9 @@ const unicodeHostBoundaries = [
 const compatibilityDots = ["\u3002", "\uff0e", "\uff61"];
 const textBoundaryCharacters = [
   "<",
+  "(",
+  "[",
+  "{",
   ",",
   ";",
   "!",
@@ -251,7 +256,11 @@ const ordinaryTextBoundary = any(
   ),
 );
 const repeatedSentencePeriods = map(
-  seq(str("."), mapJoin(many1(str(".")))),
+  seq(
+    str("."),
+    mapJoin(many1(str("."))),
+    not(oneOfCharacters([":", "/", "?", "#", "@", "\\"])),
+  ),
   ([first, rest]) => `${first}${rest}`,
 );
 const singleSentencePeriod = seq(str("."), peek(textBoundary));
@@ -364,18 +373,53 @@ const internalClosingPunctuation = any(
 );
 
 const balancedGroup = (open: string, close: string): Parser<string> => {
-  const bodyCharacter = nonWhitespaceCharacterExcept(
-    new Set([...balancedGroupBreakCharacters, open, close]),
-  );
-  const simpleGroup = map(
-    seq(str(open), many(bodyCharacter), str(close)),
-    ([open, body, close]) => `${open}${body.join("")}${close}`,
-  );
+  // Index balanced ranges once per input to avoid recursion and repeated scans.
+  let cachedText = "";
+  let closingIndexes = new Map<number, number>();
+  let pendingOpenings = new Set<number>();
 
-  return map(
-    seq(str(open), many(any(simpleGroup, bodyCharacter)), str(close)),
-    ([open, body, close]) => `${open}${body.join("")}${close}`,
-  );
+  return (ctx) => {
+    if (ctx.text !== cachedText) {
+      cachedText = ctx.text;
+      closingIndexes = new Map<number, number>();
+      pendingOpenings = new Set<number>();
+      const stack: number[] = [];
+
+      for (let index = 0; index < ctx.text.length;) {
+        const codePoint = ctx.text.codePointAt(index);
+        if (codePoint === undefined) break;
+        const character = String.fromCodePoint(codePoint);
+
+        if (
+          isWhitespace(character) ||
+          balancedGroupBreakCharacters.has(character)
+        ) {
+          stack.length = 0;
+        } else if (character === open) {
+          stack.push(index);
+        } else if (character === close) {
+          const openingIndex = stack.pop();
+          if (openingIndex !== undefined) {
+            closingIndexes.set(openingIndex, index + character.length);
+          }
+        }
+        index += character.length;
+      }
+      pendingOpenings = new Set(stack);
+    }
+
+    const closingIndex = closingIndexes.get(ctx.index);
+    if (closingIndex === undefined) {
+      return ctx.final === false && pendingOpenings.has(ctx.index)
+        ? pending(ctx, `balanced ${open}${close} group`)
+        : failure(ctx, `balanced ${open}${close} group`);
+    }
+
+    return success(
+      { ...ctx, index: closingIndex },
+      ctx.text.substring(ctx.index, closingIndex),
+    );
+  };
 };
 
 const balancedSuffixPart = any(
@@ -456,6 +500,29 @@ function previousCharacter(text: string, index: number): string {
 
 function isDomainLabelCharacter(character: string): boolean {
   return unicodeDomainCharacterPattern.test(character) || character === "-";
+}
+
+function hasKnownHostBeforeRepeatedPeriods(
+  text: string,
+  index: number,
+): boolean {
+  let hostEnd = index;
+  while (hostEnd > 0 && text[hostEnd - 1] === ".") hostEnd -= 1;
+  if (index - hostEnd < 2) return false;
+
+  let hostStart = hostEnd;
+  while (hostStart > 0) {
+    const character = previousCharacter(text, hostStart);
+    if (
+      character !== "." &&
+      !compatibilityDots.includes(character) &&
+      !isDomainLabelCharacter(character)
+    ) {
+      break;
+    }
+    hostStart -= character.length;
+  }
+  return hasKnownTld(text.substring(hostStart, hostEnd));
 }
 
 function isKnownTldLabel(label: string): boolean {
@@ -626,12 +693,37 @@ function hasInvalidBareStart(ctx: Context): boolean {
     return true;
   }
   if (previous === "." && ctx.text[ctx.index - 2] !== ".") return true;
+  if (
+    [":", "?", "#", "\\"].includes(previous) &&
+    hasKnownHostBeforeRepeatedPeriods(ctx.text, ctx.index - previous.length)
+  ) {
+    return true;
+  }
   if (previous === "]") {
     const start = Math.max(0, ctx.index - maxDomainLength - 48);
     if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
   }
   if (previous === "!" && hasCompleteUrlBefore(ctx.text, ctx.index - 1)) {
     return false;
+  }
+  if (previous === "?" || previous === "#") {
+    const punctuationIndex = ctx.index - 1;
+    const start = Math.max(0, punctuationIndex - maxDomainLength - 16);
+    const prefix = ctx.text.substring(start, punctuationIndex);
+    const followsRepeatedPeriods =
+      ctx.text[punctuationIndex - 1] === "." &&
+      ctx.text[punctuationIndex - 2] === ".";
+    const hasScheme =
+      hasAttachedScheme(prefix) ||
+      (followsRepeatedPeriods &&
+        hasAttachedScheme(ctx.text.substring(0, punctuationIndex)));
+    if (
+      hasScheme &&
+      (followsRepeatedPeriods ||
+        !hasCompleteUrlBefore(ctx.text, punctuationIndex))
+    ) {
+      return true;
+    }
   }
   if (compatibilityDots.includes(previous)) {
     const punctuationIndex = ctx.index - previous.length;
