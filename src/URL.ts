@@ -224,7 +224,7 @@ const contextualIdnaCharacters = [
   "\u200d",
   "\u30fb",
 ];
-const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{So}]/u;
+const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{Sk}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
 const unicodeUrlContentCharacterPattern = /[\p{L}\p{M}\p{N}\p{S}]/u;
 const unicodeWordOrConnectorPattern = /[\p{L}\p{M}\p{N}\p{Pc}]/u;
@@ -240,7 +240,7 @@ const domainLabelStart = any(
   contextualIdnaCharacter,
 );
 const domainLabelContinuation = any(
-  regex(/[\p{L}\p{M}\p{N}\p{So}-]/u, "Unicode hostname label character"),
+  regex(/[\p{L}\p{M}\p{N}\p{Sk}\p{So}-]/u, "Unicode hostname label character"),
   str("_"),
   contextualIdnaCharacter,
 );
@@ -964,24 +964,6 @@ function hasKnownHostBeforeRootDots(text: string, index: number): boolean {
   return hasKnownTld(host) || isSpecialHost(host);
 }
 
-function hasMalformedRootAuthorityBefore(text: string, index: number): boolean {
-  const earliest = 0;
-  for (let cursor = index; cursor > earliest;) {
-    const character = previousCharacter(text, cursor);
-    cursor -= character.length;
-    if (isWhitespace(character) || "/<,;!)]}\"'>`".includes(character)) {
-      return false;
-    }
-    if (
-      [":", "?", "#"].includes(character) &&
-      hasKnownHostBeforeRootDots(text, cursor)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function isKnownTldLabel(label: string): boolean {
   return label.length > 0 && hasKnownTld(`example.${label}`);
 }
@@ -1188,7 +1170,6 @@ function exceedsAttachedDelimiterHorizon(text: string, index: number): boolean {
 
 function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.index === 0) return false;
-  if (hasMalformedRootAuthorityBefore(ctx.text, ctx.index)) return true;
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
@@ -1200,6 +1181,12 @@ function hasInvalidBareStart(ctx: Context): boolean {
   if ([":", "?", "#", "\\"].includes(previous)) {
     const punctuationIndex = ctx.index - previous.length;
     if (hasKnownHostBeforeRepeatedPeriods(ctx.text, punctuationIndex)) {
+      return true;
+    }
+    if (
+      previous !== "\\" &&
+      hasKnownHostBeforeRootDots(ctx.text, punctuationIndex)
+    ) {
       return true;
     }
   }
@@ -1229,12 +1216,14 @@ function hasInvalidBareStart(ctx: Context): boolean {
   }
   if (previous === ":" && invalidAuthoritySeparator !== null) return true;
   if (previous === "]") {
-    if (hasAttachedScheme(ctx.text.substring(0, ctx.index))) return true;
+    const start = Math.max(0, ctx.index - maxDomainLength - 48);
+    if (hasAttachedScheme(ctx.text.substring(start, ctx.index))) return true;
   }
   if (previous === "!") return false;
   if (previous === "?" || previous === "#") {
     const punctuationIndex = ctx.index - 1;
-    const prefix = ctx.text.substring(0, punctuationIndex);
+    const start = Math.max(0, punctuationIndex - maxDomainLength - 16);
+    const prefix = ctx.text.substring(start, punctuationIndex);
     const followsRepeatedPeriods =
       ctx.text[punctuationIndex - 1] === "." &&
       ctx.text[punctuationIndex - 2] === ".";
@@ -1260,7 +1249,8 @@ function hasInvalidBareStart(ctx: Context): boolean {
     return false;
   }
 
-  const prefix = ctx.text.substring(0, ctx.index);
+  const start = Math.max(0, ctx.index - maxDomainLength - 16);
+  const prefix = ctx.text.substring(start, ctx.index);
   if (hasAttachedScheme(prefix)) return true;
 
   return false;

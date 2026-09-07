@@ -223,10 +223,13 @@ test("URL accepts uppercase TLD and hyphens in full URL", () => {
 });
 
 test("URL accepts Unicode label in full URL", () => {
-  const res = Duckling().extract("See https://münchen.de/ page");
-  assertEquals(res[0].kind, "url");
-  assertEquals(res[0].text, "https://münchen.de/");
-  assertEquals(res[0].value, { url: "https://münchen.de/" });
+  const urls = ["https://münchen.de/", "https://👍🏽.com/"];
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(urls.join(" "))
+      .map(({ text }) => text),
+    urls,
+  );
 });
 
 test("URL accepts Punycode label in full URL", () => {
@@ -275,6 +278,7 @@ test("URL validates protocol-qualified hosts", () => {
     "999.999.999.999",
     "-example.com",
     "example-.com",
+    "👍🏽-.com",
     "example..com",
     `[${"1".repeat(1000)}]`,
   ]) {
@@ -830,6 +834,10 @@ test("URL treats safe bare-domain delimiters consistently on long lines", () => 
       delimiter,
     );
   }
+});
+
+test("URL handles dense domain-shaped candidates without repeated lookbehind", () => {
+  assertEquals(Duckling([URL.parser]).extract("x.a.com+".repeat(1600)), []);
 });
 
 test("URL rejects starts attached to Unicode words and connectors", () => {
