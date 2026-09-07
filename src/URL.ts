@@ -172,14 +172,32 @@ const nonWhitespaceCharacterExcept = (
 const atMost = <T>(count: number, parser: Parser<T>): Parser<T[]> =>
   keepNonNull(repeat(count, optional(parser)));
 
+const contextualIdnaCharacters = [
+  "\u00b7",
+  "\u0375",
+  "\u05f3",
+  "\u05f4",
+  "\u200c",
+  "\u200d",
+  "\u30fb",
+];
 const unicodeDomainCharacterPattern = /[\p{L}\p{M}\p{N}\p{So}]/u;
 const unicodeWordCharacterPattern = /[\p{L}\p{M}\p{N}]/u;
 const asciiLetterOrNumberPattern = /[A-Za-z0-9]/;
-const domainLabelPattern = /[\p{L}\p{N}\p{So}][\p{L}\p{M}\p{N}\p{So}-]*/u;
-const domainLabelAtStartPattern =
-  /^[\p{L}\p{N}\p{So}][\p{L}\p{M}\p{N}\p{So}-]*/u;
+const contextualIdnaCharacter = oneOfCharacters(contextualIdnaCharacters);
+const domainLabelStart = any(
+  regex(/[\p{L}\p{N}\p{So}]/u, "Unicode hostname label start"),
+  contextualIdnaCharacter,
+);
+const domainLabelContinuation = any(
+  regex(/[\p{L}\p{M}\p{N}\p{So}-]/u, "Unicode hostname label character"),
+  contextualIdnaCharacter,
+);
 const domainLabel = guard(
-  regex(domainLabelPattern, "Unicode hostname label"),
+  map(
+    seq(domainLabelStart, skipMany(domainLabelContinuation)),
+    (_value, before, after) => before.text.substring(before.index, after.index),
+  ),
   (label) => !label.endsWith("-"),
   "valid domain label",
 );
@@ -389,8 +407,14 @@ const balancedGroup = (open: string, close: string): Parser<string> => {
         const codePoint = ctx.text.codePointAt(index);
         if (codePoint === undefined) break;
         const character = String.fromCodePoint(codePoint);
+        const startsAdjacentUrl =
+          index > 0 &&
+          ".,;!".includes(ctx.text[index - 1]) &&
+          protocolStart({ text: ctx.text, index }).success;
 
-        if (
+        if (startsAdjacentUrl) {
+          stack.length = 0;
+        } else if (
           isWhitespace(character) ||
           balancedGroupBreakCharacters.has(character)
         ) {
@@ -499,7 +523,11 @@ function previousCharacter(text: string, index: number): string {
 }
 
 function isDomainLabelCharacter(character: string): boolean {
-  return unicodeDomainCharacterPattern.test(character) || character === "-";
+  return (
+    unicodeDomainCharacterPattern.test(character) ||
+    character === "-" ||
+    contextualIdnaCharacters.includes(character)
+  );
 }
 
 function hasKnownHostBeforeRepeatedPeriods(
@@ -530,7 +558,8 @@ function isKnownTldLabel(label: string): boolean {
 }
 
 function domainLabelAfter(text: string, index: number): string {
-  return domainLabelAtStartPattern.exec(text.slice(index + 1))?.[0] ?? "";
+  const result = domainLabel({ text, index: index + 1 });
+  return result.success ? result.value : "";
 }
 
 function hasKnownTldLabelBefore(text: string, index: number): boolean {
@@ -686,10 +715,7 @@ function hasInvalidBareStart(ctx: Context): boolean {
   if (ctx.text[ctx.index] === ".") return true;
 
   const previous = previousCharacter(ctx.text, ctx.index);
-  if (
-    unicodeWordCharacterPattern.test(previous) ||
-    "_@/%-".includes(previous)
-  ) {
+  if (isDomainLabelCharacter(previous) || "_@/%".includes(previous)) {
     return true;
   }
   if (previous === "." && ctx.text[ctx.index - 2] !== ".") return true;

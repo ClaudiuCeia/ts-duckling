@@ -455,6 +455,33 @@ test("URL validates decomposed hosts after normalization", () => {
   );
 });
 
+test("URL validates contextual IDNA characters", () => {
+  const accepted = [
+    "l·l.cat",
+    "क्‍ष.com",
+    "نامه‌ای.com",
+    "·a.com",
+    "͵α.com",
+    "׳א.com",
+    "״א.com",
+    "・例.com",
+  ];
+  const input = accepted
+    .flatMap((host) => [`https://${host}/`, host])
+    .join(" ");
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(input)
+      .map(({ text }) => text),
+    accepted.flatMap((host) => [`https://${host}/`, host]),
+  );
+
+  for (const host of ["क‍ष.com", "نامه‍ای.com"]) {
+    assertEquals(Duckling([URL.parser]).extract(`https://${host}/`), [], host);
+    assertEquals(Duckling([URL.parser]).extract(host), [], host);
+  }
+});
+
 test("URL recognizes Markdown and Unicode text boundaries", () => {
   const res = Duckling([URL.parser]).extract(
     "`https://example.com/a` https://example.org/b—details https://example.net/c…more",
@@ -616,6 +643,16 @@ test("URL separates adjacent parenthesized links", () => {
   assertEquals(
     res.map(({ text }) => text),
     ["https://a.com/x", "https://b.com/y"],
+  );
+});
+
+test("URL stops unmatched groups before adjacent links", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://a.com/(foo,https://b.com/bar)",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://a.com/(foo", "https://b.com/bar"],
   );
 });
 
