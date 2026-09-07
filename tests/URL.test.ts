@@ -381,6 +381,18 @@ test("URL only keeps incomplete balanced groups pending", () => {
   assertEquals("pending" in incomplete && incomplete.pending, true);
 });
 
+test("URL completes unmatched groups at definitive streaming boundaries", () => {
+  for (const [text, expected] of [
+    ["/(a next", "/(a"],
+    ["/(a—next", "/(a"],
+    ["/(foo,https://b.com/bar)", "/(foo"],
+  ]) {
+    const result = URL.Suffix({ text, index: 0, final: false });
+    assertEquals(result.success, true, text);
+    if (result.success) assertEquals(result.value, expected, text);
+  }
+});
+
 test("URL preserves a valid port before a terminal period", () => {
   const res = Duckling([URL.parser]).extract(
     "http://example.com:8080. http://example.org:8080... http://localhost.:8080…",
@@ -429,6 +441,25 @@ test("URL accepts zero-padded ports by numeric value", () => {
   const port = URL.Port({ text: "000080", index: 0 });
   assertEquals(port.success, true);
   if (port.success) assertEquals(port.value, 80);
+});
+
+test("URL treats compatibility periods after ports as prose boundaries", () => {
+  const res = Duckling([URL.parser]).extract(
+    "http://example.com:8080。谢谢 http://localhost:000080．继续",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["http://example.com:8080", "http://localhost:000080"],
+  );
+});
+
+test("URL rejects IDN hostname continuations after ports", () => {
+  for (const separator of ["。", "．", "｡"]) {
+    for (const tail of ["中国/path", "例子.中国/path"]) {
+      const input = `http://example.com:80${separator}${tail}`;
+      assertEquals(Duckling([URL.parser]).extract(input), [], input);
+    }
+  }
 });
 
 test("URL accepts trailing combining marks in Unicode labels", () => {
@@ -653,6 +684,16 @@ test("URL stops unmatched groups before adjacent links", () => {
   assertEquals(
     res.map(({ text }) => text),
     ["https://a.com/(foo", "https://b.com/bar"],
+  );
+});
+
+test("URL stops balanced groups before bracket-delimited links", () => {
+  const res = Duckling([URL.parser]).extract(
+    "https://a.com/path[link](https://b.com/target)",
+  );
+  assertEquals(
+    res.map(({ text }) => text),
+    ["https://a.com/path[link]", "https://b.com/target"],
   );
 });
 

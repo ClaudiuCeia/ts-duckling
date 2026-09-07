@@ -287,6 +287,26 @@ const terminalCompatibilityDot = seq(
   compatibilityDotCharacter,
   not(domainLabel),
 );
+const proseCompatibilityDotValue = map(
+  seq(
+    compatibilityDotCharacter,
+    peek(
+      guard(
+        domainLabelStart,
+        (character) => !asciiLetterOrNumberPattern.test(character),
+        "non-ASCII prose",
+      ),
+    ),
+  ),
+  ([dot]) => dot,
+);
+const proseCompatibilityDot: Parser<string> = (ctx) => {
+  const result = proseCompatibilityDotValue(ctx);
+  if (!result.success) return result;
+  return meaningfulCompatibilityHostTail(ctx).success
+    ? failure(ctx, "compatibility hostname continuation")
+    : result;
+};
 const sentenceColon = seq(str(":"), peek(textBoundary));
 const emptySuffixDelimiter = seq(
   oneOfCharacters(["?", "#"]),
@@ -326,6 +346,7 @@ const portBoundary = peek(
     oneOfCharacters(["/", "?", "#"]),
     ordinaryTextBoundary,
     terminalCompatibilityDot,
+    proseCompatibilityDot,
     sentencePeriod,
   ),
 );
@@ -389,56 +410,70 @@ const internalClosingPunctuation = any(
     ([punctuation]) => punctuation,
   ),
 );
+const unmatchedOpeningPunctuation = map(
+  seq(oneOfCharacters(["(", "[", "{"]), not(protocolStart)),
+  ([opening]) => opening,
+);
 
-const balancedGroup = (open: string, close: string): Parser<string> => {
-  // Index balanced ranges once per input to avoid recursion and repeated scans.
-  let cachedText = "";
-  let closingIndexes = new Map<number, number>();
-  let pendingOpenings = new Set<number>();
+const createBalancedSuffixPart = (
+  text: string,
+  startIndex: number,
+): Parser<string> => {
+  const closingIndexes = new Map<number, number>();
+  const stacks = new Map([
+    ["(", [] as number[]],
+    ["[", [] as number[]],
+    ["{", [] as number[]],
+  ]);
+  const closingToOpening = new Map([
+    [")", "("],
+    ["]", "["],
+    ["}", "{"],
+  ]);
+  let reachedInputEnd = true;
 
-  return (ctx) => {
-    if (ctx.text !== cachedText) {
-      cachedText = ctx.text;
-      closingIndexes = new Map<number, number>();
-      pendingOpenings = new Set<number>();
-      const stack: number[] = [];
-
-      for (let index = 0; index < ctx.text.length;) {
-        const codePoint = ctx.text.codePointAt(index);
-        if (codePoint === undefined) break;
-        const character = String.fromCodePoint(codePoint);
-        const startsAdjacentUrl =
-          index > 0 &&
-          ".,;!".includes(ctx.text[index - 1]) &&
-          protocolStart({ text: ctx.text, index }).success;
-
-        if (startsAdjacentUrl) {
-          stack.length = 0;
-        } else if (
-          isWhitespace(character) ||
-          balancedGroupBreakCharacters.has(character)
-        ) {
-          stack.length = 0;
-        } else if (character === open) {
-          stack.push(index);
-        } else if (character === close) {
-          const openingIndex = stack.pop();
-          if (openingIndex !== undefined) {
-            closingIndexes.set(openingIndex, index + character.length);
-          }
-        }
-        index += character.length;
-      }
-      pendingOpenings = new Set(stack);
+  for (let index = startIndex; index < text.length;) {
+    const codePoint = text.codePointAt(index);
+    if (codePoint === undefined) break;
+    const character = String.fromCodePoint(codePoint);
+    const startsAdjacentUrl =
+      index > startIndex &&
+      ".,;!([{".includes(text[index - 1]) &&
+      protocolStart({ text, index }).success;
+    if (
+      startsAdjacentUrl ||
+      isWhitespace(character) ||
+      balancedGroupBreakCharacters.has(character)
+    ) {
+      reachedInputEnd = false;
+      break;
     }
 
+    const openingStack = stacks.get(character);
+    if (openingStack !== undefined) {
+      openingStack.push(index);
+    } else {
+      const opening = closingToOpening.get(character);
+      const stack = opening === undefined ? undefined : stacks.get(opening);
+      if (stack !== undefined && stack.length > 0) {
+        closingIndexes.set(stack.pop()!, index + character.length);
+      }
+    }
+    index += character.length;
+  }
+
+  const pendingOpenings = new Set(
+    reachedInputEnd
+      ? Array.from(stacks.values()).flatMap((stack) => stack)
+      : [],
+  );
+  return (ctx) => {
     const closingIndex = closingIndexes.get(ctx.index);
     if (closingIndex === undefined) {
       return ctx.final === false && pendingOpenings.has(ctx.index)
-        ? pending(ctx, `balanced ${open}${close} group`)
-        : failure(ctx, `balanced ${open}${close} group`);
+        ? pending(ctx, "balanced suffix group")
+        : failure(ctx, "balanced suffix group");
     }
-
     return success(
       { ...ctx, index: closingIndex },
       ctx.text.substring(ctx.index, closingIndex),
@@ -446,27 +481,28 @@ const balancedGroup = (open: string, close: string): Parser<string> => {
   };
 };
 
-const balancedSuffixPart = any(
-  balancedGroup("(", ")"),
-  balancedGroup("[", "]"),
-  balancedGroup("{", "}"),
-);
-const suffixPart = any(
-  balancedSuffixPart,
-  plainSuffixPart,
-  internalSuffixPunctuation,
-  internalUnicodeSuffixPunctuation,
-  internalClosingPunctuation,
-  oneOfCharacters(["(", "[", "{"]),
-);
-const slashSuffix = map(
-  seq(str("/"), many(suffixPart)),
-  ([slash, parts]) => `${slash}${parts.join("")}`,
-);
-const queryOrFragmentSuffix = map(
-  seq(oneOfCharacters(["?", "#"]), suffixPart, many(suffixPart)),
-  ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
-);
+const suffix: Parser<string> = (ctx) => {
+  const suffixStart = peek(oneOfCharacters(["/", "?", "#"]))(ctx);
+  if (!suffixStart.success) return suffixStart;
+
+  const suffixPart = any(
+    createBalancedSuffixPart(ctx.text, ctx.index),
+    plainSuffixPart,
+    internalSuffixPunctuation,
+    internalUnicodeSuffixPunctuation,
+    internalClosingPunctuation,
+    unmatchedOpeningPunctuation,
+  );
+  const slashSuffix = map(
+    seq(str("/"), many(suffixPart)),
+    ([slash, parts]) => `${slash}${parts.join("")}`,
+  );
+  const queryOrFragmentSuffix = map(
+    seq(oneOfCharacters(["?", "#"]), suffixPart, many(suffixPart)),
+    ([delimiter, first, rest]) => `${delimiter}${first}${rest.join("")}`,
+  );
+  return any(slashSuffix, queryOrFragmentSuffix)(ctx);
+};
 
 function normalizeDnsName(host: string): string | null {
   try {
@@ -894,7 +930,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
   Protocol: () => protocol,
   TLD: () => tldParser,
   Port: () => map(seq(portNumber, portBoundary), ([port]) => port),
-  Suffix: () => any(slashSuffix, queryOrFragmentSuffix),
+  Suffix: () => suffix,
   Domain: () => bareDomain,
   FullHost: () => fullHost,
   Full: (symbol) =>
