@@ -577,7 +577,8 @@ const mixedTerminalSuffixPunctuation = seq(
   skipMany1(str(".")),
   peek(emptySuffixDelimiter),
 );
-const closingEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
+const closingAsteriskEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
+const closingEmphasis = any(closingAsteriskEmphasis, closingUnderscoreEmphasis);
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
@@ -1370,6 +1371,51 @@ function lastProtocolStart(
   return latest;
 }
 
+function isMarkdownUnderscoreOpener(text: string, protocolIndex: number) {
+  const openerIndex = protocolIndex - 1;
+  if (openerIndex < 0 || text[openerIndex] !== "_") return false;
+  const previous = previousCharacter(text, openerIndex);
+  return (
+    previous.length === 0 ||
+    isWhitespace(previous) ||
+    textBoundaryCharacters.includes(previous)
+  );
+}
+
+function hasOpeningUnderscoreEmphasis(
+  text: string,
+  closingIndex: number,
+): boolean {
+  let segmentStart = closingIndex;
+  while (segmentStart > 0) {
+    const previous = previousCharacter(text, segmentStart);
+    if (
+      isWhitespace(previous) ||
+      previous === "+" ||
+      textBoundaryCharacters.includes(previous)
+    ) {
+      break;
+    }
+    segmentStart -= previous.length;
+  }
+  const folded = text.substring(segmentStart, closingIndex).toLowerCase();
+  return protocolsWithSeparator.some((protocol) =>
+    folded.startsWith(`_${protocol}`),
+  );
+}
+
+function closingUnderscoreEmphasis(ctx: Context) {
+  if (ctx.text[ctx.index] !== "_") {
+    return failure(ctx, "closing underscore emphasis");
+  }
+  const after = { ...ctx, index: ctx.index + 1 };
+  const boundary = textBoundary(after);
+  if (!boundary.success) return boundary;
+  return hasOpeningUnderscoreEmphasis(ctx.text, ctx.index)
+    ? success(after, "_")
+    : failure(ctx, "closing underscore emphasis");
+}
+
 type CompletionScan = {
   text: string;
   folded: string;
@@ -1810,7 +1856,8 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
         ctx.index > 0 &&
         unicodeWordOrConnectorPattern.test(
           previousCharacterBeforeVariationSelectors(ctx.text, ctx.index),
-        ),
+        ) &&
+        !isMarkdownUnderscoreOpener(ctx.text, ctx.index),
       "URL boundary",
     ),
   Bare: (symbol) =>
@@ -1839,5 +1886,24 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
           after,
         ),
     ),
-  parser: (symbol) => dot(any(symbol.Full, symbol.Bare)),
+  parser: (symbol) => {
+    const entityParser = any(symbol.Full, symbol.Bare);
+    const unwrappedEntityParser: Parser<URLEntity> = (ctx) => {
+      const result = entityParser(ctx);
+      if (
+        result.success &&
+        isMarkdownUnderscoreOpener(ctx.text, result.value.start)
+      ) {
+        return failure(ctx, "unwrapped URL");
+      }
+      return result;
+    };
+    return any(
+      map(
+        seq(str("_"), entityParser, closingUnderscoreEmphasis),
+        ([, entity]) => entity,
+      ),
+      dot(unwrappedEntityParser),
+    );
+  },
 });

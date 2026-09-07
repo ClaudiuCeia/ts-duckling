@@ -1001,6 +1001,15 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
       "https://e.com/path*part",
     ],
   );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "_https://f.com/path_ https://g.com/path_ foo_https://h.com/path_ _https://i.com/path",
+      )
+      .map(({ text }) => text),
+    ["https://f.com/path", "https://g.com/path_"],
+  );
 });
 
 test("URL treats safe symbols and HTML entities as host boundaries", () => {
