@@ -224,6 +224,17 @@ test("URL treats repeated periods after bracketed hosts as punctuation", () => {
   );
 });
 
+test("URL treats terminal ellipses after protocol hosts as punctuation", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(
+        "https://localhost... next https://127.0.0.1... next https://example.invalid... next",
+      )
+      .map(({ text }) => text),
+    ["https://localhost", "https://127.0.0.1", "https://example.invalid"],
+  );
+});
+
 test("URL accepts uppercase TLD and hyphens in full URL", () => {
   const res = Duckling().extract("Visit https://my-site.EXAMPLE.COM/ now");
   assertEquals(res[0].kind, "url");
@@ -1039,11 +1050,13 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
   assertEquals(
     Duckling([URL.parser])
       .extract(
-        "_https://f.com/path_ _https://j.com_ _https://k.com:80_ https://g.com/path_ foo_https://h.com/path_ _https://i.com/path",
+        "_https://f.com/path_ __https://l.com__ __https://m.com/path__ _https://j.com_ _https://k.com:80_ https://g.com/path_ foo_https://h.com/path_ _https://i.com/path",
       )
       .map(({ text }) => text),
     [
       "https://f.com/path",
+      "https://l.com",
+      "https://m.com/path",
       "https://j.com",
       "https://k.com:80",
       "https://g.com/path_",
@@ -1055,6 +1068,13 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
       .extract("https://a.com/path* https://a.com/?q=*")
       .map(({ text }) => text),
     ["https://a.com/path*", "https://a.com/?q=*"],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("~~https://a.com~~ ~~https://b.com/path~~ https://c.com/path~")
+      .map(({ text }) => text),
+    ["https://a.com", "https://b.com/path", "https://c.com/path~"],
   );
 });
 

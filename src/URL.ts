@@ -553,6 +553,10 @@ const repeatedSentencePeriods = map(
   ),
   ([first, rest]) => `${first}${rest}`,
 );
+const terminalRepeatedSentencePeriods = seq(
+  repeatedSentencePeriods,
+  peek(textBoundary),
+);
 const singleSentencePeriod = seq(str("."), peek(textBoundary));
 const sentencePeriod = any(repeatedSentencePeriods, singleSentencePeriod);
 const terminalCompatibilityDot = seq(
@@ -1736,6 +1740,7 @@ const fullEntityHost = any(
     ),
     ([host]) => host,
   ),
+  map(seq(hostValue, peek(terminalRepeatedSentencePeriods)), ([host]) => host),
 );
 const bareDnsName = guard(
   validDnsName,
@@ -1809,59 +1814,36 @@ export const url = (
   return ent(value, "url", before, after);
 };
 
-const underscoreEmphasizedFull: Parser<URLEntity> = (ctx) => {
+function markedFull(
+  ctx: Context,
+  marker: string,
+  minimumLength: number,
+  rejectConnectorPrefix: boolean,
+) {
   if (
-    ctx.text[ctx.index] !== "_" ||
-    (ctx.index > 0 &&
+    ctx.text[ctx.index] !== marker ||
+    (rejectConnectorPrefix &&
+      ctx.index > 0 &&
       unicodeWordOrConnectorPattern.test(
         previousCharacterBeforeVariationSelectors(ctx.text, ctx.index),
       ))
   ) {
-    return failure(ctx, "underscore-emphasized URL");
-  }
-
-  const start = ctx.index + 1;
-  for (
-    let closing = ctx.text.indexOf("_", start);
-    closing >= 0;
-    closing = ctx.text.indexOf("_", closing + 1)
-  ) {
-    const after = { ...ctx, index: closing + 1 };
-    const boundary = textBoundary(after);
-    if (!boundary.success) {
-      if ("pending" in boundary) return boundary;
-      continue;
-    }
-    const raw = ctx.text.substring(start, closing);
-    const result = URL.Full({ text: raw, index: 0 });
-    if (result.success && result.ctx.index === raw.length) {
-      return success(
-        after,
-        url({ url: raw }, { ...ctx, index: start }, { ...ctx, index: closing }),
-      );
-    }
-    return failure(ctx, "underscore-emphasized URL");
-  }
-  return ctx.final === false
-    ? pending(ctx, "underscore-emphasized URL")
-    : failure(ctx, "underscore-emphasized URL");
-};
-
-const asteriskEmphasizedFull: Parser<URLEntity> = (ctx) => {
-  if (ctx.text[ctx.index] !== "*") {
-    return failure(ctx, "asterisk-emphasized URL");
+    return failure(ctx, `${marker}-emphasized URL`);
   }
   let start = ctx.index;
-  while (ctx.text[start] === "*") start += 1;
+  while (ctx.text[start] === marker) start += 1;
   const openingLength = start - ctx.index;
+  if (openingLength < minimumLength) {
+    return failure(ctx, `${marker}-emphasized URL`);
+  }
 
   for (
-    let closing = ctx.text.indexOf("*", start);
+    let closing = ctx.text.indexOf(marker, start);
     closing >= 0;
-    closing = ctx.text.indexOf("*", closing + 1)
+    closing = ctx.text.indexOf(marker, closing + 1)
   ) {
     let afterClosing = closing;
-    while (ctx.text[afterClosing] === "*") afterClosing += 1;
+    while (ctx.text[afterClosing] === marker) afterClosing += 1;
     if (afterClosing - closing < openingLength) continue;
     const after = { ...ctx, index: afterClosing };
     const boundary = textBoundary(after);
@@ -1879,12 +1861,19 @@ const asteriskEmphasizedFull: Parser<URLEntity> = (ctx) => {
         url({ url: raw }, { ...ctx, index: start }, { ...ctx, index: rawEnd }),
       );
     }
-    return failure(ctx, "asterisk-emphasized URL");
+    return failure(ctx, `${marker}-emphasized URL`);
   }
   return ctx.final === false
-    ? pending(ctx, "asterisk-emphasized URL")
-    : failure(ctx, "asterisk-emphasized URL");
-};
+    ? pending(ctx, `${marker}-emphasized URL`)
+    : failure(ctx, `${marker}-emphasized URL`);
+}
+
+const underscoreEmphasizedFull: Parser<URLEntity> = (ctx) =>
+  markedFull(ctx, "_", 1, true);
+const asteriskEmphasizedFull: Parser<URLEntity> = (ctx) =>
+  markedFull(ctx, "*", 1, false);
+const strikethroughFull: Parser<URLEntity> = (ctx) =>
+  markedFull(ctx, "~", 2, false);
 
 type URLOutputs = {
   Protocol: string;
@@ -1980,6 +1969,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     return any(
       asteriskEmphasizedFull,
       underscoreEmphasizedFull,
+      strikethroughFull,
       dot(entityParser),
     );
   },
