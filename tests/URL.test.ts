@@ -215,6 +215,15 @@ test("URL full URL with bracketed IPv6", () => {
   assertEquals(res[0].value, { url: "https://[2001:db8::1]/x" });
 });
 
+test("URL treats repeated periods after bracketed hosts as punctuation", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://[::1]... next https://[::1]:80... next")
+      .map(({ text }) => text),
+    ["https://[::1]", "https://[::1]:80"],
+  );
+});
+
 test("URL accepts uppercase TLD and hyphens in full URL", () => {
   const res = Duckling().extract("Visit https://my-site.EXAMPLE.COM/ now");
   assertEquals(res[0].kind, "url");
@@ -547,6 +556,13 @@ test("URL preserves URL-content entities inside balanced groups", () => {
       .extract("https://a.com/(x&amp;y) a.com/(x&amp;y)")
       .map(({ text }) => text),
     ["https://a.com/(x&amp;y)", "a.com/(x&amp;y)"],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com/(a—b) a.com/(a–b)")
+      .map(({ text }) => text),
+    ["https://a.com/(a—b)", "a.com/(a–b)"],
   );
 });
 
@@ -1032,6 +1048,13 @@ test("URL treats Markdown emphasis markers as host boundaries", () => {
       "https://k.com:80",
       "https://g.com/path_",
     ],
+  );
+
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://a.com/path* https://a.com/?q=*")
+      .map(({ text }) => text),
+    ["https://a.com/path*", "https://a.com/?q=*"],
   );
 });
 

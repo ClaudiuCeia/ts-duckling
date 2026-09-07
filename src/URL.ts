@@ -467,13 +467,16 @@ const compatibilityDot: Parser<string> = (ctx) => {
     : false;
   const canUseUnknownTld =
     !hasKnownTail && hasSchemeQualifiedHostImmediatelyBefore(ctx, ctx.index);
-  const rawTail = rawCompatibilityHostTail(ctx);
-  const hasTerminalUnknownTail =
+  let hasTerminalUnknownTail = false;
+  if (
     canUseUnknownTld &&
     !hasKnownTldLabelBefore(ctx.text, ctx.index) &&
-    !hasSpecialHostImmediatelyBefore(ctx, ctx.index) &&
-    rawTail.success &&
-    ordinaryTextBoundary(rawTail.ctx).success;
+    !hasSpecialHostImmediatelyBefore(ctx, ctx.index)
+  ) {
+    const rawTail = rawCompatibilityHostTail(ctx);
+    hasTerminalUnknownTail =
+      rawTail.success && ordinaryTextBoundary(rawTail.ctx).success;
+  }
   if (
     mayBeProse &&
     ((!hasKnownTail && !canUseUnknownTld) ||
@@ -597,7 +600,6 @@ const mixedTerminalSuffixPunctuation = seq(
   skipMany1(str(".")),
   peek(emptySuffixDelimiter),
 );
-const closingEmphasis = seq(skipMany1(str("*")), peek(textBoundary));
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
@@ -680,7 +682,6 @@ const completeEntityBoundary = peek(
     safeTrailingHostDelimiter,
     htmlEntityBoundary,
     backslashBoundary,
-    closingEmphasis,
     adjacentProtocolBoundary,
   ),
 );
@@ -691,8 +692,8 @@ const plainSuffixCharacterValue = nonWhitespaceCharacterExcept(
 const plainSuffixCharacter = any(
   urlContentHtmlEntity,
   map(
-    seq(not(htmlEntity), not(closingEmphasis), plainSuffixCharacterValue),
-    ([, , character]) => character,
+    seq(not(htmlEntity), plainSuffixCharacterValue),
+    ([, character]) => character,
   ),
 );
 const plainSuffixPart = mapJoin(many1(plainSuffixCharacter));
@@ -757,8 +758,23 @@ const createBalancedSuffixPart = (
     const nextCodePoint = text.codePointAt(index + character.length);
     const next =
       nextCodePoint === undefined ? "" : String.fromCodePoint(nextCodePoint);
+    const contextualUnicodeSeparator = ["\u2013", "\u2014", "\u2019"].includes(
+      character,
+    );
+    const expectedClosing = contextualUnicodeSeparator
+      ? openingToClosing.get(stack[stack.length - 1]?.opening ?? "")
+      : undefined;
+    const closingIndex =
+      expectedClosing === undefined
+        ? -1
+        : text.indexOf(expectedClosing, index + character.length);
+    const closesCurrentGroup =
+      closingIndex >= 0 &&
+      ![...text.substring(index + character.length, closingIndex)].some(
+        isWhitespace,
+      );
     const internalUnicodeSeparator =
-      ["\u2013", "\u2014", "\u2019"].includes(character) &&
+      contextualUnicodeSeparator &&
       index > startIndex &&
       previous.length > 0 &&
       !isWhitespace(previous) &&
@@ -766,7 +782,9 @@ const createBalancedSuffixPart = (
       next.length > 0 &&
       !isWhitespace(next) &&
       !plainSuffixReservedCharacters.has(next) &&
-      (character === "\u2019" || hasInternalDashPrefix(text, index));
+      (character === "\u2019" ||
+        closesCurrentGroup ||
+        hasInternalDashPrefix(text, index));
     const startsAdjacentUrl =
       index > startIndex &&
       ".,;!([{".includes(text[index - 1]) &&
@@ -775,7 +793,6 @@ const createBalancedSuffixPart = (
       startsAdjacentUrl ||
       isWhitespace(character) ||
       htmlEntityBoundary({ text, index }).success ||
-      closingEmphasis({ text, index }).success ||
       (balancedGroupBreakCharacters.has(character) &&
         !balancedOpeningCharacters.includes(character) &&
         !balancedClosingCharacters.includes(character) &&
@@ -1710,7 +1727,11 @@ const fullEntityHost = any(
   fullHost,
   map(
     seq(
-      guard(hostValue, hasKnownTld, "hostname with an IANA TLD"),
+      guard(
+        hostValue,
+        (host) => hasKnownTld(host) || host.startsWith("["),
+        "registered or bracketed hostname",
+      ),
       peek(repeatedSentencePeriods),
     ),
     ([host]) => host,
@@ -1826,6 +1847,45 @@ const underscoreEmphasizedFull: Parser<URLEntity> = (ctx) => {
     : failure(ctx, "underscore-emphasized URL");
 };
 
+const asteriskEmphasizedFull: Parser<URLEntity> = (ctx) => {
+  if (ctx.text[ctx.index] !== "*") {
+    return failure(ctx, "asterisk-emphasized URL");
+  }
+  let start = ctx.index;
+  while (ctx.text[start] === "*") start += 1;
+  const openingLength = start - ctx.index;
+
+  for (
+    let closing = ctx.text.indexOf("*", start);
+    closing >= 0;
+    closing = ctx.text.indexOf("*", closing + 1)
+  ) {
+    let afterClosing = closing;
+    while (ctx.text[afterClosing] === "*") afterClosing += 1;
+    if (afterClosing - closing < openingLength) continue;
+    const after = { ...ctx, index: afterClosing };
+    const boundary = textBoundary(after);
+    if (!boundary.success) {
+      if ("pending" in boundary) return boundary;
+      closing = afterClosing - 1;
+      continue;
+    }
+    const rawEnd = afterClosing - openingLength;
+    const raw = ctx.text.substring(start, rawEnd);
+    const result = URL.Full({ text: raw, index: 0 });
+    if (result.success && result.ctx.index === raw.length) {
+      return success(
+        after,
+        url({ url: raw }, { ...ctx, index: start }, { ...ctx, index: rawEnd }),
+      );
+    }
+    return failure(ctx, "asterisk-emphasized URL");
+  }
+  return ctx.final === false
+    ? pending(ctx, "asterisk-emphasized URL")
+    : failure(ctx, "asterisk-emphasized URL");
+};
+
 type URLOutputs = {
   Protocol: string;
   TLD: string;
@@ -1917,6 +1977,10 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
     ),
   parser: (symbol) => {
     const entityParser = any(symbol.Full, symbol.Bare);
-    return any(underscoreEmphasizedFull, dot(entityParser));
+    return any(
+      asteriskEmphasizedFull,
+      underscoreEmphasizedFull,
+      dot(entityParser),
+    );
   },
 });
