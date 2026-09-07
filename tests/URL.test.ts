@@ -385,6 +385,15 @@ test("URL leaves empty query and fragment delimiters as punctuation", () => {
   );
 });
 
+test("URL trims terminal periods before empty query and fragment delimiters", () => {
+  assertEquals(
+    Duckling([URL.parser])
+      .extract("https://example.com/path.? https://example.org/path.#")
+      .map(({ text }) => text),
+    ["https://example.com/path", "https://example.org/path"],
+  );
+});
+
 test("URL trims sentence colons from suffixes", () => {
   const res = Duckling([URL.parser]).extract(
     "See https://example.com/path: next https://example.org/?q=value: and https://example.net/#section:) plus https://example.edu/a:b. https://example.gov/a:: next",
@@ -972,6 +981,19 @@ test("URL rejects starts attached to Unicode words and connectors", () => {
     const start = text.indexOf("https");
     assertEquals(URL.Full({ text, index: start }).success, false, text);
   }
+});
+
+test("URL classifies start boundaries before emoji variation selectors", () => {
+  for (const text of ["☀️https://example.com", "☀︎https://example.com"]) {
+    assertEquals(
+      Duckling([URL.parser])
+        .extract(text)
+        .map(({ text: match }) => match),
+      ["https://example.com"],
+      text,
+    );
+  }
+  assertEquals(Duckling([URL.parser]).extract("a️https://example.com"), []);
 });
 
 test("URL separates adjacent links and markup", () => {

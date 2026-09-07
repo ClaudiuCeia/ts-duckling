@@ -533,6 +533,10 @@ const emptySuffixDelimiter = seq(
   oneOfCharacters(["?", "#"]),
   peek(textBoundary),
 );
+const mixedTerminalSuffixPunctuation = seq(
+  str("."),
+  peek(emptySuffixDelimiter),
+);
 const adjacentProtocolBoundary = seq(
   skipMany1(oneOfCharacters(suffixPunctuationCharacters)),
   peek(protocolStart),
@@ -601,6 +605,7 @@ const completeEntityBoundary = peek(
     sentencePeriod,
     sentenceColon,
     emptySuffixDelimiter,
+    mixedTerminalSuffixPunctuation,
     safeTrailingHostDelimiter,
     htmlEntityBoundary,
     adjacentProtocolBoundary,
@@ -804,6 +809,19 @@ function previousCharacter(text: string, index: number): string {
   }
 
   return text[index - 1] ?? "";
+}
+
+function previousCharacterBeforeVariationSelectors(
+  text: string,
+  index: number,
+): string {
+  let cursor = index;
+  let character = previousCharacter(text, cursor);
+  while (/[\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(character)) {
+    cursor -= character.length;
+    character = previousCharacter(text, cursor);
+  }
+  return character;
 }
 
 function isDomainLabelCharacter(character: string): boolean {
@@ -1630,7 +1648,7 @@ export const URL: DefinedLanguage<URLOutputs> = defineLanguage<URLOutputs>({
       (ctx) =>
         ctx.index > 0 &&
         unicodeWordOrConnectorPattern.test(
-          previousCharacter(ctx.text, ctx.index),
+          previousCharacterBeforeVariationSelectors(ctx.text, ctx.index),
         ),
       "URL boundary",
     ),
