@@ -237,6 +237,8 @@ const percentEncodedOctet = map(
   seq(str("%"), hexDigit(), hexDigit()),
   (_value, before, after) => before.text.substring(before.index, after.index),
 );
+let compatibilityTailCacheText = "";
+let compatibilityTailCache = new Map<number, boolean>();
 const domainLabelStart = any(
   guard(
     regex(
@@ -315,11 +317,21 @@ const meaningfulCompatibilityHostTail = any(
   ),
 );
 const compatibilityDot: Parser<string> = (ctx) => {
-  const mayBeProse =
-    hasNonAsciiUnknownTldLabelAfter(ctx.text, ctx.index) &&
-    (hasKnownTldLabelBefore(ctx.text, ctx.index) ||
-      hasSpecialHostImmediatelyBefore(ctx.text, ctx.index));
-  if (mayBeProse && !meaningfulCompatibilityHostTail(ctx).success) {
+  const unknownNonAsciiTail = hasNonAsciiUnknownTldLabelAfter(
+    ctx.text,
+    ctx.index,
+  );
+  const hasKnownTail =
+    !unknownNonAsciiTail || hasKnownTldInCompatibilityTail(ctx.text, ctx.index);
+  const mayBeProse = unknownNonAsciiTail
+    ? hasKnownTldLabelBefore(ctx.text, ctx.index) ||
+      hasSpecialHostImmediatelyBefore(ctx.text, ctx.index) ||
+      !hasKnownTail
+    : false;
+  if (
+    mayBeProse &&
+    (!hasKnownTail || !meaningfulCompatibilityHostTail(ctx).success)
+  ) {
     return failure(ctx, "hostname compatibility dot");
   }
   return compatibilityDotCharacter(ctx);
@@ -1011,6 +1023,37 @@ function hasNonAsciiUnknownTldLabelAfter(text: string, index: number): boolean {
   return !asciiLetterOrNumberPattern.test(first) && !isKnownTldLabel(label);
 }
 
+function hasKnownTldInCompatibilityTail(text: string, index: number): boolean {
+  if (compatibilityTailCacheText !== text) {
+    compatibilityTailCacheText = text;
+    compatibilityTailCache = new Map();
+  }
+  const cached = compatibilityTailCache.get(index);
+  if (cached !== undefined) return cached;
+
+  const positions: number[] = [];
+  let separator = index;
+  while (
+    text[separator] === "." ||
+    compatibilityDots.includes(text[separator] ?? "")
+  ) {
+    if (compatibilityDots.includes(text[separator] ?? "")) {
+      positions.push(separator);
+    }
+    const label = domainLabel({ text, index: separator + 1 });
+    if (!label.success) break;
+    if (isKnownTldLabel(label.value)) {
+      for (const position of positions)
+        compatibilityTailCache.set(position, true);
+      return true;
+    }
+    separator = label.ctx.index;
+  }
+
+  for (const position of positions) compatibilityTailCache.set(position, false);
+  return false;
+}
+
 function isIpv4Host(host: string): boolean {
   const parts = host.split(".");
   return (
@@ -1117,14 +1160,6 @@ function hasCompleteUrlBefore(
 
   let segmentStart = nestedSchemeStart ?? index;
   while (segmentStart > 0) {
-    const precedingScheme = attachedSchemeBefore(text, segmentStart);
-    if (
-      precedingScheme !== null &&
-      (nestedSchemeStart === undefined || segmentStart < nestedSchemeStart)
-    ) {
-      segmentStart -= precedingScheme.length;
-      break;
-    }
     const character = previousCharacter(text, segmentStart);
     const closing = openingToClosing.get(character);
     const balancedOpening =
@@ -1144,6 +1179,7 @@ function hasCompleteUrlBefore(
     }
     if (
       isWhitespace(character) ||
+      character === "+" ||
       (nestedSchemeStart !== undefined &&
         textBoundaryCharacters.includes(character) &&
         !balancedOpening &&

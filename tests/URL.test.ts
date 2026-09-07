@@ -871,6 +871,7 @@ test("URL handles dense domain-shaped candidates without repeated lookbehind", (
   assertEquals(Duckling([URL.parser]).extract("x.a.com+".repeat(1600)), []);
   const malformed = `https://${"x".repeat(64)}+example.com+`;
   assertEquals(Duckling([URL.parser]).extract(malformed.repeat(400)), []);
+  assertEquals(Duckling([URL.parser]).extract("谢谢。".repeat(100)), []);
 });
 
 test("URL treats prose dashes as boundaries outside host labels", () => {
@@ -1160,6 +1161,16 @@ test("URL separates domains after schemes inside query values", () => {
       third,
       "example.info/path",
     ],
+  );
+});
+
+test("URL completes outer URLs across multiple nested schemes", () => {
+  const first = `https://a.com/?a=https://%zz.com&b=https://%zz.com`;
+  assertEquals(
+    Duckling([URL.parser])
+      .extract(`${first}“example.org/path`)
+      .map(({ text }) => text),
+    [first, "example.org/path"],
   );
 });
 
