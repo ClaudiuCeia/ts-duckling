@@ -2,7 +2,8 @@
   "version": "5",
   "specifiers": {
     "jsr:@claudiu-ceia/combine@0.11.2": "0.11.2",
-    "npm:@noble/hashes@2.4.0": "2.4.0"
+    "npm:@noble/hashes@2.4.0": "2.4.0",
+    "npm:entities@8.0.0": "8.0.0"
   },
   "jsr": {
     "@claudiu-ceia/combine@0.11.2": {
@@ -12,12 +13,16 @@
   "npm": {
     "@noble/hashes@2.4.0": {
       "integrity": "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA=="
+    },
+    "entities@8.0.0": {
+      "integrity": "sha512-zwfzJecQ/Uej6tusMqwAqU/6KL2XaB2VZ2Jg54Je6ahNBGNH6Ek6g3jjNCF0fG9EWQKGZNddNjU5F1ZQn/sBnA=="
     }
   },
   "workspace": {
     "dependencies": [
       "jsr:@claudiu-ceia/combine@0.11.2",
-      "npm:@noble/hashes@2.4.0"
+      "npm:@noble/hashes@2.4.0",
+      "npm:entities@8.0.0"
     ]
   }
 }

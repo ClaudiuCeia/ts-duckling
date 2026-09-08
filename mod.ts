@@ -13,7 +13,7 @@ import {
   space,
   step,
 } from "@claudiu-ceia/combine";
-import { __, dot, word } from "./src/common.ts";
+import { __, beginExtraction, dot, word } from "./src/common.ts";
 import { asyncScan, type AsyncScanOptions } from "./src/async.ts";
 import { buildSpanTree, renderMapNode, renderNode } from "./src/render.ts";
 import type { RenderFn, RenderMapFn } from "./src/render.ts";
@@ -290,8 +290,13 @@ export function Duckling(parsers?: any): any {
   );
 
   const parse = (input: string): unknown[] => {
-    const result = parser({ text: input, index: 0 });
-    return result.success ? (result.value as unknown[]) : [];
+    const endExtraction = beginExtraction(input);
+    try {
+      const result = parser({ text: input, index: 0 });
+      return result.success ? (result.value as unknown[]) : [];
+    } finally {
+      endExtraction();
+    }
   };
 
   return {
