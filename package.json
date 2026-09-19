@@ -71,16 +71,16 @@
   "dependencies": {
     "@claudiu-ceia/combine": "0.11.2",
     "@noble/hashes": "2.4.0",
-    "entities": "8.0.0"
+    "entities": "8.1.0"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
-    "@types/bun": "1.4.0",
+    "@types/bun": "1.4.2",
     "mitata": "1.0.34",
-    "oxfmt": "0.65.0",
-    "oxlint": "1.80.0",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
     "publint": "0.3.24",
-    "typescript": "~5.9.0"
+    "typescript": "~7.0.0"
   },
   "engines": {
     "node": ">=22"
