@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "exports": {
     ".": "./mod.ts"
   },
