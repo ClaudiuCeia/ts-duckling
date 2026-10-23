@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Extract typed dates, times, URLs, countries, quantities, and sensitive values from text.",
   "keywords": [
     "browser",
@@ -75,11 +75,11 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
-    "@types/bun": "1.4.2",
+    "@types/bun": "1.4.4",
     "mitata": "1.0.34",
-    "oxfmt": "0.68.0",
-    "oxlint": "1.83.0",
-    "publint": "0.3.24",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
+    "publint": "0.3.25",
     "typescript": "~7.0.0"
   },
   "engines": {
