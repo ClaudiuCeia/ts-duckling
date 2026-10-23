@@ -1,6 +1,6 @@
 {
   "name": "@claudiu-ceia/ts-duckling",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "exports": {
     ".": "./mod.ts"
   },
@@ -30,6 +30,6 @@
     "@claudiu-ceia/combine": "jsr:@claudiu-ceia/combine@0.11.2",
     "@noble/hashes/sha2.js": "npm:@noble/hashes@2.4.0/sha2.js",
     "@noble/hashes/sha3.js": "npm:@noble/hashes@2.4.0/sha3.js",
-    "entities": "npm:entities@8.0.0"
+    "entities": "npm:entities@8.1.0"
   }
 }
